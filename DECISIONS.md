@@ -85,6 +85,14 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      over both universes, richer fold carriers, formal reduction rules.
 2. **Forced core + typechecker.** Identify the total, effective fragment and its
    reduction rules; minimal dependent-type substrate to state diagrams.
+   → **STATUS: milestone 1 done.** `lib/core.ml` — a minimal dependent λΠ type
+     theory: Pi/Lam/App/U, normalization-by-evaluation (eval→values→quote),
+     definitional equality with eta, bidirectional check/infer. `test/core_test`
+     type-checks the dependent identity, shows dependent application + NbE
+     computing, and rejects ill-typed terms. Uses Type-in-Type for now (a
+     universe hierarchy is a later mechanical step). Not yet wired to the surface
+     or the kernel. Spec: `docs/type-system.md`. Next: universes, a type surface,
+     identity/equality types, then connect types to `fill`.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.
