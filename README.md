@@ -90,6 +90,12 @@ Kan is not "a dependently typed language with category-theory features." It is a
 
 > **Can extension — the canonical completion of a partial diagram — serve as the fundamental computational model of a programming language?**
 
+The reach of that one primitive is what makes Kan powerful for category theory:
+
+> Because Kan's single primitive is the universal completion of a partial diagram, the deep constructions of category theory stop being separate theories and become one act seen at different shapes: a limit or colimit is a fill, a **sheaf** is the fill that glues compatible local sections into a unique global one, and a **fibration** is the fill that lifts a partial diagram along a map.
+
+*(This is the design's conceptual reach. What the compiler runs today is that primitive at small scale — limits/colimits in FinSet, folds, and a dependent type theory; see the status below.)*
+
 ---
 
 # 3. The Extension Test
@@ -394,30 +400,34 @@ Kan is not Haskell with category theory, Idris with more abstractions, or Lean a
 Kan is free and open source under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
 Contributions are welcome and are accepted under the same license.
 
+**Requirements:** OCaml ≥ 4.13, dune ≥ 3.0, and a C compiler (`cc`).
+No third-party libraries — Kan builds against the OCaml standard library only.
+If you don't have dune: `opam install dune`.
+
 **Try it now:**
 
 ```
-eval $(opam env --switch=kan)
+git clone https://github.com/jackmitchelwidman/kan
+cd kan
 dune build
 
-# interpret a real .kan program on the fill kernel:
-dune exec bin/kan.exe -- run examples/compose.kan      # composition as a horn fill
-
-# COMPILE it to a native binary and run that:
-dune exec bin/kan.exe -- build examples/product.kan -o product
-./product
-
-# the full Phase-1 demonstration (composition, limits, colimits, folds):
-dune exec reference/kan_ref.exe
-
-# the dependent type theory: check proofs written in Kan
+# check dependent-type proofs written in Kan:
 dune exec bin/kan.exe -- check examples/prelude.ktt
+
+# interpret a .kan program on the fill kernel (composition as a horn fill):
+dune exec bin/kan.exe -- run examples/compose.kan
+
+# COMPILE a .kan program to a native binary and run it:
+dune exec bin/kan.exe -- build examples/expr_eval.kan -o expr
+./expr
+
+# the full Phase-1 kernel demo (composition, limits, colimits, folds):
+dune exec reference/kan_ref.exe
 ```
 
 **Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):
 
 ```
-eval $(opam env --switch=kan)
 dune build
 dune install --prefix ~/.local --sections bin    # installs `kan` to ~/.local/bin
 # re-run the last line after any rebuild to update the installed binary
