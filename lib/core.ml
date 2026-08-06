@@ -406,7 +406,8 @@ and show ?(ns = []) (t : tm) : string =
       (* flatten the application spine: (f a b c) rather than (((f a) b) c) *)
       let rec spine acc = function App (f, a) -> spine (a :: acc) f | h -> (h, acc) in
       let h, args = spine [] t in
-      "(" ^ String.concat " " (List.map (show ~ns) (h :: args)) ^ ")"
+      let p x = match x with Lam _ | Pi _ | Sig _ | Ann _ -> "(" ^ show ~ns x ^ ")" | _ -> show ~ns x in
+      "(" ^ String.concat " " (List.map p (h :: args)) ^ ")"
   | Sig ("_", a, b) -> Printf.sprintf "%s * %s" (dom a) (show ~ns:("_" :: ns) b)
   | Sig (x, a, b) -> Printf.sprintf "(%s : %s) * %s" x (show ~ns a) (show ~ns:(x :: ns) b)
   | Pair (a, b) -> Printf.sprintf "(%s, %s)" (show ~ns a) (show ~ns b)

@@ -133,8 +133,16 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      builder); eliminator iota-rule fires on complete spine + constructor target.
      `examples/list.ktt`: `length`/`map` over `List Bool` and `List Nat` from one
      definition. Limits: first-order args (param / recursive / closed), no indices,
-     `U 0`, constructor names global. **NEXT (the big one): connect the type theory
-     to the `.kan`/fill language — make the compiled language dependently typed.**
+     `U 0`, constructor names global.
+   → **Unification, brick 1 done.** `examples/category.ktt`: the categorical
+     structure and UNIVERSAL PROPERTIES that `fill` computes, stated and proved
+     in the type theory — composition + identity/associativity laws, and the
+     product's universal property (mediating map `⟨f,g⟩` + commutation
+     `fst∘⟨f,g⟩=f`, `snd∘⟨f,g⟩=g`), each a `def : … Id …` proved by `refl` (they
+     *compute*). Plan in `docs/unification.md`: (2) one surface/checker with
+     FinSet as a model inside the theory; (3) `fill` as a typed operation
+     producing value + universal-property obligation; (4) compile the typed
+     language (C, then OCaml). Backends last.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

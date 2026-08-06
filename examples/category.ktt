@@ -1,0 +1,39 @@
+-- The unification, brick 1: the categorical structure and UNIVERSAL PROPERTIES
+-- that `fill` computes concretely in FinSet, here stated and PROVED as types.
+-- Every `def` below that returns an `Id` is a theorem; that it type-checks is its proof.
+-- Run:  kan check examples/category.ktt
+
+-- ---- morphisms compose (composition is function composition) ----
+def comp : (A : U) -> (B : U) -> (C : U) -> (B -> C) -> (A -> B) -> A -> C
+         = \A B C g f x. g (f x)
+
+-- identity and associativity laws hold *definitionally* — the proof is refl
+def id_right : (A : U) -> (B : U) -> (f : A -> B) -> (x : A)
+            -> Id B (comp A A B f (\y. y) x) (f x)
+             = \A B f x. refl
+
+def id_left  : (A : U) -> (B : U) -> (f : A -> B) -> (x : A)
+            -> Id B (comp A B B (\y. y) f x) (f x)
+             = \A B f x. refl
+
+def assoc : (A : U) -> (B : U) -> (C : U) -> (D : U)
+         -> (h : C -> D) -> (g : B -> C) -> (f : A -> B) -> (x : A)
+         -> Id D (comp A B D (comp B C D h g) f x) (comp A C D h (comp A B C g f) x)
+          = \A B C D h g f x. refl
+
+-- ---- the PRODUCT as a universal property (A * B is Kan's Sigma) ----
+-- the unique mediating map ⟨f,g⟩ : T -> A * B  (this is what `fill limit` builds)
+def pair_map : (T : U) -> (A : U) -> (B : U) -> (T -> A) -> (T -> B) -> T -> (A * B)
+             = \T A B f g t. (f t, g t)
+
+-- and it commutes with the projections:  fst ∘ ⟨f,g⟩ = f   and   snd ∘ ⟨f,g⟩ = g
+def prod_beta1 : (T : U) -> (A : U) -> (B : U) -> (f : T -> A) -> (g : T -> B) -> (t : T)
+              -> Id A (fst (pair_map T A B f g t)) (f t)
+               = \T A B f g t. refl
+
+def prod_beta2 : (T : U) -> (A : U) -> (B : U) -> (f : T -> A) -> (g : T -> B) -> (t : T)
+              -> Id B (snd (pair_map T A B f g t)) (g t)
+               = \T A B f g t. refl
+
+check pair_map
+check prod_beta1
