@@ -60,9 +60,12 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      `fill : horn -> modality -> filler` kernel over FinSet. Demonstrated running
      (native binary + bytecode): composition = inner-horn fill; product,
      pullback, coproduct = universal fills, with mediating maps (universal
-     property) computed. Spec: `docs/core-calculus.md`. Remaining in Phase 1:
-     generalize the diagram/shape representation, add folds (initial algebras),
-     and pin the formal reduction rules.
+     property) computed. **Folds/recursion added** as initial-algebra fills
+     (ℕ, List sum/length, Expr evaluator; reflection + fusion laws verified) —
+     `fill_fold α Universal = cata α`, running in a finite-trees universe
+     alongside FinSet. Spec: `docs/core-calculus.md`. Remaining in Phase 1:
+     a syntactic shape/signature language, one typed kernel over both
+     universes, and the formal reduction rules.
 2. **Forced core + typechecker.** Identify the total, effective fragment and its
    reduction rules; minimal dependent-type substrate to state diagrams.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).

@@ -57,6 +57,7 @@ A **horn** is a partial diagram missing exactly one face. Phase 1 provides three
 | `Inner (f,g)` | the composite edge of two composable arrows (`Λ²₁`) | composition |
 | `LimCone d` | the limiting cone of `d` | a limit (right Kan extension) |
 | `ColCocone d` | the colimiting cocone of `d` | a colimit (left Kan extension) |
+| initial-algebra horn (a target `F`-algebra) | the unique homomorphism out of `μF` | a **fold** (catamorphism) |
 
 A **modality** states how strong a solution `fill` must return:
 
@@ -108,6 +109,45 @@ algorithm*: the unique mediating morphism is not postulated, it is constructed.
 
 ---
 
+## 4b. Recursion: folds as initial-algebra fills
+
+Data and recursion enter through the *same* operation, at a new universe.
+
+A recursive datatype is the **initial algebra** of a polynomial (signature)
+endofunctor `F`. A signature lists constructors, each with a finite payload and
+an arity; `F(X) = Σ_c payload_c · X^(arity_c)`. The carrier `μF` is the set of
+**finite trees** over the signature, and the constructor `in : F(μF) → μF` is
+tree-building. `wf sg t` checks that a tree really lies in `μF` for `sg`.
+
+For **any** `F`-algebra `(A, α)` there is a **unique** homomorphism
+`cata α : μF → A` — the **catamorphism**, i.e. `fold`:
+
+```
+cata α (in (c, p, kids))  =  α c p (map (cata α) kids)
+```
+
+Uniqueness is a universal property, so `fold` is a universal fill:
+
+```
+fill_fold α Universal  =  cata α
+```
+
+Implemented and demonstrated (all runnable):
+
+- **ℕ** as `μ(1 + X)` — folding to its numeral value: recursion with *no*
+  primitive recursion operator, only a fill.
+- **List A** as `μ(1 + A·X)` — `sum` and `length` as two algebras, one fill.
+- **Expr** as `μ(Lit + X² + X²)` — the evaluator is a fold: *fold is an
+  interpreter*, which is why this matters for a compiler (README §8–9).
+- The **universal property, witnessed** by two of its consequences:
+  *reflection* (`cata in = id`) and *fusion* (`h ∘ cata α = cata β` when `h`
+  is an algebra homomorphism).
+
+Because a carrier may be any type (we fold to `Int`), this runs in a *new
+semantic universe* — finite trees — alongside FinSet. Unifying both under one
+typed kernel is Phase 2; the operation and its modality discipline are already
+the same.
+
 ## 5. The core / elaborator line
 
 The modality dial draws README §4.7’s line precisely:
@@ -124,10 +164,10 @@ The modality dial draws README §4.7’s line precisely:
 
 Phase 1 deliberately omits, and later phases must supply:
 
-1. **Folds / recursion** as initial-algebra fills (colimits over a shape
-   functor) — the next Phase-1 addition.
-2. **A general, syntactic shape language** for diagrams (currently a host-level
-   `diagram` value).
+1. **A general, syntactic shape language** for diagrams and signatures
+   (currently host-level `diagram` / `signature` values).
+2. **One typed kernel** spanning both universes (FinSet and finite trees), so
+   `fill` and `fill_fold` become a single universe-polymorphic operation.
 3. **A dependent-type substrate** to *state* commutation and universal
    properties inside Kan rather than in OCaml (Phase 2).
 4. **Semantic universes beyond FinSet**, introduced behind a functor so the
@@ -135,6 +175,10 @@ Phase 1 deliberately omits, and later phases must supply:
 5. **The formal reduction relation and its metatheory** (README §12 open
    problems): which horns admit total effective filling, and the exact core/
    elaborator boundary.
+
+Done in Phase 1: composition, terminal/product/pullback (limits),
+initial/coproduct/pushout (colimits), and **folds/recursion** (initial
+algebras) — all as `fill`.
 
 ---
 
