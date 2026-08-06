@@ -26,26 +26,40 @@ verifies.
    map concretely; here the same universal property is a checked theorem, and it
    *computes* (`fst (pair_map …)` reduces to `f t`, so the proof is `refl`).
 
-2. **Brick 2 — one surface, one checker.** Merge the surfaces so a single
-   program mixes typed definitions and categorical/computational constructs, all
-   elaborated into the typed core (`lib/core.ml`). FinSet becomes one *model*
-   expressed inside the theory rather than a separate hard-coded kernel.
+2. **Brick 2 — compile the typed language (type erasure).** *Re-scoped after
+   brick 1:* the typed surface (`.ktt`) already **is** the unified surface — the
+   fill language's `data`/`fold`/products are a strict special case of the type
+   theory's parameterized inductives, eliminators, and Σ. So "merging surfaces"
+   is mostly already true, and the real remaining gap is that the typed language
+   does not compile. Brick 2 closes that: an **erasure** pass (`lib/erase.ml`)
+   maps the dependent core to an untyped functional IR (types and proofs become
+   a dummy value; eliminators become recursion), which a backend then compiles.
+   The old fill pipeline stays green as the legacy FinSet *model* layer.
 
 3. **Brick 3 — `fill` as a typed operation.** Give `fill`'s inputs and outputs
    types so that requesting a universal completion produces both the value and a
    proof obligation of its universal property — the compiler as a categorical
-   assistant (README §9), now type-directed.
+   assistant (README §9), now type-directed. (Also where `.ktt` and `.kan` merge
+   into one extension.)
 
-4. **Brick 4 — compile the typed language.** Extend codegen (type-erase, then
-   the existing `.kan → C` path) to the unified language; then add an OCaml
-   backend.
+4. **Brick 4 — native backends.** Emit from the erased IR to a target: **OCaml
+   first** (native closures make erasure near-transparent), then C via the same
+   IR. Backends last, and the IR is target-independent so the choice does not
+   block earlier work.
 
 Backends come last, deliberately: the language must stop moving before we
 commit a compiler to it (README's "the philosophy chooses the implementation").
 
 ## Status
 
-Brick 1 is done and checked (`examples/category.ktt`). The type theory is
-expressive enough (Σ + Π + Id + parameterized inductives) to state and prove the
-universal properties of the fill kernel — the conceptual connection is
-established. Bricks 2–4 are the remaining work.
+- **Brick 1 done** (`examples/category.ktt`): the type theory states and proves
+  the fill kernel's universal properties — the conceptual connection.
+- **Brick 2 done** (`lib/erase.ml`, `kan exec`): type **erasure** maps the
+  dependent core to an untyped IR (`iexpr`) with a reference runtime. Validated
+  by running every example through erasure and matching the type checker's
+  `eval` — `kan exec` == `kan check` on computational outputs. (Erased type
+  parameters print as `_`, since they are gone: e.g. `cons _ false …`.) The IR
+  is target-independent; brick 4 emits native code from it.
+
+Remaining: brick 3 (`fill` as a typed operation; merge `.ktt`/`.kan`) and
+brick 4 (native backends — OCaml first, then C — from the erased IR).

@@ -22,6 +22,8 @@ let do_run file = try Interp.run (parse_file file) with e -> die e
 
 let do_check file = try Tt.run (read_file file) with e -> die e
 
+let do_exec file = try Erase.run (Tt.parse (Tt.tokenize (read_file file))) with e -> die e
+
 let do_emit_c file =
   try print_string (Compile.compile (parse_file file)) with e -> die e
 
@@ -48,12 +50,14 @@ let usage () =
   prerr_endline "  kan build  <file.kan> [-o out]";
   prerr_endline "  kan emit-c <file.kan>";
   prerr_endline "  kan check  <file.ktt>     (dependent type theory)";
+  prerr_endline "  kan exec   <file.ktt>     (run via type erasure)";
   exit 1
 
 let () =
   match Array.to_list Sys.argv with
   | _ :: "run" :: [ file ] -> do_run file
   | _ :: "check" :: [ file ] -> do_check file
+  | _ :: "exec" :: [ file ] -> do_exec file
   | _ :: "emit-c" :: [ file ] -> do_emit_c file
   | _ :: "build" :: rest ->
       let rec parse f o = function

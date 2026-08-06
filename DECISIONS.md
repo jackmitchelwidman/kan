@@ -137,12 +137,20 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
    → **Unification, brick 1 done.** `examples/category.ktt`: the categorical
      structure and UNIVERSAL PROPERTIES that `fill` computes, stated and proved
      in the type theory — composition + identity/associativity laws, and the
-     product's universal property (mediating map `⟨f,g⟩` + commutation
-     `fst∘⟨f,g⟩=f`, `snd∘⟨f,g⟩=g`), each a `def : … Id …` proved by `refl` (they
-     *compute*). Plan in `docs/unification.md`: (2) one surface/checker with
-     FinSet as a model inside the theory; (3) `fill` as a typed operation
-     producing value + universal-property obligation; (4) compile the typed
-     language (C, then OCaml). Backends last.
+     product's universal property (mediating map `⟨f,g⟩` + commutation), each a
+     `def : … Id …` proved by `refl`.
+   → **Unification, brick 2 done — TYPE ERASURE.** Re-scoped after brick 1 (with
+     advisor input): the typed `.ktt` surface already *is* the unified surface
+     (the fill language's data/fold/products are a special case of the type
+     theory), so the real gap was compilation. `lib/erase.ml` erases the
+     dependent core → an untyped IR (`iexpr`; types/proofs → a dummy, eliminators
+     → recursion) + a reference runtime; `kan exec` runs it. Validated: `kan
+     exec` == `kan check` eval on every example (erased type params print `_`).
+     The IR is target-independent. Plan (`docs/unification.md`): brick 3 = `fill`
+     as a typed op + merge `.ktt`/`.kan`; brick 4 = native backends from the IR,
+     **OCaml first** (native closures ⇒ near-transparent erasure), then C.
+     NOTE: for the *typed* language OCaml-first is much lower-risk than C-first;
+     Jack's earlier "C then OCaml" was about the fill language — confirm with him.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.
