@@ -1,9 +1,0 @@
--- The product A×B is a universal fill: the limit of a discrete diagram.
--- `product [A, B]` is sugar for `fill limit` of the two-vertex diagram.
-
-set A = 2
-set B = 3
-
-let AxB = product [A, B]
-
-show AxB      -- 6 elements, with projections proj[0]=π₁, proj[1]=π₂

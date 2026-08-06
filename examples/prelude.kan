@@ -1,5 +1,5 @@
 -- A small Kan prelude — standard definitions, every one type-checked.
--- Run:  kan check examples/prelude.ktt
+-- Run:  kan check examples/prelude.kan
 
 -- combinators
 def id    : (A : U) -> A -> A                                = \A x. x

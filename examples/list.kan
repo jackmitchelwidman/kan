@@ -1,5 +1,5 @@
 -- PARAMETERIZED inductive types: a polymorphic List.
--- Run:  kan check examples/list.ktt
+-- Run:  kan check examples/list.kan
 -- Constructors and the eliminator take the parameter explicitly (nil A, cons A x xs,
 -- List_elim A P methods target).
 

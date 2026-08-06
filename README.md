@@ -2,15 +2,37 @@
 
 ## A Language of Universal Extension
 
-### Design Document — Version 0.2
+### Design Document — Version 0.3
 
 ---
 
 > **A Kan program is a partial diagram awaiting universal completion.**
 
-This is the whole language in one sentence. Everything below is an unfolding of it.
+This is the guiding idea. Everything below is an unfolding of it.
 
-Kan is a *living design document*. It is deliberately written philosophy-first: the danger with a project like this is that an implementation, made too early, silently chooses the language's philosophy for you. Here the philosophy chooses the implementation, not the other way around.
+### What Kan is today
+
+**Kan is a dependently typed language, and its files are `.kan`.** It has
+dependent function types, dependent pairs, identity types, a universe hierarchy,
+and user-declared inductive types (with parameters) and induction — so you can
+write real programs, state their properties as types, and *prove* them. It
+**type-checks and compiles to native binaries** (via OCaml).
+
+```
+kan check foo.kan            # type-check and report the types
+kan run   foo.kan            # type-check, then run
+kan build foo.kan -o foo     # type-check, then compile to a native binary
+```
+
+The categorical vision below — *programs are diagrams, computation is universal
+completion* — is realized in this type theory: the universal properties the
+original `fill` calculus computed concretely are now stated and **proved as
+types** (see [`examples/category.kan`](examples/category.kan)). That original
+`fill` calculus lives on as an internal FinSet reference model
+([`docs/core-calculus.md`](docs/core-calculus.md)).
+
+Kan remains a *living design document*: the philosophy chooses the
+implementation, not the other way around.
 
 **Document map**
 
@@ -400,9 +422,9 @@ Kan is not Haskell with category theory, Idris with more abstractions, or Lean a
 Kan is free and open source under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
 Contributions are welcome and are accepted under the same license.
 
-**Requirements:** OCaml ≥ 4.13, dune ≥ 3.0, and a C compiler (`cc`).
-No third-party libraries — Kan builds against the OCaml standard library only.
-If you don't have dune: `opam install dune`.
+**Requirements:** OCaml ≥ 4.13 and dune ≥ 3.0 (the OCaml native compiler,
+`ocamlopt`, is Kan's code generator). No third-party libraries — Kan builds
+against the OCaml standard library only. If you don't have dune: `opam install dune`.
 
 **Try it now:**
 
@@ -411,22 +433,23 @@ git clone https://github.com/jackmitchelwidman/kan
 cd kan
 dune build
 
-# check dependent-type proofs written in Kan:
-dune exec bin/kan.exe -- check examples/prelude.ktt
+# type-check a dependently-typed program (proofs, inductive types, …):
+dune exec bin/kan.exe -- check examples/nat.kan
 
-# COMPILE a dependently-typed program to a native binary (type-checks, via OCaml):
-dune exec bin/kan.exe -- build examples/nat.ktt -o nat && ./nat
+# run it:
+dune exec bin/kan.exe -- run examples/nat.kan
 
-# interpret a .kan program on the fill kernel (composition as a horn fill):
-dune exec bin/kan.exe -- run examples/compose.kan
+# COMPILE it to a native binary (this type-checks first) and run that:
+dune exec bin/kan.exe -- build examples/nat.kan -o nat && ./nat
 
-# COMPILE a .kan program to a native binary and run it:
-dune exec bin/kan.exe -- build examples/expr_eval.kan -o expr
-./expr
-
-# the full Phase-1 kernel demo (composition, limits, colimits, folds):
+# the FinSet `fill` reference model (composition, limits, colimits, folds):
 dune exec reference/kan_ref.exe
 ```
+
+Every program in [`examples/`](examples/) is a `.kan` file: `nat.kan` (induction),
+`list.kan` (polymorphic `List`), `data.kan` (user inductive types),
+`category.kan` (universal properties as theorems), `person.kan` (a type that
+depends on a value), `proofs.kan`/`prelude.kan` (a small proof library).
 
 **Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):
 
@@ -436,10 +459,12 @@ dune install --prefix ~/.local --sections bin    # installs `kan` to ~/.local/bi
 # re-run the last line after any rebuild to update the installed binary
 ```
 
-Layout: the `fill` kernel is `lib/kernel.ml`; the front-end is `lib/syntax.ml`;
-the interpreter is `lib/interp.ml`; the C compiler is `lib/compile.ml`; the CLI
-driver is `bin/kan.ml`; example programs are in `examples/`. Design decisions
-are logged in [`DECISIONS.md`](DECISIONS.md); the core is specified in
-[`docs/core-calculus.md`](docs/core-calculus.md), the surface syntax in
-[`docs/surface-language.md`](docs/surface-language.md), and the compiler in
-[`docs/compiler.md`](docs/compiler.md).
+Layout: the type theory is `lib/core.ml` (kernel) and `lib/tt.ml` (surface);
+type erasure is `lib/erase.ml`; the OCaml/native backend is
+`lib/ocaml_backend.ml`; the CLI driver is `bin/kan.ml`. The original `fill`
+calculus survives as the FinSet reference model (`lib/kernel.ml`,
+`reference/kan_ref.ml`). Design decisions are logged in
+[`DECISIONS.md`](DECISIONS.md); the type system is specified in
+[`docs/type-system.md`](docs/type-system.md), the unification story in
+[`docs/unification.md`](docs/unification.md), and the reference `fill` model in
+[`docs/core-calculus.md`](docs/core-calculus.md).

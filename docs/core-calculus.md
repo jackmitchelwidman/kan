@@ -1,8 +1,15 @@
-# The Core Calculus of Kan — Phase 1 Specification
+# The `fill` Calculus — the FinSet reference model
 
-Status: **draft, tracking the reference interpreter** (`reference/kan_ref.ml`).
-This document specifies exactly what is implemented and runnable today, and marks
-what is deferred. It is the operational anchor for README §4 and §12.
+> **Historical / reference.** This document describes Kan's *original* core: the
+> concrete `fill` calculus in FinSet (composition as horn-filling; products,
+> limits, colimits, and folds as universal fills). It is where the project
+> started, and it survives as an **internal reference model** — the demo
+> `reference/kan_ref.ml` (`dune exec reference/kan_ref.exe`) still runs it.
+>
+> **The Kan *language* is now the dependent type theory** — see
+> `docs/type-system.md`. There, the universal properties this calculus computes
+> concretely are stated and *proved* as types (e.g. `examples/category.kan`).
+> This file is kept for the concepts and the lineage, not as the surface you write.
 
 ---
 

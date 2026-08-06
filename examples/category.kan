@@ -1,7 +1,7 @@
 -- The unification, brick 1: the categorical structure and UNIVERSAL PROPERTIES
 -- that `fill` computes concretely in FinSet, here stated and PROVED as types.
 -- Every `def` below that returns an `Id` is a theorem; that it type-checks is its proof.
--- Run:  kan check examples/category.ktt
+-- Run:  kan check examples/category.kan
 
 -- ---- morphisms compose (composition is function composition) ----
 def comp : (A : U) -> (B : U) -> (C : U) -> (B -> C) -> (A -> B) -> A -> C

@@ -1,10 +1,11 @@
 (* ============================================================================
-   Kan — Phase 1 reference demos
+   The `fill` calculus — FinSet reference model (not the Kan language)
    ----------------------------------------------------------------------------
-   Proof that the seed computes. All constructions below go through the single
-   `fill` kernel (see lib/kernel.ml). There is deliberately NO `compose`, NO
-   `product`, NO `limit`, NO recursion primitive — those names are results of
-   `fill`.  Run:  dune exec reference/kan_ref.exe   (or  ocaml over the lib).
+   Kan the language is the dependent type theory (lib/tt.ml, lib/core.ml). This
+   demo keeps the project's original core alive as a reference: everything below
+   goes through the single `fill` kernel (lib/kernel.ml) — composition, products,
+   limits, colimits, and folds all as results of `fill`, computed in FinSet.
+   Run:  dune exec reference/kan_ref.exe
    ========================================================================== *)
 
 open Kernel

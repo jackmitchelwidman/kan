@@ -1,5 +1,5 @@
 -- Dependent types and proofs, in readable Kan type-theory syntax.
--- Run:  kan check examples/proofs.ktt
+-- Run:  kan check examples/proofs.kan
 
 -- the dependent identity function
 def id : (A : U) -> A -> A

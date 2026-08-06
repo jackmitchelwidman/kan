@@ -1,5 +1,5 @@
 -- USER-DECLARED inductive types, with automatically generated induction.
--- Run:  kan check examples/data.ktt
+-- Run:  kan check examples/data.kan
 -- (Note: constructor names are global; don't reuse them as variable binders.)
 
 -- A user-defined Nat. Declaring it generates the eliminator
