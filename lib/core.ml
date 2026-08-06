@@ -1,44 +1,44 @@
 (* ============================================================================
-   Kan core type theory — Phase 2.
+   Kan core type theory.
    ----------------------------------------------------------------------------
-   A small DEPENDENT type theory: the substrate in which Kan states and checks
-   the properties `fill` must satisfy (a diagram commutes, a construction is
-   universal, an extension is unique up to equivalence — README §5).
+   A small but SOUND dependent type theory: the substrate in which Kan states
+   and checks the properties `fill` must satisfy (README §5).
 
-   Milestone 1: λΠ + normalization-by-evaluation + bidirectional checking.
-   Milestone 2 (this file): Σ-types (dependent pairs) and the IDENTITY TYPE
-     with `refl` and `transport` — enough to state and prove equalities, and
-     hence to reason about commuting diagrams. `sym` and `ap` (congruence) are
-     derived and type-checked in test/core_test.ml.
+   Contents:
+     - λΠ + Σ + a predicative UNIVERSE HIERARCHY (U 0 : U 1 : U 2 : …).
+     - The identity type (Id, refl, transport) — equality, for commuting diagrams.
+     - Bool (true, false, if) — a base type, so the theory has closed values to
+       compute with.
+     - Normalization by evaluation, definitional equality, bidirectional checking.
 
-   Still Type-in-Type (U : U): correct for a computational core; a universe
-   hierarchy is a later, mechanical refinement.
+   No Type-in-Type: `U i : U (i+1)` and `Pi/Sig/Id` land in the max of their
+   components' levels. Non-cumulative (simple and sound); cumulativity is a
+   later ergonomic refinement.
    ========================================================================== *)
-
-(* -------- Syntax: de Bruijn indices -------- *)
 
 type tm =
   | Var of int
-  | U
+  | U of int                          (* U i : U (i+1) *)
   | Pi of string * tm * tm
   | Lam of string * tm
   | App of tm * tm
-  | Sig of string * tm * tm          (* (x : A) * B — dependent pair type *)
+  | Sig of string * tm * tm
   | Pair of tm * tm
   | Fst of tm
   | Snd of tm
-  | Id of tm * tm * tm               (* Id A a b — the identity/equality type *)
-  | Refl                             (* checkable against Id A a a *)
+  | Id of tm * tm * tm
+  | Refl
   | Transp of tm * tm * tm * tm * tm * tm
-      (* transp A P x y (p : Id A x y) (d : P x) : P y ;  transp .. refl d = d *)
+  | Bool
+  | True
+  | False
+  | If of tm * tm * tm                (* non-dependent: if c then t else e *)
   | Ann of tm * tm
-
-(* -------- Values: de Bruijn levels -------- *)
 
 type value =
   | VVar of int
   | VApp of value * value
-  | VU
+  | VU of int
   | VPi of string * value * closure
   | VLam of string * closure
   | VSig of string * value * closure
@@ -47,7 +47,11 @@ type value =
   | VSnd of value
   | VId of value * value * value
   | VRefl
-  | VTransp of value * value * value * value * value * value  (* neutral: the path arg is neutral *)
+  | VTransp of value * value * value * value * value * value
+  | VBool
+  | VTrue
+  | VFalse
+  | VIf of value * value * value      (* neutral scrutinee *)
 
 and closure = { env : value list; body : tm }
 
@@ -56,7 +60,7 @@ and closure = { env : value list; body : tm }
 let rec eval (env : value list) (t : tm) : value =
   match t with
   | Var i -> List.nth env i
-  | U -> VU
+  | U i -> VU i
   | Pi (x, a, b) -> VPi (x, eval env a, { env; body = b })
   | Lam (x, b) -> VLam (x, { env; body = b })
   | App (f, a) -> vapp (eval env f) (eval env a)
@@ -68,19 +72,24 @@ let rec eval (env : value list) (t : tm) : value =
   | Refl -> VRefl
   | Transp (a, p, x, y, pe, d) ->
       vtransp (eval env a) (eval env p) (eval env x) (eval env y) (eval env pe) (eval env d)
+  | Bool -> VBool
+  | True -> VTrue
+  | False -> VFalse
+  | If (c, t, e) -> vif (eval env c) (eval env t) (eval env e)
   | Ann (t, _) -> eval env t
 
 and vapp f a = match f with VLam (_, c) -> inst c a | _ -> VApp (f, a)
 and vfst v = match v with VPair (a, _) -> a | _ -> VFst v
 and vsnd v = match v with VPair (_, b) -> b | _ -> VSnd v
 and vtransp a p x y pe d = match pe with VRefl -> d | _ -> VTransp (a, p, x, y, pe, d)
+and vif c t e = match c with VTrue -> t | VFalse -> e | _ -> VIf (c, t, e)
 and inst c v = eval (v :: c.env) c.body
 
 let rec quote (l : int) (v : value) : tm =
   match v with
   | VVar x -> Var (l - x - 1)
   | VApp (f, a) -> App (quote l f, quote l a)
-  | VU -> U
+  | VU i -> U i
   | VPi (x, a, c) -> Pi (x, quote l a, quote (l + 1) (inst c (VVar l)))
   | VLam (x, c) -> Lam (x, quote (l + 1) (inst c (VVar l)))
   | VSig (x, a, c) -> Sig (x, quote l a, quote (l + 1) (inst c (VVar l)))
@@ -91,12 +100,16 @@ let rec quote (l : int) (v : value) : tm =
   | VRefl -> Refl
   | VTransp (a, p, x, y, pe, d) ->
       Transp (quote l a, quote l p, quote l x, quote l y, quote l pe, quote l d)
+  | VBool -> Bool
+  | VTrue -> True
+  | VFalse -> False
+  | VIf (c, t, e) -> If (quote l c, quote l t, quote l e)
 
 let normalize (t : tm) : tm = quote 0 (eval [] t)
 
 let rec conv (l : int) (a : value) (b : value) : bool =
   match a, b with
-  | VU, VU -> true
+  | VU i, VU j -> i = j
   | VVar x, VVar y -> x = y
   | VApp (f, x), VApp (g, y) -> conv l f g && conv l x y
   | VPi (_, a, c), VPi (_, a', c') -> conv l a a' && conv (l + 1) (inst c (VVar l)) (inst c' (VVar l))
@@ -111,6 +124,10 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VRefl, VRefl -> true
   | VTransp (a, p, x, y, pe, d), VTransp (a', p', x', y', pe', d') ->
       conv l a a' && conv l p p' && conv l x x' && conv l y y' && conv l pe pe' && conv l d d'
+  | VBool, VBool -> true
+  | VTrue, VTrue -> true
+  | VFalse, VFalse -> true
+  | VIf (c, t, e), VIf (c', t', e') -> conv l c c' && conv l t t' && conv l e e'
   | _ -> false
 
 (* -------- Bidirectional type checking -------- *)
@@ -131,6 +148,7 @@ let rec check (ctx : ctx) (t : tm) (ty : value) : unit =
       if not (conv ctx.lvl x y) then
         fail (Printf.sprintf "refl: endpoints not definitionally equal: %s vs %s"
                 (show (quote ctx.lvl x)) (show (quote ctx.lvl y)))
+  | If (c, t, e), ty -> check ctx c VBool; check ctx t ty; check ctx e ty
   | _ ->
       let inferred = infer ctx t in
       if not (conv ctx.lvl inferred ty) then
@@ -140,9 +158,9 @@ let rec check (ctx : ctx) (t : tm) (ty : value) : unit =
 and infer (ctx : ctx) (t : tm) : value =
   match t with
   | Var i -> (match List.nth_opt ctx.types i with Some ty -> ty | None -> fail (Printf.sprintf "unbound variable %d" i))
-  | U -> VU
-  | Pi (_, a, b) -> check ctx a VU; check (bind ctx (eval ctx.env a)) b VU; VU
-  | Sig (_, a, b) -> check ctx a VU; check (bind ctx (eval ctx.env a)) b VU; VU
+  | U i -> VU (i + 1)
+  | Pi (_, a, b) -> let i = infer_univ ctx a in let j = infer_univ (bind ctx (eval ctx.env a)) b in VU (max i j)
+  | Sig (_, a, b) -> let i = infer_univ ctx a in let j = infer_univ (bind ctx (eval ctx.env a)) b in VU (max i j)
   | Lam _ -> fail "cannot infer the type of a bare lambda; add an annotation"
   | Pair _ -> fail "cannot infer the type of a bare pair; add an annotation"
   | Refl -> fail "cannot infer refl; it needs an expected Id type"
@@ -156,25 +174,33 @@ and infer (ctx : ctx) (t : tm) : value =
       (match infer ctx t with
        | VSig (_, _, c) -> inst c (vfst (eval ctx.env t))
        | o -> fail (Printf.sprintf "snd: expected a pair, got %s" (show (quote ctx.lvl o))))
-  | Id (a, x, y) -> check ctx a VU; let va = eval ctx.env a in check ctx x va; check ctx y va; VU
+  | Id (a, x, y) -> let i = infer_univ ctx a in let va = eval ctx.env a in check ctx x va; check ctx y va; VU i
   | Transp (a, p, x, y, pe, d) ->
-      check ctx a VU;
+      let i = infer_univ ctx a in
       let va = eval ctx.env a in
-      (* motive P : A -> U *)
-      check ctx p (VPi ("_", va, { env = []; body = U }));
+      check ctx p (VPi ("_", va, { env = []; body = U i }));   (* motive P : A -> U i *)
       let vp = eval ctx.env p in
       check ctx x va; check ctx y va;
       let vx = eval ctx.env x and vy = eval ctx.env y in
       check ctx pe (VId (va, vx, vy));
       check ctx d (vapp vp vx);
       vapp vp vy
-  | Ann (tm, ty) -> check ctx ty VU; let vty = eval ctx.env ty in check ctx tm vty; vty
+  | Bool -> VU 0
+  | True | False -> VBool
+  | If (c, t, e) -> check ctx c VBool; let ct = infer ctx t in check ctx e ct; ct
+  | Ann (tm, ty) -> ignore (infer_univ ctx ty); let vty = eval ctx.env ty in check ctx tm vty; vty
+
+and infer_univ (ctx : ctx) (t : tm) : int =
+  match infer ctx t with
+  | VU i -> i
+  | o -> fail (Printf.sprintf "expected a type, but %s : %s" (show (quote ctx.lvl (eval ctx.env t))) (show (quote ctx.lvl o)))
 
 and show ?(ns = []) (t : tm) : string =
   let dom a = match a with Pi _ | Sig _ -> "(" ^ show ~ns a ^ ")" | _ -> show ~ns a in
   match t with
   | Var i -> (match List.nth_opt ns i with Some n -> n | None -> "@" ^ string_of_int i)
-  | U -> "U"
+  | U 0 -> "U"
+  | U i -> "U" ^ string_of_int i
   | Pi ("_", a, b) -> Printf.sprintf "%s -> %s" (dom a) (show ~ns:("_" :: ns) b)
   | Pi (x, a, b) -> Printf.sprintf "(%s : %s) -> %s" x (show ~ns a) (show ~ns:(x :: ns) b)
   | Lam (x, b) -> Printf.sprintf "\\%s. %s" x (show ~ns:(x :: ns) b)
@@ -187,6 +213,10 @@ and show ?(ns = []) (t : tm) : string =
   | Id (a, x, y) -> Printf.sprintf "Id %s %s %s" (show ~ns a) (show ~ns x) (show ~ns y)
   | Refl -> "refl"
   | Transp (_, p, _, _, pe, d) -> Printf.sprintf "transp %s %s %s" (show ~ns p) (show ~ns pe) (show ~ns d)
+  | Bool -> "Bool"
+  | True -> "true"
+  | False -> "false"
+  | If (c, t, e) -> Printf.sprintf "if %s %s %s" (show ~ns c) (show ~ns t) (show ~ns e)
   | Ann (t, ty) -> Printf.sprintf "(%s : %s)" (show ~ns t) (show ~ns ty)
 
 let type_of (t : tm) : tm = quote 0 (infer empty t)

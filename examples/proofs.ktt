@@ -22,5 +22,6 @@ check sym
 check ap
 check trans
 
--- equality proofs actually compute: transport along refl reduces
-eval sym U U U refl
+-- equality proofs actually compute, on a real closed value:
+-- transport along refl reduces, so sym on refl is refl
+eval sym Bool true true refl

@@ -26,12 +26,8 @@ the return type depending on the argument), demonstrates NbE computing
 (`id idty idtm` normalizes to `\A. \x. x`), and rejects ill-typed terms such as
 `(U U)` and `(U : (x:U) -> x)` with messages.
 
-### Deliberate simplification, noted honestly
-
-Milestone 1 uses **Type-in-Type** (`U : U`). That is inconsistent as a *logic*
-(you could encode a paradox), but it is the correct small first step for a
-*computational* core; adding a universe hierarchy (`U0 : U1 : …`) is a later,
-mechanical refinement that does not change the architecture.
+Milestone 1 used Type-in-Type as a first step; that was replaced by a real
+universe hierarchy in milestone 4 (below), so the core is now sound.
 
 ## Milestone 2 — equality (done)
 
@@ -70,9 +66,22 @@ def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
 to `refl`. This is a self-contained dependently typed checker you can write
 programs for — not yet connected to the `fill` kernel (that is the next step).
 
+## Milestone 4 — soundness and a base type (done)
+
+The core is now **sound**: a predicative **universe hierarchy** replaces
+Type-in-Type. `U i : U (i+1)`, and `Pi`/`Sig`/`Id` land in the max of their
+components' levels; `U : U` is now correctly *rejected*. A base type **`Bool`**
+(`true`, `false`, `if`) gives closed values to compute with, so equality proofs
+run on real data: `sym Bool true true refl` normalizes to `refl`.
+`test/core_test.exe` is a positive+negative suite (nonzero exit if any
+ill-typed term is wrongly accepted), and `examples/prelude.ktt` is a small
+checked standard library (combinators, boolean ops, equality as an equivalence,
+congruence on `Bool`). The hierarchy is non-cumulative for now — an ergonomic
+refinement, not a soundness one.
+
 ## Where this is going
 
-1. **Universes** — replace Type-in-Type with a predicative hierarchy.
+1. **Cumulative universes** — so a term in `U i` is usable at `U j` for `j ≥ i`.
 2. **A surface** for types in `.kan` (elaborating named binders to de Bruijn),
    so programs can *write* types, not just the OCaml AST.
 3. **Identity / equality types** — the machinery to state "this diagram

@@ -409,6 +409,9 @@ dune exec bin/kan.exe -- build examples/product.kan -o product
 
 # the full Phase-1 demonstration (composition, limits, colimits, folds):
 dune exec reference/kan_ref.exe
+
+# the dependent type theory: check proofs written in Kan
+dune exec bin/kan.exe -- check examples/prelude.ktt
 ```
 
 **Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):

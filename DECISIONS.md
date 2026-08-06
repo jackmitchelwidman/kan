@@ -103,7 +103,16 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      `kan check file.ktt`: named binders elaborated to de Bruijn, `\x. t`,
      `(x:A)->B`, `A->B`, Σ `(x:A)*B`, `Id`, `refl`, `transp`, `fst`/`snd`,
      top-level `def`/`check`/`eval`. `examples/proofs.ktt` type-checks
-     id/sym/ap/trans and computes. Next: universes, then connect types to `fill`.
+     id/sym/ap/trans and computes.
+   → **STATUS: milestone 4 done — SOUND type theory.** Replaced Type-in-Type
+     with a predicative universe hierarchy (`U i : U (i+1)`; `U:U` now rejected)
+     and added a base type `Bool` (true/false/if) for closed values. Equality
+     proofs run on real data (`sym Bool true true refl ↝ refl`).
+     `test/core_test.exe` = positive+negative suite (nonzero exit on any wrongly
+     accepted term); `examples/prelude.ktt` = a small checked standard library.
+     The dependent-type layer is now robust and a first-class part of the
+     language (`kan check`). Remaining: cumulative universes, and CONNECTING
+     types to the `fill` kernel (the two languages are still separate).
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

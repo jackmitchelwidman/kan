@@ -58,7 +58,7 @@ let tokenize (s : string) : tok array =
 
 (* -------- parser: names -> de Bruijn core terms -------- *)
 
-let reserved_head = [ "Id"; "transp"; "fst"; "snd" ]
+let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if" ]
 let decl_kw = [ "def"; "check"; "eval" ]
 
 let index_of (x : string) (ns : string list) : int option =
@@ -109,13 +109,17 @@ let parse (toks : tok array) : decl list =
           let y = atom ns in let pe = atom ns in let d = atom ns in Transp (a, p, x, y, pe, d)
       | ID "fst" -> adv (); Fst (atom ns)
       | ID "snd" -> adv (); Snd (atom ns)
+      | ID "if" -> adv (); let c = atom ns in let t = atom ns in let e = atom ns in If (c, t, e)
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
     spine base
   and atom ns =
     match peek () with
-    | ID ("U" | "Type") -> adv (); U
+    | ID ("U" | "Type") -> adv (); U 0
+    | ID "Bool" -> adv (); Bool
+    | ID "true" -> adv (); True
+    | ID "false" -> adv (); False
     | ID "refl" -> adv (); Refl
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")
@@ -158,14 +162,16 @@ let run (src : string) : unit =
     (fun d ->
       match d with
       | Def (name, ty, body) ->
-          let vty =
+          let vty, disp =
             match ty with
-            | Some t -> check !ctx t VU; eval !ctx.env t
-            | None -> infer !ctx body
+            | Some t ->
+                (match infer !ctx t with VU _ -> () | _ -> failwith ("def " ^ name ^ ": the annotation is not a type"));
+                (eval !ctx.env t, sh t)  (* display the written annotation, keeping defs folded *)
+            | None -> let v = infer !ctx body in (v, sh (quote !ctx.lvl v))
           in
           check !ctx body vty;
           let v = eval !ctx.env body in
-          Printf.printf "def %-6s : %s\n" name (sh (quote !ctx.lvl vty));
+          Printf.printf "def %-6s : %s\n" name disp;
           ctx := { env = v :: !ctx.env; types = vty :: !ctx.types; lvl = !ctx.lvl + 1 };
           names := name :: !names
       | Check t ->

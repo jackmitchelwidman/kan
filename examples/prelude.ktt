@@ -1,0 +1,31 @@
+-- A small Kan prelude — standard definitions, every one type-checked.
+-- Run:  kan check examples/prelude.ktt
+
+-- combinators
+def id    : (A : U) -> A -> A                                = \A x. x
+def const : (A : U) -> (B : U) -> A -> B -> A                = \A B x y. x
+def comp  : (A : U) -> (B : U) -> (C : U) -> (B -> C) -> (A -> B) -> A -> C
+          = \A B C g f x. g (f x)
+
+-- booleans
+def not   : Bool -> Bool          = \b. if b false true
+def and   : Bool -> Bool -> Bool  = \a b. if a b false
+def or    : Bool -> Bool -> Bool  = \a b. if a true b
+
+-- equality is an equivalence relation (all proofs, checked)
+def sym   : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
+          = \A a b p. transp A (\z. Id A z a) a b p refl
+def trans : (A : U) -> (a : A) -> (b : A) -> (c : A) -> Id A a b -> Id A b c -> Id A a c
+          = \A a b c p q. transp A (\z. Id A a z) b c q p
+def ap    : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
+          = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl
+
+-- congruence, specialised: equal booleans have equal negations
+def not_cong : (a : Bool) -> (b : Bool) -> Id Bool a b -> Id Bool (not a) (not b)
+             = \a b p. ap Bool Bool not a b p
+
+-- computations
+eval not true                              -- false
+eval and true false                        -- false
+eval or false true                         -- true
+eval comp Bool Bool Bool not not true      -- double negation: true
