@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | STR of string | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -48,6 +48,12 @@ let tokenize (s : string) : tok array =
     else if c = '{' then (push LBRACE; incr i)
     else if c = '}' then (push RBRACE; incr i)
     else if c = '=' then (push EQ; incr i)
+    else if c = '"' then begin
+      let j = ref (!i + 1) in
+      while !j < n && s.[!j] <> '"' do incr j done;
+      push (STR (String.sub s (!i + 1) (!j - !i - 1)));
+      i := !j + 1
+    end
     else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' then begin
       let j = ref !i in
       while !j < n && is_a s.[!j] do incr j done;
@@ -66,7 +72,7 @@ let tokenize (s : string) : tok array =
 (* -------- parser: names -> de Bruijn core terms -------- *)
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim" ]
-let decl_kw = [ "def"; "check"; "eval"; "data" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -77,13 +83,21 @@ type decl =
   | Check of tm
   | Eval of tm
   | Data_decl of string * (string * tm) list * (string * arg_ty list) list  (* name, params, [ctor, arg types] *)
+  | Import of string
 
-let parse (toks : tok array) : decl list =
+(* datatypes/constructors/eliminators known to the parser. These are MODULE-level
+   and shared across `parse` calls so that, when a program is assembled from several
+   files (via `import`), a file can use datatypes declared in files parsed before it.
+   `reset_tables` clears them at the start of loading a program. *)
+let datatypes : (string, unit) Hashtbl.t = Hashtbl.create 16
+let ctors : (string, int) Hashtbl.t = Hashtbl.create 32           (* ctor -> arity *)
+let elims : (string, string * int) Hashtbl.t = Hashtbl.create 16  (* elim -> (datatype, #methods) *)
+let reset_tables () = Hashtbl.reset datatypes; Hashtbl.reset ctors; Hashtbl.reset elims
+
+(* `ns0` seeds the name scope with globals from files parsed earlier (imports),
+   so a file can reference definitions imported before it. *)
+let parse ?(ns0 = []) (toks : tok array) : decl list =
   let pos = ref 0 in
-  (* datatypes/constructors/eliminators declared so far (populated as `data` decls are parsed) *)
-  let datatypes : (string, unit) Hashtbl.t = Hashtbl.create 16 in
-  let ctors : (string, int) Hashtbl.t = Hashtbl.create 32 in           (* ctor -> arity *)
-  let elims : (string, string * int) Hashtbl.t = Hashtbl.create 16 in  (* elim -> (datatype, #methods) *)
   let peek () = toks.(!pos) in
   let peek2 () = if !pos + 1 < Array.length toks then toks.(!pos + 1) else EOF in
   let peek3 () = if !pos + 2 < Array.length toks then toks.(!pos + 2) else EOF in
@@ -170,6 +184,7 @@ let parse (toks : tok array) : decl list =
         eat EQ "="; let body = term ns in Def (name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
+    | ID "import" -> adv (); (match peek () with STR p -> adv (); Import p | _ -> fail "expected a \"path\" after import")
     | ID "data" ->
         adv (); let name = ident () in
         (* parameters:  (p : T) ... *)
@@ -231,7 +246,7 @@ let parse (toks : tok array) : decl list =
         eat RBRACE "}";
         Hashtbl.replace elims (name ^ "_elim") (name, k + 1 + List.length cs + 1);
         Data_decl (name, ps, cs)
-    | _ -> fail "expected a declaration (def / check / eval / data)"
+    | _ -> fail "expected a declaration (import / def / check / eval / data)"
   in
   (* interleave: each def extends the name scope for later decls *)
   let rec loop ns acc =
@@ -241,12 +256,11 @@ let parse (toks : tok array) : decl list =
       let ns' = match d with Def (name, _, _) -> name :: ns | _ -> ns in
       loop ns' (d :: acc)
   in
-  loop [] []
+  loop ns0 []
 
 (* -------- driver: elaborate, check, report -------- *)
 
-let run (src : string) : unit =
-  let decls = parse (tokenize src) in
+let run_decls (decls : decl list) : unit =
   let ctx = ref empty in
   let names = ref [] in
   let sh t = show ~ns:!names t in
@@ -279,5 +293,8 @@ let run (src : string) : unit =
               ctors_info
           in
           declare_data name params specs;
-          Printf.printf "data %s = %s\n" name (String.concat " | " (List.map fst ctors_info)))
+          Printf.printf "data %s = %s\n" name (String.concat " | " (List.map fst ctors_info))
+      | Import _ -> ())   (* imports are expanded before we get here *)
     decls
+
+let run (src : string) : unit = run_decls (parse (tokenize src))

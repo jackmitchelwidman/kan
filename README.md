@@ -451,7 +451,18 @@ dune exec reference/kan_ref.exe
 Every program in [`examples/`](examples/) is a `.kan` file: `nat.kan` (induction),
 `list.kan` (polymorphic `List`), `data.kan` (user inductive types),
 `category.kan` (universal properties as theorems), `person.kan` (a type that
-depends on a value), `proofs.kan`/`prelude.kan` (a small proof library).
+depends on a value), `using_std.kan` (importing the standard library).
+
+Kan has an `import` mechanism and a small **standard library** in
+[`std/`](std/) — combinators, boolean and natural-number arithmetic (with
+proofs), polymorphic `List`, `Option`, and equality lemmas:
+
+```
+import "../std/nat.kan"
+import "../std/list.kan"
+def xs : List Nat = cons Nat 3 (cons Nat 1 (nil Nat))
+eval add 2 (length Nat xs)
+```
 
 **Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):
 

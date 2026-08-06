@@ -1,0 +1,12 @@
+-- std/nat — natural-number arithmetic, with a proof.
+import "logic.kan"
+
+def add : Nat -> Nat -> Nat = \m n. natElim (\_. Nat) n (\k ih. suc ih) m
+def mul : Nat -> Nat -> Nat = \m n. natElim (\_. Nat) 0 (\k ih. add n ih) m
+
+-- for all n, add n zero = n — proved by induction (the def checking IS the proof)
+def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
+  = \n. natElim (\m. Id Nat (add m zero) m)
+                refl
+                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)
+                n

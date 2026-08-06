@@ -124,6 +124,7 @@ let compile (decls : Tt.decl list) : string =
       | Tt.Eval tm ->
           ignore (infer !ctx tm);
           Buffer.add_string body (Printf.sprintf "let () = print_endline (ishow %s)\n" (cexpr !globals [] (erase tm)))
-      | Tt.Check tm -> ignore (infer !ctx tm))
+      | Tt.Check tm -> ignore (infer !ctx tm)
+      | Tt.Import _ -> ())
     decls;
   prelude1 ^ "\n" ^ registry !elims !ctors ^ "\n" ^ prelude2 ^ "\n" ^ Buffer.contents body

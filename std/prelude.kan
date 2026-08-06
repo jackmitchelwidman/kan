@@ -1,0 +1,7 @@
+-- std/prelude — basic combinators.
+def id    : (A : U) -> A -> A                                = \A x. x
+def const : (A : U) -> (B : U) -> A -> B -> A                = \A B x y. x
+def comp  : (A : U) -> (B : U) -> (C : U) -> (B -> C) -> (A -> B) -> A -> C
+          = \A B C g f x. g (f x)
+def flip  : (A : U) -> (B : U) -> (C : U) -> (A -> B -> C) -> B -> A -> C
+          = \A B C f b a. f a b

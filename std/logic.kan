@@ -1,0 +1,7 @@
+-- std/logic — equality (the identity type) is an equivalence relation, plus congruence.
+def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
+        = \A a b p. transp A (\z. Id A z a) a b p refl
+def trans : (A : U) -> (a : A) -> (b : A) -> (c : A) -> Id A a b -> Id A b c -> Id A a c
+          = \A a b c p q. transp A (\z. Id A a z) b c q p
+def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
+       = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl

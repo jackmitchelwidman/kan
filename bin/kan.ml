@@ -16,15 +16,65 @@ let read_file file =
   close_in ic;
   s
 
-let parse file = Tt.parse (Tt.tokenize (read_file file))
+(* normalize a path, collapsing "." and ".." segments *)
+let normalize path =
+  let parts = String.split_on_char '/' path in
+  let rec go acc = function
+    | [] -> List.rev acc
+    | "." :: t -> go acc t
+    | ".." :: t -> (match acc with _ :: r -> go r t | [] -> go acc t)
+    | x :: t -> go (x :: acc) t
+  in
+  String.concat "/" (go [] parts)
+
+let canon file = normalize (if Filename.is_relative file then Filename.concat (Sys.getcwd ()) file else file)
+
+(* the import paths of a file, found without full parsing (imports come first,
+   and the parser needs earlier files' datatypes in scope before parsing this one) *)
+let scan_imports toks =
+  let rec go i acc =
+    if i + 1 >= Array.length toks then List.rev acc
+    else match toks.(i), toks.(i + 1) with
+      | Tt.ID "import", Tt.STR p -> go (i + 2) (p :: acc)
+      | _ -> go (i + 1) acc
+  in
+  go 0 []
+
+(* load a program: recursively splice in imports (relative to each importing file's
+   directory, each file included at most once), parsing imports BEFORE their importer
+   so the shared parser tables see earlier files' datatypes. *)
+let load_program entry : Tt.decl list =
+  Tt.reset_tables ();
+  let visited = Hashtbl.create 16 in
+  (* `ns` accumulates global def names (most-recent-first) so far, for scoping. *)
+  let rec load ns file =
+    let c = canon file in
+    if Hashtbl.mem visited c then ([], ns)
+    else begin
+      Hashtbl.replace visited c ();
+      let toks = Tt.tokenize (read_file file) in
+      let dir = Filename.dirname file in
+      let idecls, ns1 =
+        List.fold_left
+          (fun (acc, ns) p -> let d, ns' = load ns (Filename.concat dir p) in (acc @ d, ns'))
+          ([], ns) (scan_imports toks)
+      in
+      let own = Tt.parse ~ns0:ns1 toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
+      let ns2 = List.fold_left (fun a d -> match d with Tt.Def (n, _, _) -> n :: a | _ -> a) ns1 own in
+      (idecls @ own, ns2)
+    end
+  in
+  fst (load [] entry)
 
 let die e =
   Printf.eprintf "kan: %s\n" (match e with Failure m -> m | _ -> Printexc.to_string e);
   exit 1
 
-let do_check file = try Tt.run (read_file file) with e -> die e
+let parse file = load_program file
 
-let do_run file = try Erase.run (parse file) with e -> die e
+let do_check file = try Tt.run_decls (load_program file) with e -> die e
+
+let do_run file = try Erase.run (load_program file) with e -> die e
 
 let do_emit_ml file = try print_string (Ocaml_backend.compile (parse file)) with e -> die e
 let do_emit_c file = try print_string (C_backend.compile (parse file)) with e -> die e

@@ -1,0 +1,5 @@
+-- std/option — an optional value.
+data Option (A : U) { none : Option A, some : A -> Option A }
+
+def map_option : (A : U) -> (B : U) -> (A -> B) -> Option A -> Option B
+               = \A B f o. Option_elim A (\l. Option B) (none B) (\a. some B (f a)) o
