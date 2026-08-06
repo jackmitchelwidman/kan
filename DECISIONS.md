@@ -91,8 +91,14 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      type-checks the dependent identity, shows dependent application + NbE
      computing, and rejects ill-typed terms. Uses Type-in-Type for now (a
      universe hierarchy is a later mechanical step). Not yet wired to the surface
-     or the kernel. Spec: `docs/type-system.md`. Next: universes, a type surface,
-     identity/equality types, then connect types to `fill`.
+     or the kernel. Spec: `docs/type-system.md`.
+   → **STATUS: milestone 2 done.** Added Σ-types and the IDENTITY type (`Id`,
+     `refl`, `transport`) to `lib/core.ml`. The checker now accepts real proofs:
+     `sym` (equality is symmetric) and `ap` (congruence), both derived from
+     transport, and they compute (`sym U U U refl ↝ refl`). "A diagram commutes"
+     = an inhabitant of an `Id` type, now expressible/checkable. Still
+     Type-in-Type. Next: universes, a type surface in `.kan`, then connect types
+     to `fill` so a universal property becomes a checkable proposition.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

@@ -33,6 +33,24 @@ Milestone 1 uses **Type-in-Type** (`U : U`). That is inconsistent as a *logic*
 *computational* core; adding a universe hierarchy (`U0 : U1 : …`) is a later,
 mechanical refinement that does not change the architecture.
 
+## Milestone 2 — equality (done)
+
+`lib/core.ml` now also has **Σ-types** (dependent pairs: `(x:A) * B`, `pair`,
+`.1`/`.2`) and the **identity type** `Id A a b` with `refl` and **transport**
+(`transp A P x y p d : P y`, computing `transp .. refl d = d`). Together with Π
+and Σ, that is the standard toolkit for stating universal properties.
+
+The payoff: the checker mechanically accepts *proofs*.
+`test/core_test.exe` type-checks
+
+- `sym : (A:U)(a b:A)(p:Id A a b) -> Id A b a` — equality is symmetric,
+- `ap  : (A:U)(B:U)(f:A->B)(a b:A)(p:Id A a b) -> Id B (f a)(f b)` — congruence:
+  equal inputs give equal outputs (the workhorse for reasoning about composites),
+
+both *derived from transport*, and shows they compute (`sym U U U refl ↝ refl`).
+"This diagram commutes" is, concretely, an inhabitant of an `Id` type — which
+this layer can now express and check.
+
 ## Where this is going
 
 1. **Universes** — replace Type-in-Type with a predicative hierarchy.
