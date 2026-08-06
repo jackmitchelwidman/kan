@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kan — A Language of Universal Extension</title>
-<meta name="description" content="Kan is an experimental programming language whose one primitive is the universal completion of a partial diagram. It compiles to native code.">
+<meta name="description" content="Kan is a dependently typed programming language built on the idea that computation is the universal completion of a partial diagram. It type-checks and compiles to native code.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='88'%3E%E2%8C%9C%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -96,6 +96,7 @@
     <h1>A language of<br>universal extension.</h1>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
+    <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/jackmitchelwidman/kan">View on GitHub</a>
       <a class="btn ghost" href="#try">Try it</a>
@@ -166,49 +167,51 @@
   </section>
 
   <section id="try">
-    <h2>Fold is an interpreter — and it compiles to native code</h2>
-    <p>A recursive datatype is an initial algebra; a <code>fold</code> is the unique homomorphism out
-    of it — a universal fill. Here an evaluator, written in Kan, compiled to a native binary:</p>
-<pre><span class="c">-- expr_eval.kan</span>
-<span class="k">data</span> Expr { Lit int, Add Expr Expr, Mul Expr Expr }
+    <h2>A type is a theorem — and it compiles to native code</h2>
+    <p>Kan is dependently typed: you write a program, state its property as a type, and the checker
+    proves it. Here, addition — and a proof <em>by induction</em> that <code>add n 0 = n</code> for
+    every <code>n</code>. The proof is simply that it type-checks:</p>
+<pre><span class="c">-- nat.kan</span>
+<span class="k">def</span> add : Nat -> Nat -> Nat
+        = \m n. natElim (\_. Nat) n (\k ih. suc ih) m
 
-<span class="k">let</span> e = Mul(Add(Lit(2), Lit(3)), Lit(4))     <span class="c">-- (2 + 3) * 4</span>
-
-<span class="k">fold</span> eval : Expr -> int {
-  Lit v   = v,
-  Add a b = a + b,
-  Mul a b = a * b
-}
-
-<span class="k">show</span> eval(e)</pre>
-<pre><span class="c">$ kan build expr_eval.kan -o expr &amp;&amp; ./expr</span>
-20</pre>
-    <p class="out">The <code>fold</code> lowers to a recursive C function; the binary runs the computation itself.</p>
+<span class="c">-- for ALL n, add n zero = n  —  proved by induction</span>
+<span class="k">def</span> add_n_zero : (n : Nat) -> Id Nat (add n zero) n
+  = \n. natElim (\m. Id Nat (add m zero) m)
+                refl
+                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)
+                n</pre>
+<pre><span class="c">$ kan build nat.kan -o nat &amp;&amp; ./nat</span>
+5
+7</pre>
+    <p class="out">If it type-checks, the theorem holds — then it compiles to a native binary.</p>
   </section>
 
   <section>
     <h2>Status</h2>
-    <p><span class="pill">Phase 1 complete</span> &nbsp;Kan is an early research language — the core
-    is real and runs, the type system and program-completion layers are next.</p>
+    <p><span class="pill">dependently typed · compiles to native</span> &nbsp;Kan is an early research
+    language — real and running, with the categorical layer growing on top.</p>
     <ul class="plain">
-      <li><span class="tick">✓</span> <b>One kernel</b> — <code>fill</code>: composition, products, pullbacks, coproducts, folds</li>
-      <li><span class="tick">✓</span> <b>Universal properties computed</b>, not assumed — mediating maps, fold laws</li>
-      <li><span class="tick">✓</span> <b>Interpreter</b> and a <b>native compiler</b> (<code>.kan → C → binary</code>)</li>
-      <li><span class="tick">◦</span> <b>Next:</b> a dependent-type layer to state that a diagram commutes / a construction is universal</li>
-      <li><span class="tick">◦</span> <b>Then:</b> program completion by synthesis — the compiler as a categorical collaborator</li>
+      <li><span class="tick">✓</span> <b>Dependent types</b> — Π, Σ, identity types, a universe hierarchy</li>
+      <li><span class="tick">✓</span> <b>User inductive types</b> (with parameters, e.g. <code>List A</code>) and induction — real proofs</li>
+      <li><span class="tick">✓</span> <b>Type-checks <em>and</em> compiles</b> to native binaries (via OCaml)</li>
+      <li><span class="tick">✓</span> <b>Universal properties as theorems</b> — the categorical vision, realized in the types</li>
+      <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), a C backend, <code>fill</code> as a typed operation</li>
     </ul>
   </section>
 
   <section>
     <h2>Try it</h2>
-<pre><span class="c"># requires OCaml + dune and a C compiler</span>
+<pre><span class="c"># requires OCaml + dune</span>
 git clone https://github.com/jackmitchelwidman/kan
 cd kan &amp;&amp; dune build
 
-kan run   examples/expr_eval.kan      <span class="c"># interpret</span>
-kan build examples/expr_eval.kan -o expr &amp;&amp; ./expr   <span class="c"># compile &amp; run</span></pre>
-    <p style="margin-bottom:0">Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
-      the surface language, core calculus, and compiler are documented in
+kan check examples/nat.kan               <span class="c"># type-check</span>
+kan run   examples/nat.kan               <span class="c"># run</span>
+kan build examples/nat.kan -o nat &amp;&amp; ./nat   <span class="c"># compile to native</span></pre>
+    <p style="margin-bottom:0">Every file in <code>examples/</code> is a <code>.kan</code> program.
+      Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
+      the type system and unification story are in
       <a href="https://github.com/jackmitchelwidman/kan/tree/main/docs">/docs</a>.</p>
   </section>
 
