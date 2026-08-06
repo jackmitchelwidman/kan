@@ -1,0 +1,10 @@
+-- ℕ as the initial algebra of F(X) = 1 + X. Recursion with no primitive
+-- recursion operator — only a fold (a universal fill).
+
+data Nat { Zero, Succ Nat }
+
+let five = Succ(Succ(Succ(Succ(Succ(Zero)))))
+
+fold value : Nat -> int { Zero = 0, Succ n = 1 + n }
+
+show value(five)     -- 5

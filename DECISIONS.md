@@ -75,9 +75,14 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      the `fill` kernel) + two executables: `reference/` (the 8 demos) and
      `bin/kan.ml` (the `kan` CLI: lexer + recursive-descent parser + evaluator
      for `.kan` files). You can now *write Kan and run it*: `examples/*.kan`
-     cover compose/product/pullback/coproduct, each one kernel `fill`. Grammar:
-     `docs/surface-language.md`. Remaining in Phase 1: fold/signature syntax in
-     the surface, one typed kernel over both universes, formal reduction rules.
+     cover compose/product/pullback/coproduct, each one kernel `fill`.
+   → **Datatypes & folds in the surface.** `data`/`fold` now parse, interpret,
+     AND compile: recursive datatypes become tree values, a `fold` is `cata`
+     (a universal fill) and compiles to a recursive C function.
+     `examples/{nat,list_sum,expr_eval}.kan` run; the expr evaluator compiles to
+     a native binary. All 7 examples: interpreter output == native output.
+     Grammar: `docs/surface-language.md`. Remaining in Phase 1: one typed kernel
+     over both universes, richer fold carriers, formal reduction rules.
 2. **Forced core + typechecker.** Identify the total, effective fragment and its
    reduction rules; minimal dependent-type substrate to state diagrams.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).

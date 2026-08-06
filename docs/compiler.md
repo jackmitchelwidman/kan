@@ -63,11 +63,18 @@ the *same* front-end and the *same* semantics. Compiling every example and
 diffing the binary's output against the interpreter is the backend's smoke test;
 all four match.
 
+## Datatypes and folds
+
+Recursive datatypes compile too. A `data` declaration needs no runtime type; its
+values become `KTree` nodes built by `kan_node`, and a `fold` compiles to a
+**recursive C function** — a `switch` on the constructor tag that recurses on the
+children (exactly `cata`). So `examples/expr_eval.kan` compiles to a native
+binary whose `f_eval` is a real evaluator.
+
 ## Limits (Phase 1)
 
-- The compiled subset is the FinSet structural fragment (sets, maps, diagrams,
-  limits, colimits, composition). Folds/recursion are in the kernel and
-  interpreter path but not yet in the surface syntax, so not yet compiled.
+- The compiled subset covers the FinSet structural fragment (sets, maps,
+  diagrams, limits, colimits, composition) **and** datatypes/folds over `int`.
 - Codegen is straightforward C with a tree-walking runtime; the README's
   "Optimized Core" and LLVM path are later phases. No IR yet — we lower the AST
   directly. That is deliberate for a first backend.

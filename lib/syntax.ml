@@ -10,6 +10,7 @@ type token =
   | TColon | TArrow
   | TLParen | TRParen | TLBrack | TRBrack | TLBrace | TRBrace
   | TComma | TEq
+  | TPlus | TMinus | TStar
   | TEOF
 
 let tokenize (s : string) : token list =
@@ -49,6 +50,9 @@ let tokenize (s : string) : token list =
        | '}' -> push TRBrace
        | ',' -> push TComma
        | '=' -> push TEq
+       | '+' -> push TPlus
+       | '-' -> push TMinus
+       | '*' -> push TStar
        | _ -> failwith (Printf.sprintf "unexpected character '%c'" c));
       incr i
     end
@@ -56,18 +60,33 @@ let tokenize (s : string) : token list =
   push TEOF;
   List.rev !toks
 
+(* Arithmetic expressions — the body of a fold clause. *)
+type aexpr =
+  | AInt of int
+  | AVar of string
+  | AAdd of aexpr * aexpr
+  | ASub of aexpr * aexpr
+  | AMul of aexpr * aexpr
+
 type expr =
   | EVar of string
+  | EInt of int
+  | EApp of string * expr list          (* constructor or fold application: head(args) *)
   | EFillInner of string * string
   | EFillLimit of string
   | EFillColimit of string
   | EProduct of string list
   | ECoproduct of string list
 
+type ctor_decl = { cd_name : string; cd_payload : bool; cd_arity : int }
+type fold_clause = { fc_ctor : string; fc_vars : string list; fc_body : aexpr }
+
 type stmt =
   | SSet of string * int
   | SMap of string * string * string * int list
   | SDiagram of string * string list * (int * int * string) list
+  | SData of string * ctor_decl list
+  | SFold of string * string * fold_clause list   (* name, input datatype, clauses *)
   | SLet of string * expr
   | SShow of expr
 
@@ -94,7 +113,8 @@ let parse (toks : token array) : stmt list =
         in
         loop ()
   in
-  let parse_expr () =
+  (* categorical / value expressions *)
+  let rec parse_expr () =
     match peek () with
     | TIdent "fill" ->
         adv ();
@@ -110,8 +130,83 @@ let parse (toks : token array) : stmt list =
         adv (); expect TLBrack "["; let ns = name_list () in expect TRBrack "]"; EProduct ns
     | TIdent "coproduct" ->
         adv (); expect TLBrack "["; let ns = name_list () in expect TRBrack "]"; ECoproduct ns
-    | TIdent name -> adv (); EVar name
+    | _ -> parse_atom ()
+  and parse_atom () =
+    match peek () with
+    | TInt n -> adv (); EInt n
+    | TLParen -> adv (); let e = parse_expr () in expect TRParen ")"; e
+    | TIdent name ->
+        adv ();
+        if peek () = TLParen then begin
+          adv ();
+          let args = arg_list () in
+          expect TRParen ")";
+          EApp (name, args)
+        end else EVar name
     | _ -> fail "expected an expression"
+  and arg_list () =
+    match peek () with
+    | TRParen -> []
+    | _ ->
+        let rec loop () =
+          let e = parse_expr () in
+          match peek () with TComma -> adv (); e :: loop () | _ -> [ e ]
+        in
+        loop ()
+  in
+  (* arithmetic (fold bodies): + - at one level, * higher *)
+  let rec parse_aexpr () =
+    let t = parse_term () in
+    let rec more acc =
+      match peek () with
+      | TPlus -> adv (); more (AAdd (acc, parse_term ()))
+      | TMinus -> adv (); more (ASub (acc, parse_term ()))
+      | _ -> acc
+    in
+    more t
+  and parse_term () =
+    let f = parse_factor () in
+    let rec more acc = match peek () with TStar -> adv (); more (AMul (acc, parse_factor ())) | _ -> acc in
+    more f
+  and parse_factor () =
+    match peek () with
+    | TInt n -> adv (); AInt n
+    | TIdent v -> adv (); AVar v
+    | TLParen -> adv (); let e = parse_aexpr () in expect TRParen ")"; e
+    | _ -> fail "expected an arithmetic factor"
+  in
+  let parse_ctor dataname =
+    let name = expect_ident () in
+    let rec fields payload arity =
+      match peek () with
+      | TIdent "int" ->
+          if payload then fail ("constructor " ^ name ^ ": at most one int payload (Phase 1)");
+          adv (); fields true arity
+      | TIdent s when s = dataname -> adv (); fields payload (arity + 1)
+      | TIdent s -> fail ("constructor " ^ name ^ ": unknown field '" ^ s ^ "' (want int or " ^ dataname ^ ")")
+      | _ -> (payload, arity)
+    in
+    let payload, arity = fields false 0 in
+    { cd_name = name; cd_payload = payload; cd_arity = arity }
+  in
+  let parse_clause () =
+    let ctor = expect_ident () in
+    let rec vars acc = match peek () with TIdent v -> adv (); vars (v :: acc) | _ -> List.rev acc in
+    let vs = vars [] in
+    expect TEq "=";
+    { fc_ctor = ctor; fc_vars = vs; fc_body = parse_aexpr () }
+  in
+  (* comma-separated list inside { }, optional trailing comma *)
+  let braced_list item =
+    expect TLBrace "{";
+    let rec loop acc =
+      let x = item () in
+      match peek () with
+      | TComma -> adv (); (match peek () with TRBrace -> List.rev (x :: acc) | _ -> loop (x :: acc))
+      | _ -> List.rev (x :: acc)
+    in
+    let xs = (match peek () with TRBrace -> [] | _ -> loop []) in
+    expect TRBrace "}"; xs
   in
   let parse_stmt () =
     match peek () with
@@ -134,10 +229,19 @@ let parse (toks : token array) : stmt list =
         in
         let es = edges [] in
         expect TRBrace "}"; SDiagram (name, vs, es)
+    | TIdent "data" ->
+        adv (); let name = expect_ident () in
+        SData (name, braced_list (fun () -> parse_ctor name))
+    | TIdent "fold" ->
+        adv (); let name = expect_ident () in expect TColon ":";
+        let ty = expect_ident () in expect TArrow "->";
+        let carrier = expect_ident () in
+        if carrier <> "int" then fail "Phase 1 folds must target int";
+        SFold (name, ty, braced_list parse_clause)
     | TIdent "let" ->
         adv (); let name = expect_ident () in expect TEq "="; SLet (name, parse_expr ())
     | TIdent "show" -> adv (); SShow (parse_expr ())
-    | _ -> fail "expected a statement (set / map / diagram / let / show)"
+    | _ -> fail "expected a statement (set / map / diagram / data / fold / let / show)"
   in
   let rec prog acc = match peek () with TEOF -> List.rev acc | _ -> prog (parse_stmt () :: acc) in
   prog []
