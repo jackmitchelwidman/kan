@@ -57,6 +57,21 @@ Swift, Kotlin). Copyright line: "2026 Jack Widman and the Kan contributors".
 Process unchanged: check in at **phase boundaries**; otherwise proceed.
 Repo: **https://github.com/jackmitchelwidman/kan** (public).
 
+## ADR-005 — One language: Kan is dependently typed, files are `.kan` **[locked]**
+**Decision.** Kan *is* the dependent type theory. Its single file extension is
+`.kan`. The CLI (`kan check|run|build|emit-ml`) operates on that language only.
+The original `fill` calculus is **retired as a user-facing language**; it
+survives as an internal FinSet **reference model** (`lib/kernel.ml`,
+`reference/kan_ref.ml`) whose universal properties are now *proved as types*
+in the language (`examples/category.kan`).
+**Why.** Sponsor's directive: one language, done properly, no temporary split.
+The typed surface already subsumed the fill language's computational content
+(data/fold/products are a special case of inductives + Σ), so unifying loses
+nothing and removes the confusing two-language split. Removed
+`lib/{syntax,interp,compile}.ml` and the fill-language docs; migrated all
+examples to `.kan`. Compilation is via OCaml (`ocamlopt`); a C backend from the
+same erased IR is future additive work.
+
 ---
 
 ## Phase plan (tracks README §13)
