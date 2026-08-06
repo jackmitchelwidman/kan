@@ -397,8 +397,19 @@ Contributions are welcome and are accepted under the same license.
 **Try it now:**
 
 ```
-ocaml reference/kan_ref.ml        # instant: the fill kernel, running (§4)
+eval $(opam env --switch=kan)
+dune build
+
+# run a real .kan program on the fill kernel:
+dune exec bin/kan.exe -- examples/compose.kan     # composition as a horn fill
+dune exec bin/kan.exe -- examples/product.kan      # A×B as a universal fill
+
+# the full Phase-1 demonstration (composition, limits, colimits, folds):
+dune exec reference/kan_ref.exe
 ```
 
-Design decisions are logged transparently in [`DECISIONS.md`](DECISIONS.md);
-the core is specified in [`docs/core-calculus.md`](docs/core-calculus.md).
+Layout: the `fill` kernel is `lib/kernel.ml`; the surface interpreter is
+`bin/kan.ml`; example programs are in `examples/`. Design decisions are logged
+in [`DECISIONS.md`](DECISIONS.md); the core is specified in
+[`docs/core-calculus.md`](docs/core-calculus.md) and the surface syntax in
+[`docs/surface-language.md`](docs/surface-language.md).

@@ -1,0 +1,8 @@
+-- The coproduct A+B is a universal fill: the colimit of a discrete diagram.
+
+set A = 2
+set B = 3
+
+let sum = coproduct [A, B]
+
+show sum       -- 5 elements, with injections incl[0]=ι₁, incl[1]=ι₂

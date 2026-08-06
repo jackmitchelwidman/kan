@@ -63,9 +63,14 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      property) computed. **Folds/recursion added** as initial-algebra fills
      (ℕ, List sum/length, Expr evaluator; reflection + fusion laws verified) —
      `fill_fold α Universal = cata α`, running in a finite-trees universe
-     alongside FinSet. Spec: `docs/core-calculus.md`. Remaining in Phase 1:
-     a syntactic shape/signature language, one typed kernel over both
-     universes, and the formal reduction rules.
+     alongside FinSet. Spec: `docs/core-calculus.md`.
+   → **Surface language shipped.** Repo restructured into a library (`lib/`,
+     the `fill` kernel) + two executables: `reference/` (the 8 demos) and
+     `bin/kan.ml` (the `kan` CLI: lexer + recursive-descent parser + evaluator
+     for `.kan` files). You can now *write Kan and run it*: `examples/*.kan`
+     cover compose/product/pullback/coproduct, each one kernel `fill`. Grammar:
+     `docs/surface-language.md`. Remaining in Phase 1: fold/signature syntax in
+     the surface, one typed kernel over both universes, formal reduction rules.
 2. **Forced core + typechecker.** Identify the total, effective fragment and its
    reduction rules; minimal dependent-type substrate to state diagrams.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
