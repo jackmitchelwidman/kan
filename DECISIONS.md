@@ -48,7 +48,7 @@ Sponsor confirmed public + open source. Apache-2.0 chosen over MIT because a
 patent grant (and clear contribution terms) is the responsible default (cf.
 Swift, Kotlin). Copyright line: "2026 Jack Widman and the Kan contributors".
 Process unchanged: check in at **phase boundaries**; otherwise proceed.
-Repo: public on GitHub, owner `jackmitchelwidman`.
+Repo: **https://github.com/jackmitchelwidman/kan** (public).
 
 ---
 
