@@ -422,9 +422,10 @@ Kan is not Haskell with category theory, Idris with more abstractions, or Lean a
 Kan is free and open source under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
 Contributions are welcome and are accepted under the same license.
 
-**Requirements:** OCaml ≥ 4.13 and dune ≥ 3.0 (the OCaml native compiler,
-`ocamlopt`, is Kan's code generator). No third-party libraries — Kan builds
-against the OCaml standard library only. If you don't have dune: `opam install dune`.
+**Requirements:** OCaml ≥ 4.13 and dune ≥ 3.0. Kan compiles to native code via
+two backends — OCaml (`ocamlopt`, default) and C (`cc`, with `kan build -c`).
+No third-party libraries — Kan builds against the OCaml standard library only.
+If you don't have dune: `opam install dune`.
 
 **Try it now:**
 
@@ -440,7 +441,8 @@ dune exec bin/kan.exe -- check examples/nat.kan
 dune exec bin/kan.exe -- run examples/nat.kan
 
 # COMPILE it to a native binary (this type-checks first) and run that:
-dune exec bin/kan.exe -- build examples/nat.kan -o nat && ./nat
+dune exec bin/kan.exe -- build examples/nat.kan -o nat && ./nat        # via OCaml
+dune exec bin/kan.exe -- build -c examples/nat.kan -o nat && ./nat     # via C
 
 # the FinSet `fill` reference model (composition, limits, colimits, folds):
 dune exec reference/kan_ref.exe
@@ -460,8 +462,8 @@ dune install --prefix ~/.local --sections bin    # installs `kan` to ~/.local/bi
 ```
 
 Layout: the type theory is `lib/core.ml` (kernel) and `lib/tt.ml` (surface);
-type erasure is `lib/erase.ml`; the OCaml/native backend is
-`lib/ocaml_backend.ml`; the CLI driver is `bin/kan.ml`. The original `fill`
+type erasure is `lib/erase.ml`; the native backends are `lib/ocaml_backend.ml`
+and `lib/c_backend.ml`; the CLI driver is `bin/kan.ml`. The original `fill`
 calculus survives as the FinSet reference model (`lib/kernel.ml`,
 `reference/kan_ref.ml`). Design decisions are logged in
 [`DECISIONS.md`](DECISIONS.md); the type system is specified in
