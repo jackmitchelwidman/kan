@@ -120,8 +120,15 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      Plan (agreed with Jack): (1)+(2) build the unified, richly-typed `.kan`
      language — make `.kan` dependently typed by UNIFYING around the type-theory
      core (FinSet becomes one model inside it), with general user-declared
-     inductive types; then (3) backends: C first, then OCaml. Next: user-declared
-     `data`, then connect types to `fill`.
+     inductive types; then (3) backends: C first, then OCaml.
+   → **Phase 3, milestone 2 done — USER-DECLARED inductive types.** `data`
+     declarations in `.ktt` with an AUTO-GENERATED dependent eliminator
+     (`D_elim`, iota-reduces). `examples/data.ktt`: a user `N` with `add`, a
+     proof by induction over it (`add_n_z`), and a `Tree` with `size`. Core has
+     a datatype registry + generated method types (`lib/core.ml`: Data/Con/Elim,
+     `declare_data`, `method_type`, `lift`). Limits: non-parameterized,
+     first-order, `U 0`, constructor names global. Next: parameterized inductives
+     (`List A`), then connect the type theory to the `.kan`/`fill` language.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

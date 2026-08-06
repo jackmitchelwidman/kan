@@ -1,0 +1,31 @@
+-- USER-DECLARED inductive types, with automatically generated induction.
+-- Run:  kan check examples/data.ktt
+-- (Note: constructor names are global; don't reuse them as variable binders.)
+
+-- A user-defined Nat. Declaring it generates the eliminator
+--   N_elim : (P : N -> U) -> P z -> ((k:N) -> P k -> P (s k)) -> (n:N) -> P n
+data N { z : N, s : N -> N }
+
+def add : N -> N -> N
+        = \m n. N_elim (\p. N) n (\k ih. s ih) m
+
+eval add (s (s z)) (s z)        -- s (s (s z))
+
+-- congruence, needed for the inductive step
+def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
+       = \A B f a b p. transp A (\w. Id B (f a) (f w)) a b p refl
+
+-- PROOF BY INDUCTION over the user-declared type:  add n z = n
+def add_n_z : (n : N) -> Id N (add n z) n
+  = \n. N_elim (\m. Id N (add m z) m)
+               refl
+               (\k ih. ap N N (\x. s x) (add k z) k ih)
+               n
+
+-- Another inductive type, with recursion into it: binary trees, counting nodes.
+data Tree { leaf : Tree, node : Tree -> Tree -> Tree }
+
+def size : Tree -> N
+         = \t. Tree_elim (\p. N) z (\l r sl sr. s (add sl sr)) t
+
+eval size (node (node leaf leaf) leaf)     -- s (s z)  = 2 nodes

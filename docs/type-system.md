@@ -101,10 +101,38 @@ type-checks — a genuine inductive proof (Id-type motive, congruence in the ste
 universe level 0 (`P : Nat -> U 0`), which covers `Nat`/`Bool`/`Id`-over-`U 0`
 families — the common case.
 
+## Phase 3, milestone 2 — user-declared inductive types (done)
+
+`data` declarations in `.ktt`: you define your own inductive types and the
+**dependent eliminator is generated automatically**. Declaring
+
+```
+data N { z : N, s : N -> N }
+```
+
+introduces `N`, its constructors `z`/`s`, and
+`N_elim : (P : N -> U) -> P z -> ((k:N) -> P k -> P (s k)) -> (n:N) -> P n`,
+which iota-reduces. In `examples/data.ktt`, `add` is defined by `N_elim`, and
+
+```
+def add_n_z : (n : N) -> Id N (add n z) n = \n. N_elim … 
+```
+
+type-checks — **a proof by induction over a user-declared type**. A `Tree` type
+with a `size` recursion is also there. Constructor argument types may be
+non-recursive or recursive occurrences of the datatype (first-order); the
+eliminator's method for each constructor takes the arguments followed by an
+induction hypothesis for each recursive argument.
+
+Current limits (honest): non-parameterized (monomorphic — no `List A` yet, define
+`List_N` etc.), first-order constructors, datatypes at `U 0`, motives at `U 0`,
+and constructor names live in a global namespace (don't shadow them with local
+binders). Parameters/indices are the next generalization.
+
 ## Where this is going
 
-1. **User-declared inductive types** — generalize `Nat` to a `data` mechanism so
-   any inductive (`List`, trees, categorical shapes) can be defined, not just `Nat`.
+1. **Parameterized inductives** — `List A`, so polymorphic containers are one
+   definition instead of one per element type.
 2. **Cumulative universes** — so a term in `U i` is usable at `U j` for `j ≥ i`.
 2. **A surface** for types in `.kan` (elaborating named binders to de Bruijn),
    so programs can *write* types, not just the OCaml AST.

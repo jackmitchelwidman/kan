@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | ID of string | NUM of int | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -45,6 +45,8 @@ let tokenize (s : string) : tok array =
     else if c = ':' then (push COLON; incr i)
     else if c = '.' then (push DOT; incr i)
     else if c = '\\' then (push LAM; incr i)
+    else if c = '{' then (push LBRACE; incr i)
+    else if c = '}' then (push RBRACE; incr i)
     else if c = '=' then (push EQ; incr i)
     else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' then begin
       let j = ref !i in
@@ -64,16 +66,24 @@ let tokenize (s : string) : tok array =
 (* -------- parser: names -> de Bruijn core terms -------- *)
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim" ]
-let decl_kw = [ "def"; "check"; "eval" ]
+let decl_kw = [ "def"; "check"; "eval"; "data" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
   go 0 ns
 
-type decl = Def of string * tm option * tm | Check of tm | Eval of tm
+type decl =
+  | Def of string * tm option * tm
+  | Check of tm
+  | Eval of tm
+  | Data_decl of string * (string * tm list * bool list) list
 
 let parse (toks : tok array) : decl list =
   let pos = ref 0 in
+  (* datatypes/constructors/eliminators declared so far (populated as `data` decls are parsed) *)
+  let datatypes : (string, unit) Hashtbl.t = Hashtbl.create 16 in
+  let ctors : (string, int) Hashtbl.t = Hashtbl.create 32 in           (* ctor -> arity *)
+  let elims : (string, string * int) Hashtbl.t = Hashtbl.create 16 in  (* elim -> (datatype, #methods) *)
   let peek () = toks.(!pos) in
   let peek2 () = if !pos + 1 < Array.length toks then toks.(!pos + 1) else EOF in
   let peek3 () = if !pos + 2 < Array.length toks then toks.(!pos + 2) else EOF in
@@ -106,6 +116,7 @@ let parse (toks : tok array) : decl list =
          | STAR -> adv (); Sig ("_", lhs, term ("_" :: ns))
          | _ -> lhs)
   and app ns =
+    let take_atoms k = let rec go i = if i <= 0 then [] else let a = atom ns in a :: go (i - 1) in go k in
     let base =
       match peek () with
       | ID "Id" -> adv (); let a = atom ns in let b = atom ns in let c = atom ns in Id (a, b, c)
@@ -119,6 +130,11 @@ let parse (toks : tok array) : decl list =
       | ID "natElim" ->
           adv (); let p = atom ns in let z = atom ns in let s = atom ns in let nt = atom ns in
           NatElim (p, z, s, nt)
+      | ID x when (match Hashtbl.find_opt ctors x with Some k -> k > 0 | None -> false) ->
+          adv (); Con (x, take_atoms (Hashtbl.find ctors x))
+      | ID x when Hashtbl.mem elims x ->
+          adv (); let d, nm = Hashtbl.find elims x in
+          let mot = atom ns in let ms = take_atoms nm in let tgt = atom ns in Elim (d, mot, ms, tgt)
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
@@ -135,6 +151,10 @@ let parse (toks : tok array) : decl list =
     | ID "refl" -> adv (); Refl
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")
+    | ID x when Hashtbl.mem datatypes x -> adv (); Data x
+    | ID x when (match Hashtbl.find_opt ctors x with Some 0 -> true | _ -> false) -> adv (); Con (x, [])
+    | ID x when Hashtbl.mem ctors x -> fail (x ^ " needs arguments")
+    | ID x when Hashtbl.mem elims x -> fail (x ^ " needs arguments (a motive, methods, and a target)")
     | ID x -> adv (); (match index_of x ns with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
     | LP ->
         adv ();
@@ -150,7 +170,37 @@ let parse (toks : tok array) : decl list =
         eat EQ "="; let body = term ns in Def (name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
-    | _ -> fail "expected a declaration (def / check / eval)"
+    | ID "data" ->
+        adv (); let name = ident () in
+        Hashtbl.replace datatypes name ();      (* register early so constructor types can be recursive *)
+        eat LBRACE "{";
+        let parse_ctor () =
+          let cname = ident () in
+          eat COLON ":";
+          let ty = term ns in
+          let rec decompose t =
+            match t with
+            | Pi ("_", a, b) -> let a2, ret = decompose b in (a :: a2, ret)
+            | Pi _ -> fail ("constructor " ^ cname ^ ": type must be a simple (non-dependent) arrow chain")
+            | other -> ([], other)
+          in
+          let argtys, ret = decompose ty in
+          (match ret with Data dn when dn = name -> () | _ -> fail ("constructor " ^ cname ^ " must return " ^ name));
+          let recs = List.map (fun a -> a = Data name) argtys in
+          Hashtbl.replace ctors cname (List.length argtys);
+          (cname, argtys, recs)
+        in
+        let rec many acc =
+          let c = parse_ctor () in
+          match peek () with
+          | COMMA -> adv (); (match peek () with RBRACE -> List.rev (c :: acc) | _ -> many (c :: acc))
+          | _ -> List.rev (c :: acc)
+        in
+        let cs = (match peek () with RBRACE -> [] | _ -> many []) in
+        eat RBRACE "}";
+        Hashtbl.replace elims (name ^ "_elim") (name, List.length cs);
+        Data_decl (name, cs)
+    | _ -> fail "expected a declaration (def / check / eval / data)"
   in
   (* interleave: each def extends the name scope for later decls *)
   let rec loop ns acc =
@@ -189,5 +239,15 @@ let run (src : string) : unit =
       | Check t ->
           let ty = infer !ctx t in
           Printf.printf "check    : %s\n           = %s\n" (sh (quote !ctx.lvl ty)) (sh (nf t))
-      | Eval t -> Printf.printf "eval     : %s\n" (sh (nf t)))
+      | Eval t -> Printf.printf "eval     : %s\n" (sh (nf t))
+      | Data_decl (name, cs) ->
+          let specs =
+            List.map
+              (fun (cname, argtys, recs) ->
+                { cs_name = cname;
+                  cs_args = List.mapi (fun i (ty, r) -> (Printf.sprintf "x%d" i, ty, r)) (List.combine argtys recs) })
+              cs
+          in
+          declare_data name specs;
+          Printf.printf "data %s = %s\n" name (String.concat " | " (List.map (fun (c, _, _) -> c) cs)))
     decls
