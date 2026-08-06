@@ -51,6 +51,25 @@ both *derived from transport*, and shows they compute (`sym U U U refl ↝ refl`
 "This diagram commutes" is, concretely, an inhabitant of an `Id` type — which
 this layer can now express and check.
 
+## Milestone 3 — a surface you can write (done)
+
+`lib/tt.ml` is a readable syntax for the core, run with `kan check file.ktt`.
+It has named binders (elaborated to de Bruijn), `\x. t` lambdas, `(x:A) -> B`
+and `A -> B`, Σ as `(x:A) * B`, `Id A a b`, `refl`, `transp`, `fst`/`snd`, and
+top-level `def` / `check` / `eval` declarations.
+
+`examples/proofs.ktt` — the proofs from milestone 2, now written in source:
+
+```
+def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
+  = \A a b p. transp A (\z. Id A z a) a b p refl
+```
+
+`kan check examples/proofs.ktt` elaborates and type-checks `id`, `sym`, `ap`,
+`trans`, prints their (verified) types, and shows `sym U U U refl` normalizing
+to `refl`. This is a self-contained dependently typed checker you can write
+programs for — not yet connected to the `fill` kernel (that is the next step).
+
 ## Where this is going
 
 1. **Universes** — replace Type-in-Type with a predicative hierarchy.

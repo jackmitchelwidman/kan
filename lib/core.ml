@@ -171,12 +171,15 @@ and infer (ctx : ctx) (t : tm) : value =
   | Ann (tm, ty) -> check ctx ty VU; let vty = eval ctx.env ty in check ctx tm vty; vty
 
 and show ?(ns = []) (t : tm) : string =
+  let dom a = match a with Pi _ | Sig _ -> "(" ^ show ~ns a ^ ")" | _ -> show ~ns a in
   match t with
   | Var i -> (match List.nth_opt ns i with Some n -> n | None -> "@" ^ string_of_int i)
   | U -> "U"
+  | Pi ("_", a, b) -> Printf.sprintf "%s -> %s" (dom a) (show ~ns:("_" :: ns) b)
   | Pi (x, a, b) -> Printf.sprintf "(%s : %s) -> %s" x (show ~ns a) (show ~ns:(x :: ns) b)
   | Lam (x, b) -> Printf.sprintf "\\%s. %s" x (show ~ns:(x :: ns) b)
   | App (f, a) -> Printf.sprintf "(%s %s)" (show ~ns f) (show ~ns a)
+  | Sig ("_", a, b) -> Printf.sprintf "%s * %s" (dom a) (show ~ns:("_" :: ns) b)
   | Sig (x, a, b) -> Printf.sprintf "(%s : %s) * %s" x (show ~ns a) (show ~ns:(x :: ns) b)
   | Pair (a, b) -> Printf.sprintf "(%s, %s)" (show ~ns a) (show ~ns b)
   | Fst t -> Printf.sprintf "%s.1" (show ~ns t)

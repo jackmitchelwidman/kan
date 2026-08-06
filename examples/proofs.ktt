@@ -1,0 +1,26 @@
+-- Dependent types and proofs, in readable Kan type-theory syntax.
+-- Run:  kan check examples/proofs.ktt
+
+-- the dependent identity function
+def id : (A : U) -> A -> A
+  = \A x. x
+
+-- equality is symmetric:  a proof, checked by the type checker
+def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
+  = \A a b p. transp A (\z. Id A z a) a b p refl
+
+-- congruence: equal inputs give equal outputs (the workhorse for diagrams)
+def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
+  = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl
+
+-- transitivity of equality, built from sym and transport
+def trans : (A : U) -> (a : A) -> (b : A) -> (c : A) -> Id A a b -> Id A b c -> Id A a c
+  = \A a b c p q. transp A (\z. Id A a z) b c q p
+
+check id
+check sym
+check ap
+check trans
+
+-- equality proofs actually compute: transport along refl reduces
+eval sym U U U refl

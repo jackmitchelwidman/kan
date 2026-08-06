@@ -99,6 +99,11 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      = an inhabitant of an `Id` type, now expressible/checkable. Still
      Type-in-Type. Next: universes, a type surface in `.kan`, then connect types
      to `fill` so a universal property becomes a checkable proposition.
+   → **STATUS: milestone 3 done — a surface you can write.** `lib/tt.ml` +
+     `kan check file.ktt`: named binders elaborated to de Bruijn, `\x. t`,
+     `(x:A)->B`, `A->B`, Σ `(x:A)*B`, `Id`, `refl`, `transp`, `fst`/`snd`,
+     top-level `def`/`check`/`eval`. `examples/proofs.ktt` type-checks
+     id/sym/ap/trans and computes. Next: universes, then connect types to `fill`.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.
