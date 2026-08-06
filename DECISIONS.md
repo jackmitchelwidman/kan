@@ -40,6 +40,13 @@ from the Phase-1 reference interpreter. Add a portable backend (wasm or Scheme)
 after native works. **LLVM deferred** until C is outgrown.
 **Why.** Shortest credible path to genuinely native, performant binaries with
 easy FFI, without letting codegen distort the core.
+→ **STATUS: first backend shipped early** (at sponsor's request). `kan build`
+  lowers the FinSet fragment to C (an embedded categorical runtime: compose,
+  finite limits by tuple enumeration, colimits by union–find) and calls `cc -O2`
+  to produce a native ELF binary. It is a real compiler — the binary runs the
+  fill algorithms — verified by diffing every example's binary output against
+  the interpreter (all match). No IR yet (AST→C directly); that and the
+  optimized core / LLVM path remain later phases. Spec: `docs/compiler.md`.
 
 ## ADR-004 — Open source, Apache-2.0 **[locked]**
 **Decision.** Kan is open source under **Apache License 2.0** (`LICENSE`).

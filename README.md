@@ -400,16 +400,21 @@ Contributions are welcome and are accepted under the same license.
 eval $(opam env --switch=kan)
 dune build
 
-# run a real .kan program on the fill kernel:
-dune exec bin/kan.exe -- examples/compose.kan     # composition as a horn fill
-dune exec bin/kan.exe -- examples/product.kan      # A×B as a universal fill
+# interpret a real .kan program on the fill kernel:
+dune exec bin/kan.exe -- run examples/compose.kan      # composition as a horn fill
+
+# COMPILE it to a native binary and run that:
+dune exec bin/kan.exe -- build examples/product.kan -o product
+./product
 
 # the full Phase-1 demonstration (composition, limits, colimits, folds):
 dune exec reference/kan_ref.exe
 ```
 
-Layout: the `fill` kernel is `lib/kernel.ml`; the surface interpreter is
-`bin/kan.ml`; example programs are in `examples/`. Design decisions are logged
-in [`DECISIONS.md`](DECISIONS.md); the core is specified in
-[`docs/core-calculus.md`](docs/core-calculus.md) and the surface syntax in
-[`docs/surface-language.md`](docs/surface-language.md).
+Layout: the `fill` kernel is `lib/kernel.ml`; the front-end is `lib/syntax.ml`;
+the interpreter is `lib/interp.ml`; the C compiler is `lib/compile.ml`; the CLI
+driver is `bin/kan.ml`; example programs are in `examples/`. Design decisions
+are logged in [`DECISIONS.md`](DECISIONS.md); the core is specified in
+[`docs/core-calculus.md`](docs/core-calculus.md), the surface syntax in
+[`docs/surface-language.md`](docs/surface-language.md), and the compiler in
+[`docs/compiler.md`](docs/compiler.md).
