@@ -411,6 +411,15 @@ dune exec bin/kan.exe -- build examples/product.kan -o product
 dune exec reference/kan_ref.exe
 ```
 
+**Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):
+
+```
+eval $(opam env --switch=kan)
+dune build
+dune install --prefix ~/.local --sections bin    # installs `kan` to ~/.local/bin
+# re-run the last line after any rebuild to update the installed binary
+```
+
 Layout: the `fill` kernel is `lib/kernel.ml`; the front-end is `lib/syntax.ml`;
 the interpreter is `lib/interp.ml`; the C compiler is `lib/compile.ml`; the CLI
 driver is `bin/kan.ml`; example programs are in `examples/`. Design decisions

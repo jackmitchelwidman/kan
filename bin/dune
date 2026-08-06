@@ -1,3 +1,5 @@
 (executable
  (name kan)
+ (public_name kan)
+ (package kan)
  (libraries kanlib))
