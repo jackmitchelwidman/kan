@@ -79,9 +79,33 @@ checked standard library (combinators, boolean ops, equality as an equivalence,
 congruence on `Bool`). The hierarchy is non-cumulative for now — an ergonomic
 refinement, not a soundness one.
 
+## Phase 3, milestone 1 — inductive types & induction (done)
+
+The first general inductive type: **`Nat`** (`zero`, `suc`) with its **dependent
+eliminator** `natElim P z s n : P n`, which iota-reduces
+(`natElim P z s zero = z`, `natElim P z s (suc m) = s m (natElim P z s m)`).
+Numeric literals (`3`) are sugar for `suc (suc (suc zero))`.
+
+This is the machinery — a motive `P`, a base, a step, and reduction — that
+arbitrary inductive types generalize. It already lets Kan do real **proofs by
+induction**. In `examples/nat.ktt`, `add` is defined by `natElim`, and
+
+```
+def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
+  = \n. natElim (\m. Id Nat (add m zero) m) refl
+                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih) n
+```
+
+type-checks — a genuine inductive proof (Id-type motive, congruence in the step,
+`refl` in the base by computation). Note: motives are currently checked at
+universe level 0 (`P : Nat -> U 0`), which covers `Nat`/`Bool`/`Id`-over-`U 0`
+families — the common case.
+
 ## Where this is going
 
-1. **Cumulative universes** — so a term in `U i` is usable at `U j` for `j ≥ i`.
+1. **User-declared inductive types** — generalize `Nat` to a `data` mechanism so
+   any inductive (`List`, trees, categorical shapes) can be defined, not just `Nat`.
+2. **Cumulative universes** — so a term in `U i` is usable at `U j` for `j ≥ i`.
 2. **A surface** for types in `.kan` (elaborating named binders to de Bruijn),
    so programs can *write* types, not just the OCaml AST.
 3. **Identity / equality types** — the machinery to state "this diagram

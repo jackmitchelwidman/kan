@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | ID of string | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | ID of string | NUM of int | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -51,6 +51,11 @@ let tokenize (s : string) : tok array =
       while !j < n && is_a s.[!j] do incr j done;
       push (ID (String.sub s !i (!j - !i))); i := !j
     end
+    else if c >= '0' && c <= '9' then begin
+      let j = ref !i in
+      while !j < n && s.[!j] >= '0' && s.[!j] <= '9' do incr j done;
+      push (NUM (int_of_string (String.sub s !i (!j - !i)))); i := !j
+    end
     else failwith (Printf.sprintf "type-theory lexer: unexpected character '%c'" c)
   done;
   push EOF;
@@ -58,7 +63,7 @@ let tokenize (s : string) : tok array =
 
 (* -------- parser: names -> de Bruijn core terms -------- *)
 
-let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if" ]
+let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim" ]
 let decl_kw = [ "def"; "check"; "eval" ]
 
 let index_of (x : string) (ns : string list) : int option =
@@ -76,7 +81,7 @@ let parse (toks : tok array) : decl list =
   let fail m = failwith ("type-theory parse error: " ^ m) in
   let eat t m = if peek () = t then adv () else fail ("expected " ^ m) in
   let ident () = match peek () with ID x -> adv (); x | _ -> fail "expected a name" in
-  let starts_atom = function LP -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
+  let starts_atom = function LP | NUM _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
   let rec term ns =
     match peek () with
     | LAM ->
@@ -110,6 +115,10 @@ let parse (toks : tok array) : decl list =
       | ID "fst" -> adv (); Fst (atom ns)
       | ID "snd" -> adv (); Snd (atom ns)
       | ID "if" -> adv (); let c = atom ns in let t = atom ns in let e = atom ns in If (c, t, e)
+      | ID "suc" -> adv (); Suc (atom ns)
+      | ID "natElim" ->
+          adv (); let p = atom ns in let z = atom ns in let s = atom ns in let nt = atom ns in
+          NatElim (p, z, s, nt)
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
@@ -120,6 +129,9 @@ let parse (toks : tok array) : decl list =
     | ID "Bool" -> adv (); Bool
     | ID "true" -> adv (); True
     | ID "false" -> adv (); False
+    | ID "Nat" -> adv (); Nat
+    | ID "zero" -> adv (); Zero
+    | NUM k -> adv (); let rec mk i = if i <= 0 then Zero else Suc (mk (i - 1)) in mk k
     | ID "refl" -> adv (); Refl
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")

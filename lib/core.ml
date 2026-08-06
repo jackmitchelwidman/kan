@@ -33,7 +33,17 @@ type tm =
   | True
   | False
   | If of tm * tm * tm                (* non-dependent: if c then t else e *)
+  | Nat
+  | Zero
+  | Suc of tm
+  | NatElim of tm * tm * tm * tm      (* dependent induction: natElim P z s n : P n *)
   | Ann of tm * tm
+
+(* closed Nat numerals -> int, for display *)
+let rec nat_int = function
+  | Zero -> Some 0
+  | Suc t -> (match nat_int t with Some k -> Some (k + 1) | None -> None)
+  | _ -> None
 
 type value =
   | VVar of int
@@ -52,6 +62,10 @@ type value =
   | VTrue
   | VFalse
   | VIf of value * value * value      (* neutral scrutinee *)
+  | VNat
+  | VZero
+  | VSuc of value
+  | VNatElim of value * value * value * value   (* neutral target *)
 
 and closure = { env : value list; body : tm }
 
@@ -76,6 +90,10 @@ let rec eval (env : value list) (t : tm) : value =
   | True -> VTrue
   | False -> VFalse
   | If (c, t, e) -> vif (eval env c) (eval env t) (eval env e)
+  | Nat -> VNat
+  | Zero -> VZero
+  | Suc n -> VSuc (eval env n)
+  | NatElim (p, z, s, n) -> vnatelim (eval env p) (eval env z) (eval env s) (eval env n)
   | Ann (t, _) -> eval env t
 
 and vapp f a = match f with VLam (_, c) -> inst c a | _ -> VApp (f, a)
@@ -83,6 +101,11 @@ and vfst v = match v with VPair (a, _) -> a | _ -> VFst v
 and vsnd v = match v with VPair (_, b) -> b | _ -> VSnd v
 and vtransp a p x y pe d = match pe with VRefl -> d | _ -> VTransp (a, p, x, y, pe, d)
 and vif c t e = match c with VTrue -> t | VFalse -> e | _ -> VIf (c, t, e)
+and vnatelim p z s n =
+  match n with
+  | VZero -> z
+  | VSuc m -> vapp (vapp s m) (vnatelim p z s m)
+  | _ -> VNatElim (p, z, s, n)
 and inst c v = eval (v :: c.env) c.body
 
 let rec quote (l : int) (v : value) : tm =
@@ -104,6 +127,10 @@ let rec quote (l : int) (v : value) : tm =
   | VTrue -> True
   | VFalse -> False
   | VIf (c, t, e) -> If (quote l c, quote l t, quote l e)
+  | VNat -> Nat
+  | VZero -> Zero
+  | VSuc n -> Suc (quote l n)
+  | VNatElim (p, z, s, n) -> NatElim (quote l p, quote l z, quote l s, quote l n)
 
 let normalize (t : tm) : tm = quote 0 (eval [] t)
 
@@ -128,6 +155,11 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VTrue, VTrue -> true
   | VFalse, VFalse -> true
   | VIf (c, t, e), VIf (c', t', e') -> conv l c c' && conv l t t' && conv l e e'
+  | VNat, VNat -> true
+  | VZero, VZero -> true
+  | VSuc a, VSuc b -> conv l a b
+  | VNatElim (p, z, s, n), VNatElim (p', z', s', n') ->
+      conv l p p' && conv l z z' && conv l s s' && conv l n n'
   | _ -> false
 
 (* -------- Bidirectional type checking -------- *)
@@ -188,6 +220,22 @@ and infer (ctx : ctx) (t : tm) : value =
   | Bool -> VU 0
   | True | False -> VBool
   | If (c, t, e) -> check ctx c VBool; let ct = infer ctx t in check ctx e ct; ct
+  | Nat -> VU 0
+  | Zero -> VNat
+  | Suc n -> check ctx n VNat; VNat
+  | NatElim (p, z, s, n) ->
+      (* motive  P : Nat -> U 0  (level-0 families; the common case) *)
+      check ctx p (VPi ("_", VNat, { env = []; body = U 0 }));
+      let vp = eval ctx.env p in
+      check ctx z (vapp vp VZero);                         (* base : P zero *)
+      (* step : (k : Nat) -> P k -> P (suc k)  — built directly as a value *)
+      let s_ty =
+        VPi ("k", VNat,
+             { env = [ vp ]; body = Pi ("_", App (Var 1, Var 0), App (Var 2, Suc (Var 1))) })
+      in
+      check ctx s s_ty;
+      check ctx n VNat;
+      vapp vp (eval ctx.env n)                             (* result : P n *)
   | Ann (tm, ty) -> ignore (infer_univ ctx ty); let vty = eval ctx.env ty in check ctx tm vty; vty
 
 and infer_univ (ctx : ctx) (t : tm) : int =
@@ -217,6 +265,10 @@ and show ?(ns = []) (t : tm) : string =
   | True -> "true"
   | False -> "false"
   | If (c, t, e) -> Printf.sprintf "if %s %s %s" (show ~ns c) (show ~ns t) (show ~ns e)
+  | Nat -> "Nat"
+  | Zero -> "0"
+  | Suc t -> (match nat_int t with Some k -> string_of_int (k + 1) | None -> Printf.sprintf "suc %s" (show ~ns t))
+  | NatElim (p, z, s, n) -> Printf.sprintf "natElim %s %s %s %s" (show ~ns p) (show ~ns z) (show ~ns s) (show ~ns n)
   | Ann (t, ty) -> Printf.sprintf "(%s : %s)" (show ~ns t) (show ~ns ty)
 
 let type_of (t : tm) : tm = quote 0 (infer empty t)

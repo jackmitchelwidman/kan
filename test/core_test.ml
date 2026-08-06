@@ -70,7 +70,20 @@ let () =
   print_endline "\n== equality proofs compute (on a real closed value) ==";
   nf "sym-refl" (App (App (App (App (sym, Bool), True), True), Refl));
 
+  print_endline "\n== Nat: inductive type with a dependent eliminator ==";
+  ok "Nat" Nat;
+  ok "two" (Suc (Suc Zero));
+  (* add = \m n. natElim (\_.Nat) n (\k ih. suc ih) m *)
+  let add =
+    Ann (Lam ("m", Lam ("n",
+      NatElim (Lam ("_", Nat), Var 0, Lam ("k", Lam ("ih", Suc (Var 0))), Var 1))),
+      Pi ("_", Nat, Pi ("_", Nat, Nat)))
+  in
+  ok "add" add;
+  nf "2+3" (App (App (add, Suc (Suc Zero)), Suc (Suc (Suc Zero))));   (* = 5 *)
+
   print_endline "\n== ill-typed terms are rejected ==";
+  reject "natElim base" (NatElim (Lam ("_", Nat), True, Lam ("k", Lam ("ih", Suc (Var 0))), Zero));
   reject "refl bad" (Ann (Refl, Id (Bool, True, False)));   (* true <> false *)
   reject "U : U" (Ann (U 0, U 0));                          (* U 0 : U 1, not U 0 *)
   reject "apply Bool" (App (Bool, True));                   (* Bool is not a function *)

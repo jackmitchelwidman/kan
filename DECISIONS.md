@@ -111,8 +111,17 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      `test/core_test.exe` = positive+negative suite (nonzero exit on any wrongly
      accepted term); `examples/prelude.ktt` = a small checked standard library.
      The dependent-type layer is now robust and a first-class part of the
-     language (`kan check`). Remaining: cumulative universes, and CONNECTING
-     types to the `fill` kernel (the two languages are still separate).
+     language (`kan check`).
+   → **Phase 3, milestone 1 done — inductive types.** Added `Nat` (`zero`/`suc`)
+     with a DEPENDENT eliminator `natElim` (iota-reduces), plus numeric-literal
+     sugar. Enables real proofs by induction: `examples/nat.ktt` type-checks
+     `add_n_zero : (n:Nat) -> Id Nat (add n zero) n`. Motives checked at level 0
+     for now. This is the machinery arbitrary inductives generalize.
+     Plan (agreed with Jack): (1)+(2) build the unified, richly-typed `.kan`
+     language — make `.kan` dependently typed by UNIFYING around the type-theory
+     core (FinSet becomes one model inside it), with general user-declared
+     inductive types; then (3) backends: C first, then OCaml. Next: user-declared
+     `data`, then connect types to `fill`.
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.
