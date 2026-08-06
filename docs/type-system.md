@@ -124,16 +124,35 @@ non-recursive or recursive occurrences of the datatype (first-order); the
 eliminator's method for each constructor takes the arguments followed by an
 induction hypothesis for each recursive argument.
 
-Current limits (honest): non-parameterized (monomorphic — no `List A` yet, define
-`List_N` etc.), first-order constructors, datatypes at `U 0`, motives at `U 0`,
-and constructor names live in a global namespace (don't shadow them with local
-binders). Parameters/indices are the next generalization.
+## Phase 3, milestone 3 — parameterized inductives (done)
+
+Datatypes may now take **parameters**, so polymorphic containers are one
+definition. `examples/list.ktt`:
+
+```
+data List (A : U) { nil : List A, cons : A -> List A -> List A }
+def length : (A : U) -> List A -> Nat = \A xs. List_elim A (\l. Nat) 0 (\x xs ih. suc ih) xs
+def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B = …
+```
+
+`length` and `map` work on `List Bool` and `List Nat` from a single definition.
+Parameters are explicit: `nil A`, `cons A x xs`, `List_elim A P methods target`.
+Internally, the type former, each constructor, and the eliminator are typed
+**heads** whose full dependent types are computed once at declaration (with a
+scope-threaded builder), and the eliminator's iota-rule fires when its spine is
+complete and the target is a constructor.
+
+Current limits (honest): constructor arguments are first-order and each must be
+a parameter, a recursive occurrence `T <params>`, or a closed type; no indices
+(only parameters); datatypes/motives at `U 0`; constructor names are global.
 
 ## Where this is going
 
-1. **Parameterized inductives** — `List A`, so polymorphic containers are one
-   definition instead of one per element type.
+1. **Connect the type theory to `.kan`** — the unification: make the compiled
+   language itself dependently typed. (The big one.)
 2. **Cumulative universes** — so a term in `U i` is usable at `U j` for `j ≥ i`.
+3. **Indexed families** — inductive types indexed by values (e.g. length-indexed
+   vectors), generalizing parameters.
 2. **A surface** for types in `.kan` (elaborating named binders to de Bruijn),
    so programs can *write* types, not just the OCaml AST.
 3. **Identity / equality types** — the machinery to state "this diagram

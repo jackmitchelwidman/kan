@@ -83,22 +83,23 @@ let () =
   nf "2+3" (App (App (add, Suc (Suc Zero)), Suc (Suc (Suc Zero))));   (* = 5 *)
 
   print_endline "\n== user-declared inductive types ==";
-  Core.declare_data "N"
-    [ { cs_name = "z"; cs_args = [] }; { cs_name = "s"; cs_args = [ ("x", Data "N", true) ] } ];
-  let z = Con ("z", []) in
-  let s x = Con ("s", [ x ]) in
+  Core.declare_data "N" []
+    [ { cs_name = "z"; cs_args = [] }; { cs_name = "s"; cs_args = [ ("x", ARec) ] } ];
+  let z = Con "z" in
+  let s x = App (Con "s", x) in
   ok "z" z;
+  (* add = \m n. N_elim (\_.N) n (\x ih. s ih) m *)
+  let nelim p mz ms t = App (App (App (App (Elim "N_elim", p), mz), ms), t) in
   let nadd =
     Ann (Lam ("m", Lam ("n",
-      Elim ("N", Lam ("p", Data "N"),
-        [ Var 0; Lam ("k", Lam ("ih", Con ("s", [ Var 0 ]))) ], Var 1))),
+      nelim (Lam ("p", Data "N")) (Var 0) (Lam ("x", Lam ("ih", App (Con "s", Var 0)))) (Var 1))),
       Pi ("_", Data "N", Pi ("_", Data "N", Data "N")))
   in
   ok "N.add" nadd;
   nf "N 2+1" (App (App (nadd, s (s z)), s z));    (* = (s (s (s z))) *)
 
   print_endline "\n== ill-typed terms are rejected ==";
-  reject "con arg" (Con ("s", [ True ]));         (* s expects an N, got Bool *)
+  reject "con arg" (App (Con "s", True));         (* s expects an N, got Bool *)
   reject "natElim base" (NatElim (Lam ("_", Nat), True, Lam ("k", Lam ("ih", Suc (Var 0))), Zero));
   reject "refl bad" (Ann (Refl, Id (Bool, True, False)));   (* true <> false *)
   reject "U : U" (Ann (U 0, U 0));                          (* U 0 : U 1, not U 0 *)

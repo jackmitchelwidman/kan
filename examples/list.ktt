@@ -1,0 +1,26 @@
+-- PARAMETERIZED inductive types: a polymorphic List.
+-- Run:  kan check examples/list.ktt
+-- Constructors and the eliminator take the parameter explicitly (nil A, cons A x xs,
+-- List_elim A P methods target).
+
+data List (A : U) { nil : List A, cons : A -> List A -> List A }
+
+-- length is one definition, for lists of ANY element type
+def length : (A : U) -> List A -> Nat
+           = \A xs. List_elim A (\l. Nat) 0 (\x xs ih. suc ih) xs
+
+def bs : List Bool = cons Bool true (cons Bool false (nil Bool))
+
+eval length Bool bs                                   -- 2
+
+-- map, also polymorphic in both element types
+def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
+        = \A B f xs. List_elim A (\l. List B) (nil B) (\x xs ih. cons B (f x) ih) xs
+
+def not : Bool -> Bool = \b. if b false true
+
+eval map Bool Bool not bs                             -- cons Bool false (cons Bool true (nil Bool))
+
+-- lists of a different element type, same code
+def ns : List Nat = cons Nat 3 (cons Nat 1 (cons Nat 4 (nil Nat)))
+eval length Nat ns                                    -- 3

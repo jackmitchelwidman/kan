@@ -126,9 +126,15 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      (`D_elim`, iota-reduces). `examples/data.ktt`: a user `N` with `add`, a
      proof by induction over it (`add_n_z`), and a `Tree` with `size`. Core has
      a datatype registry + generated method types (`lib/core.ml`: Data/Con/Elim,
-     `declare_data`, `method_type`, `lift`). Limits: non-parameterized,
-     first-order, `U 0`, constructor names global. Next: parameterized inductives
-     (`List A`), then connect the type theory to the `.kan`/`fill` language.
+     `declare_data`). Limits: non-parameterized, first-order, `U 0`.
+   → **Phase 3, milestone 3 done — PARAMETERIZED inductives.** `data List (A:U)
+     { … }`: polymorphic containers. Type former/constructors/eliminator are typed
+     heads with full dependent types computed once at declaration (scope-threaded
+     builder); eliminator iota-rule fires on complete spine + constructor target.
+     `examples/list.ktt`: `length`/`map` over `List Bool` and `List Nat` from one
+     definition. Limits: first-order args (param / recursive / closed), no indices,
+     `U 0`, constructor names global. **NEXT (the big one): connect the type theory
+     to the `.kan`/fill language — make the compiled language dependently typed.**
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

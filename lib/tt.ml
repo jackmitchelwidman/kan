@@ -76,7 +76,7 @@ type decl =
   | Def of string * tm option * tm
   | Check of tm
   | Eval of tm
-  | Data_decl of string * (string * tm list * bool list) list
+  | Data_decl of string * (string * tm) list * (string * arg_ty list) list  (* name, params, [ctor, arg types] *)
 
 let parse (toks : tok array) : decl list =
   let pos = ref 0 in
@@ -131,10 +131,10 @@ let parse (toks : tok array) : decl list =
           adv (); let p = atom ns in let z = atom ns in let s = atom ns in let nt = atom ns in
           NatElim (p, z, s, nt)
       | ID x when (match Hashtbl.find_opt ctors x with Some k -> k > 0 | None -> false) ->
-          adv (); Con (x, take_atoms (Hashtbl.find ctors x))
+          adv (); List.fold_left (fun acc a -> App (acc, a)) (Con x) (take_atoms (Hashtbl.find ctors x))
       | ID x when Hashtbl.mem elims x ->
-          adv (); let d, nm = Hashtbl.find elims x in
-          let mot = atom ns in let ms = take_atoms nm in let tgt = atom ns in Elim (d, mot, ms, tgt)
+          adv (); let _, k = Hashtbl.find elims x in
+          List.fold_left (fun acc a -> App (acc, a)) (Elim x) (take_atoms k)
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
@@ -152,9 +152,9 @@ let parse (toks : tok array) : decl list =
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")
     | ID x when Hashtbl.mem datatypes x -> adv (); Data x
-    | ID x when (match Hashtbl.find_opt ctors x with Some 0 -> true | _ -> false) -> adv (); Con (x, [])
+    | ID x when (match Hashtbl.find_opt ctors x with Some 0 -> true | _ -> false) -> adv (); Con x
     | ID x when Hashtbl.mem ctors x -> fail (x ^ " needs arguments")
-    | ID x when Hashtbl.mem elims x -> fail (x ^ " needs arguments (a motive, methods, and a target)")
+    | ID x when Hashtbl.mem elims x -> fail (x ^ " needs arguments (parameters, a motive, methods, and a target)")
     | ID x -> adv (); (match index_of x ns with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
     | LP ->
         adv ();
@@ -172,23 +172,54 @@ let parse (toks : tok array) : decl list =
     | ID "eval" -> adv (); Eval (term ns)
     | ID "data" ->
         adv (); let name = ident () in
+        (* parameters:  (p : T) ... *)
+        let rec parse_params acc =
+          match peek () with
+          | LP -> adv (); let pn = ident () in eat COLON ":"; let pty = term (List.map fst acc @ ns) in
+                  eat RP ")"; parse_params ((pn, pty) :: acc)
+          | _ -> List.rev acc
+        in
+        let ps = parse_params [] in
+        let k = List.length ps in
         Hashtbl.replace datatypes name ();      (* register early so constructor types can be recursive *)
+        let ns_ctor = List.fold_left (fun a (pn, _) -> pn :: a) ns ps in
+        (* the datatype applied to all its parameters, as it appears under `depth` binders *)
+        let applied_data_tm depth =
+          List.fold_left (fun acc m -> App (acc, Var (k - 1 - m + depth))) (Data name) (List.init k (fun m -> m))
+        in
+        let rec no_vars = function
+          | Var _ -> false
+          | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ -> true
+          | Pi (_, a, b) | Sig (_, a, b) | App (a, b) | Pair (a, b) | Ann (a, b) -> no_vars a && no_vars b
+          | Lam (_, b) | Suc b | Fst b | Snd b -> no_vars b
+          | Id (a, b, c) | If (a, b, c) -> no_vars a && no_vars b && no_vars c
+          | NatElim (a, b, c, d) -> no_vars a && no_vars b && no_vars c && no_vars d
+          | Transp (a, b, c, d, e, f) -> List.for_all no_vars [ a; b; c; d; e; f ]
+        in
         eat LBRACE "{";
         let parse_ctor () =
           let cname = ident () in
           eat COLON ":";
-          let ty = term ns in
-          let rec decompose t =
+          let ty = term ns_ctor in
+          let rec decompose depth t =
             match t with
-            | Pi ("_", a, b) -> let a2, ret = decompose b in (a :: a2, ret)
-            | Pi _ -> fail ("constructor " ^ cname ^ ": type must be a simple (non-dependent) arrow chain")
+            | Pi ("_", a, b) -> let args, ret = decompose (depth + 1) b in ((depth, a) :: args, ret)
+            | Pi _ -> fail ("constructor " ^ cname ^ ": dependent argument types are not supported")
             | other -> ([], other)
           in
-          let argtys, ret = decompose ty in
-          (match ret with Data dn when dn = name -> () | _ -> fail ("constructor " ^ cname ^ " must return " ^ name));
-          let recs = List.map (fun a -> a = Data name) argtys in
-          Hashtbl.replace ctors cname (List.length argtys);
-          (cname, argtys, recs)
+          let dargs, ret = decompose 0 ty in
+          let n = List.length dargs in
+          if ret <> applied_data_tm n then fail ("constructor " ^ cname ^ " must return " ^ name ^ " applied to its parameters");
+          let classify (j, a) =
+            match a with
+            | Var i when i >= j && i - j < k -> AParam (k - 1 - (i - j))
+            | _ when a = applied_data_tm j -> ARec
+            | _ when no_vars a -> AClosed a
+            | _ -> fail ("constructor " ^ cname ^ ": unsupported argument type (want a parameter, " ^ name ^ ", or a closed type)")
+          in
+          let argtys = List.map classify dargs in
+          Hashtbl.replace ctors cname (k + n);
+          (cname, argtys)
         in
         let rec many acc =
           let c = parse_ctor () in
@@ -198,8 +229,8 @@ let parse (toks : tok array) : decl list =
         in
         let cs = (match peek () with RBRACE -> [] | _ -> many []) in
         eat RBRACE "}";
-        Hashtbl.replace elims (name ^ "_elim") (name, List.length cs);
-        Data_decl (name, cs)
+        Hashtbl.replace elims (name ^ "_elim") (name, k + 1 + List.length cs + 1);
+        Data_decl (name, ps, cs)
     | _ -> fail "expected a declaration (def / check / eval / data)"
   in
   (* interleave: each def extends the name scope for later decls *)
@@ -240,14 +271,13 @@ let run (src : string) : unit =
           let ty = infer !ctx t in
           Printf.printf "check    : %s\n           = %s\n" (sh (quote !ctx.lvl ty)) (sh (nf t))
       | Eval t -> Printf.printf "eval     : %s\n" (sh (nf t))
-      | Data_decl (name, cs) ->
+      | Data_decl (name, params, ctors_info) ->
           let specs =
             List.map
-              (fun (cname, argtys, recs) ->
-                { cs_name = cname;
-                  cs_args = List.mapi (fun i (ty, r) -> (Printf.sprintf "x%d" i, ty, r)) (List.combine argtys recs) })
-              cs
+              (fun (cname, argtys) ->
+                { cs_name = cname; cs_args = List.mapi (fun i aty -> (Printf.sprintf "x%d" i, aty)) argtys })
+              ctors_info
           in
-          declare_data name specs;
-          Printf.printf "data %s = %s\n" name (String.concat " | " (List.map (fun (c, _, _) -> c) cs)))
+          declare_data name params specs;
+          Printf.printf "data %s = %s\n" name (String.concat " | " (List.map fst ctors_info)))
     decls
