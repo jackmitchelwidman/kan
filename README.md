@@ -386,3 +386,19 @@ Kan is not Haskell with category theory, Idris with more abstractions, or Lean a
 > Computation is extension.
 >
 > The compiler fills the horn.
+
+---
+
+# License & Contributing
+
+Kan is free and open source under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
+Contributions are welcome and are accepted under the same license.
+
+**Try it now:**
+
+```
+ocaml reference/kan_ref.ml        # instant: the fill kernel, running (§4)
+```
+
+Design decisions are logged transparently in [`DECISIONS.md`](DECISIONS.md);
+the core is specified in [`docs/core-calculus.md`](docs/core-calculus.md).

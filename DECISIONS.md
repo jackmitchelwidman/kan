@@ -41,9 +41,14 @@ after native works. **LLVM deferred** until C is outgrown.
 **Why.** Shortest credible path to genuinely native, performant binaries with
 easy FFI, without letting codegen distort the core.
 
-## ADR-004 — Licensing & process (defaults, awaiting confirmation)
-**Decision.** Open-source, permissive (MIT or Apache-2.0). Check in with the
-sponsor at **phase boundaries** with a summary + decision log; otherwise proceed.
+## ADR-004 — Open source, Apache-2.0 **[locked]**
+**Decision.** Kan is open source under **Apache License 2.0** (`LICENSE`).
+Sponsor confirmed public + open source. Apache-2.0 chosen over MIT because a
+*language* is an ecosystem others build compilers/tooling on: its explicit
+patent grant (and clear contribution terms) is the responsible default (cf.
+Swift, Kotlin). Copyright line: "2026 Jack Widman and the Kan contributors".
+Process unchanged: check in at **phase boundaries**; otherwise proceed.
+Repo: public on GitHub, owner `jackmitchelwidman`.
 
 ---
 
