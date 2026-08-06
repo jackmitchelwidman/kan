@@ -1,0 +1,4 @@
+-- std/string — strings. `String`, string literals "…", `strcat`, and `streq`
+-- are built in; this module exposes the operations as first-class functions.
+def string_append : String -> String -> String = \a b. strcat a b
+def string_eq     : String -> String -> Bool    = \a b. streq a b

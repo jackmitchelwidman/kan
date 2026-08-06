@@ -1,0 +1,3 @@
+-- std/void — the empty type. From a proof of Void, anything follows.
+data Void { }
+def absurd : (A : U) -> Void -> A = \A v. Void_elim (\l. A) v

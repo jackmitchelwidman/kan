@@ -1,26 +1,16 @@
--- A type `Person` that DEPENDS ON A VALUE (a name).
+-- A type `Person` that DEPENDS ON A VALUE — now a real String (the name).
 -- Run:  kan check examples/person.kan
---
--- Note 1: Kan has no built-in String yet, so we use a small `Name` type as a
---         stand-in for the name. Real string names would work exactly the same
---         way once strings are added.
--- Note 2: types-that-depend-on-values live in Kan's typed language (.kan).
 
--- our stand-in for names (imagine these are the strings "alice", "bob"):
-data Name { alice : Name, bob : Name }
-
--- `Person` is a TYPE INDEXED BY A NAME: for each name n, `Person n` is the type
--- of the data we keep about the person called n. Here every person's data is an
--- age (a Nat), so `Person` is a family of types, one for each name value.
-def Person : Name -> U
+-- `Person n` is the type of the data we keep about the person named n.
+-- Here every person's data is an age (a Nat); `Person` is a family of types
+-- indexed by the name string.
+def Person : String -> U
            = \n. Nat
 
--- inhabitants: the data for specific, named people.
--- `alice_data : Person alice` — its TYPE mentions the value `alice`.
-def alice_data : Person alice = 30
-def bob_data   : Person bob   = 42
+-- inhabitants for specific, named people; the TYPE mentions the string value.
+def alice_data : Person "alice" = 30
+def bob_data   : Person "bob"   = 42
 
--- a DEPENDENT FUNCTION over names: the result type `Person n` depends on the
--- argument value `n`. (Every new person starts at age 0.)
-def new_person : (n : Name) -> Person n
+-- a dependent function over names: the result type `Person n` depends on `n`.
+def new_person : (n : String) -> Person n
               = \n. 0

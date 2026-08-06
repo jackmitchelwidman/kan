@@ -20,17 +20,18 @@ typedef struct Value Value;
 typedef struct Env { Value *head; struct Env *tail; } Env;
 typedef Value *(*Fn)(Env *, Value *);
 
-enum { VCLO, VCON, VELIM, VBOOL, VNAT, VPAIR, VUNIT };
+enum { VCLO, VCON, VELIM, VBOOL, VNAT, VSTR, VPAIR, VUNIT };
 struct Value {
   int tag;
   Fn fn; Env *env;                       /* VCLO */
   const char *name; Value **args; int nargs;  /* VCON / VELIM */
   int i;                                 /* VBOOL (0/1) / VNAT */
+  const char *str;                       /* VSTR */
   Value *a; Value *b;                    /* VPAIR */
 };
 
 static Value *alloc(int tag) { Value *v = malloc(sizeof(Value)); v->tag = tag; return v; }
-static Value UNIT_V = { VUNIT, 0,0, 0,0,0, 0, 0,0 };
+static Value UNIT_V = { VUNIT };
 #define UNIT (&UNIT_V)
 
 static Env *cons(Value *h, Env *t) { Env *e = malloc(sizeof(Env)); e->head = h; e->tail = t; return e; }
@@ -44,10 +45,17 @@ static Value *mk_head(int tag, const char *name) { Value *v = alloc(tag); v->nam
 static Value *mk_con(const char *name) { return mk_head(VCON, name); }
 static Value *mk_elim(const char *name) { return mk_head(VELIM, name); }
 
+static Value *mk_str(const char *s) { Value *v = alloc(VSTR); v->str = s; return v; }
 static int as_bool(Value *v) { return v->i; }
 static Value *fst_v(Value *v) { return v->tag == VPAIR ? v->a : UNIT; }
 static Value *snd_v(Value *v) { return v->tag == VPAIR ? v->b : UNIT; }
 static Value *suc_v(Value *v) { return mk_nat(v->i + 1); }
+static Value *str_app(Value *a, Value *b) {
+  size_t la = strlen(a->str), lb = strlen(b->str);
+  char *r = malloc(la + lb + 1); memcpy(r, a->str, la); memcpy(r + la, b->str, lb + 1);
+  return mk_str(r);
+}
+static Value *str_eq(Value *a, Value *b) { return mk_bool(strcmp(a->str, b->str) == 0); }
 |c}
 
 let prelude2 = {c|static Value *apply(Value *f, Value *a);
@@ -114,6 +122,7 @@ static void print_value(Value *v) {
   switch (v->tag) {
     case VNAT: printf("%d", v->i); break;
     case VBOOL: printf(v->i ? "true" : "false"); break;
+    case VSTR: printf("\"%s\"", v->str); break;
     case VUNIT: printf("_"); break;
     case VPAIR: printf("("); print_value(v->a); printf(", "); print_value(v->b); printf(")"); break;
     case VCON:
@@ -155,6 +164,9 @@ let compile (decls : Tt.decl list) : string =
     | INat n -> Printf.sprintf "mk_nat(%d)" n
     | ISuc e -> Printf.sprintf "suc_v(%s)" (cexpr nloc envv e)
     | INatElim (z, s, n) -> Printf.sprintf "inatelim(%s, %s, %s)" (cexpr nloc envv z) (cexpr nloc envv s) (cexpr nloc envv n)
+    | IStr s -> Printf.sprintf "mk_str(%s)" (quote s)
+    | IStrApp (a, b) -> Printf.sprintf "str_app(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IStrEq (a, b) -> Printf.sprintf "str_eq(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IUnit -> "UNIT"
   in
   List.iter

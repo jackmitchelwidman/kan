@@ -25,6 +25,9 @@ type iexpr =
   | INat of int
   | ISuc of iexpr
   | INatElim of iexpr * iexpr * iexpr
+  | IStr of string
+  | IStrApp of iexpr * iexpr
+  | IStrEq of iexpr * iexpr
   | IUnit                    (* an erased type or proof *)
 
 let rec erase (t : tm) : iexpr =
@@ -43,9 +46,12 @@ let rec erase (t : tm) : iexpr =
   | NatElim (_, z, s, n) -> INatElim (erase z, erase s, erase n)   (* motive erased *)
   | Con c -> IConH c
   | Elim e -> IElimH e
+  | Str s -> IStr s
+  | StrApp (a, b) -> IStrApp (erase a, erase b)
+  | StrEq (a, b) -> IStrEq (erase a, erase b)
   | Transp (_, _, _, _, _, d) -> erase d                           (* transport is identity on its value *)
   | Ann (t, _) -> erase t
-  | U _ | Pi _ | Sig _ | Id _ | Refl | Bool | Nat | Data _ -> IUnit  (* types & proofs erase *)
+  | U _ | Pi _ | Sig _ | Id _ | Refl | Bool | Nat | Data _ | StringT -> IUnit  (* types & proofs erase *)
 
 (* -------- reference runtime -------- *)
 type ival =
@@ -54,6 +60,7 @@ type ival =
   | VElimV of string * ival list
   | VBoolV of bool
   | VNatV of int
+  | VStrV of string
   | VPairV of ival * ival
   | VUnit
 
@@ -107,11 +114,15 @@ and ieval env t =
            let rec go k = if k <= 0 then zv else iapp (iapp sv (VNatV (k - 1))) (go (k - 1)) in
            go k
        | _ -> failwith "natElim on a non-numeral")
+  | IStr s -> VStrV s
+  | IStrApp (a, b) -> (match ieval env a, ieval env b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat")
+  | IStrEq (a, b) -> (match ieval env a, ieval env b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq")
   | IUnit -> VUnit
 
 let rec ishow = function
   | VNatV n -> string_of_int n
   | VBoolV b -> if b then "true" else "false"
+  | VStrV s -> "\"" ^ s ^ "\""
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
   | VConV (c, []) -> c

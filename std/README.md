@@ -26,11 +26,14 @@ Each file is included at most once, even if reached through several imports.
 | `nat.kan` | `add`, `mul`, and `add_n_zero : (n : Nat) -> Id Nat (add n zero) n` (a proof by induction) |
 | `list.kan` | polymorphic `List A`: `length`, `map`, `append` |
 | `option.kan` | `Option A`: `none`, `some`, `map_option` |
+| `either.kan` | `Either A B`: `left`, `right`, `either` |
+| `void.kan` | the empty type `Void` and `absurd` |
+| `unit.kan` | the one-element type `Unit` |
+| `string.kan` | `string_append`, `string_eq` (over the built-in `String`) |
 
 See `examples/using_std.kan` for a program that imports and uses several of these.
 
 ## Not yet
 
-Vectors (`Vec`), `Fin`, and a `String` module await language features still in
-progress (indexed families, large elimination, a string type). The library will
-grow with them.
+Vectors (`Vec`) and `Fin` await **indexed inductive families** (in progress).
+The library will grow with them.

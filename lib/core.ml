@@ -40,6 +40,10 @@ type tm =
   | Data of string                    (* a datatype/type-former head; applied to params via App *)
   | Con of string                     (* a constructor head; applied to params & args via App *)
   | Elim of string                    (* an eliminator head; applied to params, motive, methods, target *)
+  | StringT                           (* the primitive type of strings *)
+  | Str of string                     (* a string literal *)
+  | StrApp of tm * tm                 (* string concatenation *)
+  | StrEq of tm * tm                  (* string equality -> Bool *)
   | Ann of tm * tm
 
 (* closed Nat numerals -> int, for display *)
@@ -165,6 +169,10 @@ type value =
   | VData of string * value list       (* type former applied to a spine of arguments *)
   | VCon of string * value list        (* constructor applied to a spine (params ++ args) *)
   | VElim of string * value list       (* eliminator applied to a spine (stuck / accumulating) *)
+  | VStringT
+  | VStr of string
+  | VStrApp of value * value           (* stuck concatenation *)
+  | VStrEq of value * value            (* stuck equality *)
 
 and closure = { env : value list; body : tm }
 
@@ -196,6 +204,10 @@ let rec eval (env : value list) (t : tm) : value =
   | Data d -> VData (d, [])
   | Con c -> VCon (c, [])
   | Elim e -> VElim (e, [])
+  | StringT -> VStringT
+  | Str s -> VStr s
+  | StrApp (a, b) -> vstrapp (eval env a) (eval env b)
+  | StrEq (a, b) -> vstreq (eval env a) (eval env b)
   | Ann (t, _) -> eval env t
 
 and vapp f a =
@@ -241,6 +253,8 @@ and vnatelim p z s n =
   | VZero -> z
   | VSuc m -> vapp (vapp s m) (vnatelim p z s m)
   | _ -> VNatElim (p, z, s, n)
+and vstrapp a b = match a, b with VStr x, VStr y -> VStr (x ^ y) | _ -> VStrApp (a, b)
+and vstreq a b = match a, b with VStr x, VStr y -> if x = y then VTrue else VFalse | _ -> VStrEq (a, b)
 and inst c v = eval (v :: c.env) c.body
 
 let rec quote (l : int) (v : value) : tm =
@@ -269,6 +283,10 @@ let rec quote (l : int) (v : value) : tm =
   | VData (d, sp) -> List.fold_left (fun acc v -> App (acc, quote l v)) (Data d) sp
   | VCon (c, sp) -> List.fold_left (fun acc v -> App (acc, quote l v)) (Con c) sp
   | VElim (e, sp) -> List.fold_left (fun acc v -> App (acc, quote l v)) (Elim e) sp
+  | VStringT -> StringT
+  | VStr s -> Str s
+  | VStrApp (a, b) -> StrApp (quote l a, quote l b)
+  | VStrEq (a, b) -> StrEq (quote l a, quote l b)
 
 let normalize (t : tm) : tm = quote 0 (eval [] t)
 
@@ -301,6 +319,10 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VData (a, xs), VData (b, ys) -> a = b && List.length xs = List.length ys && List.for_all2 (conv l) xs ys
   | VCon (c, xs), VCon (c', ys) -> c = c' && List.length xs = List.length ys && List.for_all2 (conv l) xs ys
   | VElim (e, xs), VElim (e', ys) -> e = e' && List.length xs = List.length ys && List.for_all2 (conv l) xs ys
+  | VStringT, VStringT -> true
+  | VStr a, VStr b -> a = b
+  | VStrApp (a, b), VStrApp (a', b') -> conv l a a' && conv l b b'
+  | VStrEq (a, b), VStrEq (a', b') -> conv l a a' && conv l b b'
   | _ -> false
 
 (* -------- Bidirectional type checking -------- *)
@@ -386,6 +408,10 @@ and infer (ctx : ctx) (t : tm) : value =
       (match Hashtbl.find_opt elim_data e with
        | Some d -> eval [] (Hashtbl.find sigenv d).ds_elim_type
        | None -> fail ("unknown eliminator " ^ e))
+  | StringT -> VU 0
+  | Str _ -> VStringT
+  | StrApp (a, b) -> check ctx a VStringT; check ctx b VStringT; VStringT
+  | StrEq (a, b) -> check ctx a VStringT; check ctx b VStringT; VBool
   | Ann (tm, ty) -> ignore (infer_univ ctx ty); let vty = eval ctx.env ty in check ctx tm vty; vty
 
 and infer_univ (ctx : ctx) (t : tm) : int =
@@ -427,6 +453,10 @@ and show ?(ns = []) (t : tm) : string =
   | Data d -> d
   | Con c -> c
   | Elim e -> e
+  | StringT -> "String"
+  | Str s -> "\"" ^ s ^ "\""
+  | StrApp (a, b) -> Printf.sprintf "strcat %s %s" (show ~ns a) (show ~ns b)
+  | StrEq (a, b) -> Printf.sprintf "streq %s %s" (show ~ns a) (show ~ns b)
   | Ann (t, ty) -> Printf.sprintf "(%s : %s)" (show ~ns t) (show ~ns ty)
 
 let type_of (t : tm) : tm = quote 0 (infer empty t)

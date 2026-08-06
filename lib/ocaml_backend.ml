@@ -17,6 +17,7 @@ let prelude1 = {ml|type ival =
   | VElimV of string * ival list
   | VBoolV of bool
   | VNatV of int
+  | VStrV of string
   | VPairV of ival * ival
   | VUnit
 
@@ -26,9 +27,12 @@ let ifst = function VPairV (a, _) -> a | VUnit -> VUnit | _ -> failwith "fst"
 let isnd = function VPairV (_, b) -> b | VUnit -> VUnit | _ -> failwith "snd"
 let iif c t e = match c with VBoolV true -> t () | VBoolV false -> e () | _ -> failwith "if"
 let isuc = function VNatV k -> VNatV (k + 1) | _ -> failwith "suc"
+let istrapp a b = match a, b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat"
+let istreq a b = match a, b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq"
 let rec ishow = function
   | VNatV n -> string_of_int n
   | VBoolV b -> if b then "true" else "false"
+  | VStrV s -> "\"" ^ s ^ "\""
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
   | VConV (c, []) -> c
@@ -81,6 +85,9 @@ let rec cexpr globals locals (e : iexpr) : string =
   | INat n -> Printf.sprintf "(VNatV %d)" n
   | ISuc e -> Printf.sprintf "(isuc %s)" (go e)
   | INatElim (z, s, n) -> Printf.sprintf "(inatelim %s %s %s)" (go z) (go s) (go n)
+  | IStr s -> Printf.sprintf "(VStrV %S)" s
+  | IStrApp (a, b) -> Printf.sprintf "(istrapp %s %s)" (go a) (go b)
+  | IStrEq (a, b) -> Printf.sprintf "(istreq %s %s)" (go a) (go b)
   | IUnit -> "VUnit"
 
 let registry elims ctors =
