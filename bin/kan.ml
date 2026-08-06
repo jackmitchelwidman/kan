@@ -27,13 +27,13 @@ let do_exec file = try Erase.run (Tt.parse (Tt.tokenize (read_file file))) with 
 let do_emit_c file =
   try print_string (Compile.compile (parse_file file)) with e -> die e
 
-let do_build file out =
+let default_out file out = match out with Some o -> o | None -> Filename.remove_extension (Filename.basename file)
+
+(* compile a .kan (fill language) to native via C *)
+let do_build_c file out =
   try
     let c_src = Compile.compile (parse_file file) in
-    let out = match out with
-      | Some o -> o
-      | None -> Filename.remove_extension (Filename.basename file)
-    in
+    let out = default_out file out in
     let cfile = Filename.temp_file "kan_" ".c" in
     let oc = open_out cfile in
     output_string oc c_src; close_out oc;
@@ -43,6 +43,26 @@ let do_build file out =
     if rc <> 0 then (Printf.eprintf "kan: C compilation failed (cc exit %d)\n" rc; exit 1);
     Printf.printf "compiled %s -> %s\n" file out
   with e -> die e
+
+(* compile a .ktt (typed language) to native via OCaml *)
+let do_build_ml file out =
+  try
+    let decls = Tt.parse (Tt.tokenize (read_file file)) in
+    let ml_src = Ocaml_backend.compile decls in
+    let out = default_out file out in
+    let mlfile = Filename.temp_file "kan_" ".ml" in
+    let oc = open_out mlfile in
+    output_string oc ml_src; close_out oc;
+    let base = Filename.remove_extension mlfile in
+    let cmd = Printf.sprintf "ocamlopt -w -a %s -o %s 2>/dev/null" (Filename.quote mlfile) (Filename.quote out) in
+    let rc = Sys.command cmd in
+    List.iter (fun s -> try Sys.remove (base ^ s) with _ -> ()) [ ".ml"; ".cmi"; ".cmx"; ".o" ];
+    if rc <> 0 then (Printf.eprintf "kan: OCaml compilation failed (ocamlopt exit %d)\n" rc; exit 1);
+    Printf.printf "compiled %s -> %s\n" file out
+  with e -> die e
+
+let do_build file out =
+  if Filename.check_suffix file ".ktt" then do_build_ml file out else do_build_c file out
 
 let usage () =
   prerr_endline "usage:";

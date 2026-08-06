@@ -414,6 +414,9 @@ dune build
 # check dependent-type proofs written in Kan:
 dune exec bin/kan.exe -- check examples/prelude.ktt
 
+# COMPILE a dependently-typed program to a native binary (type-checks, via OCaml):
+dune exec bin/kan.exe -- build examples/nat.ktt -o nat && ./nat
+
 # interpret a .kan program on the fill kernel (composition as a horn fill):
 dune exec bin/kan.exe -- run examples/compose.kan
 

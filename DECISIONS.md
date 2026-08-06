@@ -149,8 +149,14 @@ Repo: **https://github.com/jackmitchelwidman/kan** (public).
      The IR is target-independent. Plan (`docs/unification.md`): brick 3 = `fill`
      as a typed op + merge `.ktt`/`.kan`; brick 4 = native backends from the IR,
      **OCaml first** (native closures ⇒ near-transparent erasure), then C.
-     NOTE: for the *typed* language OCaml-first is much lower-risk than C-first;
-     Jack's earlier "C then OCaml" was about the fill language — confirm with him.
+   → **Brick 4 (OCaml backend) done.** Jack confirmed OCaml-first. `lib/
+     ocaml_backend.ml`: `kan build foo.ktt -o foo` type-checks AND compiles —
+     erased IR → OCaml source (universal `ival` runtime + generated datatype
+     registry) → `ocamlopt` → native binary. Every example's binary output
+     matches `kan check`; build rejects ill-typed programs. `kan build`
+     dispatches on extension (`.ktt`→OCaml, `.kan`→legacy C fill-backend).
+     **Kan is now a dependently-typed language that compiles to native code.**
+     Remaining: a C backend from the same IR; brick 3 (`fill` as a typed op).
 3. **First elaborator.** Simplest *search* fills (adapters between fixed interfaces).
 4. **Native backend + hardening.** Categorical IR → forced core → C → binary; perf.
 5. **Agent-orchestration front end**, built entirely as fills.

@@ -61,5 +61,11 @@ commit a compiler to it (README's "the philosophy chooses the implementation").
   parameters print as `_`, since they are gone: e.g. `cons _ false …`.) The IR
   is target-independent; brick 4 emits native code from it.
 
-Remaining: brick 3 (`fill` as a typed operation; merge `.ktt`/`.kan`) and
-brick 4 (native backends — OCaml first, then C — from the erased IR).
+- **Brick 4 (OCaml) done** (`lib/ocaml_backend.ml`): `kan build foo.ktt -o foo`
+  type-checks the program and compiles it — erased IR → OCaml source → `ocamlopt`
+  → a **native binary**. The dependently-typed language now compiles and runs;
+  every example's binary output matches `kan check`. `kan build` dispatches on
+  extension (`.ktt` → OCaml, `.kan` → the legacy C fill-backend).
+
+Remaining: brick 4 (a **C** backend from the same erased IR) and brick 3 (`fill`
+as a typed operation; merge `.ktt`/`.kan` into one language).
