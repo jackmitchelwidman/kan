@@ -1,0 +1,22 @@
+# Dune / OCaml build output
+_build/
+*.install
+*.merlin
+
+# OCaml compiled artifacts (from bytecode/native builds outside dune)
+*.cmi
+*.cmo
+*.cmx
+*.cmt
+*.cmti
+*.o
+*.a
+*.byte
+*.exe
+
+# opam local switch, if ever created in-tree
+_opam/
+
+# Editor / OS
+*~
+.DS_Store

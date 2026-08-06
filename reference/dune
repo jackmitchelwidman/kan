@@ -1,0 +1,2 @@
+(executable
+ (name kan_ref))
