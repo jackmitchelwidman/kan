@@ -31,6 +31,7 @@ Each file is included at most once, even if reached through several imports.
 | `unit.kan` | the one-element type `Unit` |
 | `string.kan` | `string_append`, `string_eq` (over the built-in `String`) |
 | `integer.kan` | the unbounded `Integer`: `plus`/`minus`/`times`, `factorial`, `sumTo` (compute large values exactly) |
+| `category.kan` | category theory: `Category` (laws and all), `Functor`, `NatTrans`; the terminal category `One`, the opposite category `op`, `idFunctor`, `idNat` — all lawful and checked |
 
 See `examples/using_std.kan` for a program that imports and uses several of these.
 

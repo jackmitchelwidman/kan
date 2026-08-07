@@ -175,6 +175,10 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   and atom ns =
     match peek () with
     | ID ("U" | "Type") -> adv (); U 0
+    (* a universe literal Ui (i >= 1); matches how the printer shows U i *)
+    | ID x when String.length x >= 2 && x.[0] = 'U'
+                && String.for_all (fun c -> c >= '0' && c <= '9') (String.sub x 1 (String.length x - 1)) ->
+        adv (); U (int_of_string (String.sub x 1 (String.length x - 1)))
     | ID "Bool" -> adv (); Bool
     | ID "true" -> adv (); True
     | ID "false" -> adv (); False
