@@ -51,12 +51,16 @@ reject() {
     green "OK (correctly rejected): $desc"; pass=$((pass+1))
   fi
 }
-reject "accumulator-style recursion" \
-  'def f : Nat -> Nat -> Nat = \n acc. match n { | zero => acc | suc k => f k (suc acc) }'
 reject "non-structural recursion (loops on the whole value)" \
   'def f : Nat -> Nat = \n. match n { | zero => zero | suc k => f n }'
 reject "non-exhaustive match (missing case)" \
   'def f : Nat -> Nat = \n. match n { | zero => zero }'
+# a recursive `match` must be in TAIL position; a nested/wrapped one must not
+# silently claim the recursion (these must be rejected, not miscompiled):
+reject "recursion under a non-binder-scrutinee match" \
+  'def f : Nat -> Nat = \n. match (suc n) { | zero => zero | suc m => match n { | zero => zero | suc k => f k } }'
+reject "recursion wrapped by a constructor (non-tail match)" \
+  'def f : Nat -> Nat = \n. suc (match n { | zero => zero | suc k => f k })'
 
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"

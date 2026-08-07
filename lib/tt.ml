@@ -127,10 +127,19 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   let starts_atom = function LP | NUM _ | INTLIT _ | STR _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
   (* recursion state for `match`-defined functions: while parsing the body of a
      recursive def, `rec_fname` is its name, `rec_binders` its lambda-binder names
-     (in order), `rec_decarg` the matched (decreasing) binder, and `rec_ihmap` maps
-     the current arm's recursive-position pattern binders to their induction
-     hypotheses. A recursive call [f b.. r ..b] elaborates to the hypothesis for r. *)
+     (in order), `rec_annot` its type annotation, `rec_decarg` the matched
+     (decreasing) binder, and `rec_ihmap` maps the current arm's recursive-position
+     pattern binders to their induction hypotheses. `rec_at_top` is true while
+     parsing in TAIL position of the def body — only a tail-position match on a
+     binder may claim the recursion (otherwise a nested match would misfire).
+     A recursive call [f pre.. r acc..] elaborates to [(hypothesis for r) acc..]. *)
   let rec_fname = ref None and rec_binders = ref [] and rec_decarg = ref "" and rec_ihmap = ref [] in
+  let rec_annot = ref None and rec_at_top = ref false in
+  (* globally-unique induction-hypothesis binder names, so a nested match's
+     hypothesis never shadows an enclosing one *)
+  let ih_ctr = ref 0 in
+  let fresh_ih () = incr ih_ctr; "#ih" ^ string_of_int !ih_ctr in
+  let peel_pi k t = let rec go k t = if k <= 0 then t else (match t with Pi (_, _, b) -> go (k - 1) b | _ -> t) in go k t in
   let rec term ?(expected = None) ns =
     match peek () with
     | LAM ->
@@ -145,6 +154,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         List.fold_right (fun x b -> Lam (x, b)) bs body
     | ID "match" -> parse_match ns expected
     | LP when (match peek2 () with ID _ -> true | _ -> false) && peek3 () = COLON ->
+        rec_at_top := false;
         adv (); let x = ident () in eat COLON ":"; let a = term ns in eat RP ")";
         let ns' = x :: ns in
         (match peek () with
@@ -152,6 +162,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
          | STAR -> adv (); Sig (x, a, term ns')
          | _ -> fail "expected '->' or '*' after (x : A)")
     | _ ->
+        rec_at_top := false;         (* below here is not tail position of the def body *)
         let lhs = app ns in
         (match peek () with
          (* codomain is under a fresh binder, so shift its scope with "_" *)
@@ -163,18 +174,20 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     let base =
       match peek () with
       | ID x when !rec_fname = Some x && !rec_decarg <> "" ->
-          (* a recursive call: verify it decreases structurally and passes the
-             other arguments unchanged, then replace it with the hypothesis *)
+          (* a recursive call: the argument BEFORE the decreasing one must be passed
+             unchanged; the decreasing one must be a structurally-smaller pattern
+             variable; the arguments AFTER it (the moved/accumulator args) may be
+             anything and are applied to the induction hypothesis. *)
           adv ();
           let bnds = !rec_binders in
           let args = take_atoms (List.length bnds) in
           let dpos = (let rec idx i = function [] -> -1 | y :: _ when y = !rec_decarg -> i | _ :: t -> idx (i + 1) t in idx 0 bnds) in
           let name_of = function Var i -> List.nth_opt ns i | _ -> None in
           List.iteri (fun j a ->
-            if j <> dpos then
+            if j < dpos then
               match name_of a with
               | Some nm when nm = List.nth bnds j -> ()
-              | _ -> fail (Printf.sprintf "recursive call to '%s': argument %d must be passed unchanged (accumulator-style recursion is not supported yet)" x (j + 1)))
+              | _ -> fail (Printf.sprintf "recursive call to '%s': argument %d (before the decreasing one) must be passed unchanged" x (j + 1)))
             args;
           let ih =
             match name_of (List.nth args dpos) with
@@ -183,7 +196,9 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
                           | None -> fail (Printf.sprintf "recursive call to '%s' must decrease on a structurally-smaller argument, but '%s' is not one" x nm))
             | None -> fail (Printf.sprintf "recursive call to '%s': the decreasing argument must be a pattern variable" x)
           in
-          (match index_of ih ns with Some i -> Var i | None -> fail "internal error: induction hypothesis not in scope")
+          let ihv = (match index_of ih ns with Some i -> Var i | None -> fail "internal error: induction hypothesis not in scope") in
+          let moved_vals = List.filteri (fun j _ -> j > dpos) args in
+          List.fold_left (fun acc v -> App (acc, v)) ihv moved_vals
       | ID "Id" -> adv (); let a = atom ns in let b = atom ns in let c = atom ns in Id (a, b, c)
       | ID "transp" ->
           adv (); let a = atom ns in let p = atom ns in let x = atom ns in
@@ -249,6 +264,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
      binder in scope, so the elaboration is already the eliminator's method. *)
   and parse_match ns expected =
     adv ();  (* 'match' *)
+    let was_top = !rec_at_top in rec_at_top := false;   (* capture before parsing the scrutinee consumes it *)
     let scrut, scrut_ty =
       if peek () = LP then begin
         adv ();
@@ -260,25 +276,38 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
       end else (atom ns, None)
     in
     let rty = if peek () = ID "return" then (adv (); Some (term ns)) else expected in
-    (* enable recursion in the arms iff we are in a recursive def and the
-       scrutinee is one of its binders (the decreasing argument) *)
-    let saved_decarg = !rec_decarg and saved_ihmap = !rec_ihmap in
-    (match !rec_fname, scrut with
-     | Some _, Var i -> (match List.nth_opt ns i with Some nm when List.mem nm !rec_binders -> rec_decarg := nm | _ -> rec_decarg := "")
-     | _ -> rec_decarg := "");
+    (* Only a TAIL-POSITION match on one of the def's binders may claim the
+       recursion (its decreasing argument). Consume the tail flag either way. *)
+    let scrut_binder = (match scrut with Var i -> (match List.nth_opt ns i with Some nm when List.mem nm !rec_binders -> Some nm | _ -> None) | _ -> None) in
+    let claim = was_top && !rec_fname <> None && scrut_binder <> None in
     eat LBRACE "{";
+    (* classify the datatype from the first constructor (without consuming), so we
+       know before parsing arm bodies whether this is a recursive elimination
+       (Nat / user datatype) — a Bool `match` has no hypothesis and never claims *)
+    let first_ctor = let saved = !pos in
+      let c = if peek () = BAR then (adv (); match peek () with ID x -> Some x | _ -> None) else None in
+      pos := saved; c in
+    let is_bool = (match first_ctor with Some ("true" | "false") -> true | _ -> false) in
+    let decreasing = claim && not is_bool in
+    let dpos, moved_names =
+      if decreasing then begin
+        let nm = (match scrut_binder with Some nm -> nm | None -> "") in
+        rec_decarg := nm;
+        let rec idx i = function [] -> -1 | y :: _ when y = nm -> i | _ :: t -> idx (i + 1) t in
+        let d = idx 0 !rec_binders in (d, drop (d + 1) !rec_binders)
+      end else (-1, [])
+    in
+    let num_moved = List.length moved_names in
     let arms = ref [] in
     while peek () = BAR do
       adv ();
       let cname = ident () in
       let rec pbs acc = match peek () with ID x -> adv (); pbs (x :: acc) | FATARROW -> adv (); List.rev acc | _ -> fail "expected pattern binders then '=>'" in
       let bs = pbs [] in
-      (* nargs, the induction-hypothesis binder names, and the map from each
-         recursive-position pattern binder to its hypothesis *)
       let nargs, ih_names, rec_pairs =
         match cname with
         | "zero" | "true" | "false" -> (0, [], [])
-        | "suc" -> (1, [ "#ih" ], (match bs with [ k ] -> [ (k, "#ih") ] | _ -> []))
+        | "suc" -> (match bs with [ k ] -> let ih = fresh_ih () in (1, [ ih ], [ (k, ih) ]) | _ -> (1, [ fresh_ih () ], []))
         | _ ->
             (match Hashtbl.find_opt ctor_owner cname with
              | None -> fail ("match: '" ^ cname ^ "' is not a constructor")
@@ -287,31 +316,42 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
                  let argtys = List.assoc cname cs in
                  if List.length bs <> List.length argtys then
                    fail (Printf.sprintf "match: pattern '%s' expects %d argument(s), got %d" cname (List.length argtys) (List.length bs));
-                 let ctr = ref 0 in
-                 let pairs = List.filter_map (fun (b, aty) -> match aty with ARec -> let ih = "#ih" ^ string_of_int !ctr in incr ctr; Some (b, ih) | _ -> None) (List.combine bs argtys) in
+                 let pairs = List.filter_map (fun (b, aty) -> match aty with ARec -> Some (b, fresh_ih ()) | _ -> None) (List.combine bs argtys) in
                  (List.length argtys, List.map snd pairs, pairs))
       in
       if List.length bs <> nargs then
         fail (Printf.sprintf "match: pattern '%s' expects %d argument(s), got %d" cname nargs (List.length bs));
-      let ns_body = List.rev (bs @ ih_names) @ ns in
-      rec_ihmap := rec_pairs;
+      (* post-decreasing (moved) args are re-abstracted after the method's own
+         binders, so the induction hypothesis becomes a function of them *)
+      let meth_binders = bs @ ih_names @ moved_names in
+      let ns_body = List.rev meth_binders @ ns in
+      if decreasing then rec_ihmap := rec_pairs;   (* only the decreasing match drives recursion *)
       let body = term ~expected:rty ns_body in
-      let meth = List.fold_right (fun x b -> Lam (x, b)) (bs @ ih_names) body in
+      let meth = List.fold_right (fun x b -> Lam (x, b)) meth_binders body in
       arms := (cname, meth) :: !arms
     done;
     eat RBRACE "}";
-    rec_decarg := saved_decarg; rec_ihmap := saved_ihmap;
     let arms = List.rev !arms in
     let names_of = List.map fst arms in
     let find c = try List.assoc c arms with Not_found -> fail ("match: missing case for '" ^ c ^ "'") in
-    let motive () = match rty with
-      | Some r -> Lam ("_", lift 1 0 r)
-      | None -> fail "match needs a result type: use a typed `def`, or write `match e return T { .. }`"
+    (* the motive: for the decreasing match it is the def's return type as a
+       function of the moved arguments (read off the annotation, lifted into
+       scope); otherwise the plain result type R *)
+    let motive () =
+      if decreasing then
+        (match !rec_annot with
+         | Some t -> Lam ("_", lift (num_moved + 1) 0 (peel_pi (dpos + 1) t))
+         | None -> fail "a recursive `match` needs its def to carry a type annotation")
+      else match rty with
+        | Some r -> Lam ("_", lift 1 0 r)
+        | None -> fail "match needs a result type: use a typed `def`, or write `match e return T { .. }`"
     in
+    (* apply the eliminator's result to the moved arguments' outer binders *)
+    let apply_moved t = List.fold_left (fun acc nm -> match index_of nm ns with Some i -> App (acc, Var i) | None -> acc) t moved_names in
     if List.mem "zero" names_of || List.mem "suc" names_of then
-      NatElim (motive (), find "zero", find "suc", scrut)
-    else if List.mem "true" names_of || List.mem "false" names_of then
-      If (scrut, find "true", find "false")
+      apply_moved (NatElim (motive (), find "zero", find "suc", scrut))
+    else if is_bool || List.mem "true" names_of || List.mem "false" names_of then
+      If (scrut, find "true", find "false")            (* Bool: no motive, no moved machinery *)
     else begin
       (* user datatype: identified from an arm, or — for an empty match, e.g. on
          Void — from the scrutinee's type annotation *)
@@ -340,7 +380,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
       let head = List.fold_left (fun acc p -> App (acc, p)) (Elim (d ^ "_elim")) params in
       let head = App (head, motive ()) in
       let head = List.fold_left (fun acc m -> App (acc, m)) head methods in
-      App (head, scrut)
+      apply_moved (App (head, scrut))
     end
   in
   let decl ns =
@@ -360,9 +400,10 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         in
         let ns' = List.rev lead @ ns in
         let rec peel n exp = if n <= 0 then exp else (match exp with Some (Pi (_, _, b)) -> peel (n - 1) (Some b) | _ -> None) in
-        rec_fname := Some name; rec_binders := lead; rec_decarg := ""; rec_ihmap := [];
+        rec_fname := Some name; rec_binders := lead; rec_annot := ty; rec_decarg := ""; rec_ihmap := [];
+        rec_at_top := (lead <> []);   (* the body is in tail position of the def *)
         let inner = term ~expected:(peel (List.length lead) ty) ns' in
-        rec_fname := None; rec_binders := []; rec_decarg := ""; rec_ihmap := [];
+        rec_fname := None; rec_binders := []; rec_annot := None; rec_decarg := ""; rec_ihmap := []; rec_at_top := false;
         let body = List.fold_right (fun x b -> Lam (x, b)) lead inner in
         Def (name, ty, body)
     | ID "check" -> adv (); Check (term ns)

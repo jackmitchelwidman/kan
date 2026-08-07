@@ -1,0 +1,23 @@
+-- Accumulator-style recursion: functions whose recursive call changes an
+-- argument (not just shrinks the matched one). Kan elaborates these by moving
+-- the changing argument into the eliminator's motive, so the induction
+-- hypothesis becomes a FUNCTION you apply to the new value — still total,
+-- still just an eliminator underneath.
+-- Run:  kan run examples/accumulators.kan   (same from the OCaml and C backends)
+
+import "../std/nat.kan"        -- eqNat, leq (defined by this kind of recursion)
+
+-- a tail-recursive sum with a running accumulator (the accumulator CHANGES each step)
+def sumAcc : Nat -> Nat -> Nat
+  = \n acc. match n { | zero => acc | suc k => sumAcc k (suc acc) }
+
+-- "is n exactly 5?" — now a clean one-liner, using Nat equality
+def isFive : Nat -> Bool = \n. eqNat n 5
+
+eval eqNat 5 5        -- true
+eval eqNat 5 4        -- false
+eval leq 3 5          -- true
+eval leq 5 3          -- false
+eval sumAcc 5 0       -- 5
+eval isFive 5         -- true
+eval isFive 4         -- false

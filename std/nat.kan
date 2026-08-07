@@ -4,6 +4,14 @@ import "logic.kan"
 def add : Nat -> Nat -> Nat = \m n. match m { | zero => n    | suc k => suc (add k n) }
 def mul : Nat -> Nat -> Nat = \m n. match m { | zero => zero | suc k => add n (mul k n) }
 
+-- equality and ordering: recursion that shrinks BOTH arguments (accumulator-
+-- style), so the second argument moves through the eliminator's motive.
+def eqNat : Nat -> Nat -> Bool
+  = \m n. match m { | zero  => match n { | zero => true  | suc k => false }
+                  | suc j => match n { | zero => false | suc k => eqNat j k } }
+def leq : Nat -> Nat -> Bool
+  = \m n. match m { | zero => true | suc j => match n { | zero => false | suc k => leq j k } }
+
 -- for all n, add n zero = n — proved by induction (the def checking IS the proof)
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
   = \n. natElim (\m. Id Nat (add m zero) m)
