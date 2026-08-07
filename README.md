@@ -13,22 +13,51 @@ This is the guiding idea. Everything below is an unfolding of it.
 ### What Kan is today
 
 **Kan is a dependently typed language, and its files are `.kan`.** It has
-dependent function types, dependent pairs, identity types, a universe hierarchy,
-and user-declared inductive types (with parameters) and induction — so you can
-write real programs, state their properties as types, and *prove* them. It
-**type-checks and compiles to native binaries** (via OCaml).
+dependent function types, dependent pairs, identity types, a universe hierarchy
+(`U`, `U1`, `U2`, …), user-declared inductive types with induction, a primitive
+`String`, and an **unbounded `Integer`** (arbitrary precision, like Python's
+`int`) — so you can write real programs, state their properties as types, and
+*prove* them. It **type-checks and compiles to native binaries via two
+backends** — OCaml and C — which produce identical results.
 
 ```
 kan check foo.kan            # type-check and report the types
 kan run   foo.kan            # type-check, then run
-kan build foo.kan -o foo     # type-check, then compile to a native binary
+kan build foo.kan -o foo     # compile to a native binary (OCaml)
+kan build -c foo.kan -o foo  # compile to a native binary (C)
 ```
 
+Category theory lives *in* the language, not just in the philosophy.
+[`std/category.kan`](std/category.kan) defines `Category`, `Functor`, and
+`NatTrans` as dependent records whose **laws are fields** — so a value of type
+`Category` is one the type-checker has verified really is a category. It ships
+the terminal category, the opposite category `op`, the identity functor and
+identity natural transformation, and functor composition, all lawful. And the
+construction the language is named for, [`std/kan.kan`](std/kan.kan), states the
+**Kan extension** universal property (left and right) as a Kan type — with the
+extension along the identity constructed to prove the statement inhabited.
+
+Two exact factorials, computed by native big-integer arithmetic:
+
+```
+def fac : Nat -> Integer                       -- Nat counter, Integer accumulator
+        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+eval fac 50   -- 30414093201713378043612608166064768844377641568960512000000000000
+```
+
+**What a successful compile guarantees.** Type-checking certifies a program is
+*well-typed and total*: it cannot perform an ill-typed operation, and it
+terminates in principle. It does **not** promise the program is *feasible* — a
+total program can still cost more steps than there is time to run them (`Nat` is
+Peano, so its arithmetic is unary; that is what `Integer` is for). What used to
+be an outright crash is gone: `natElim` reduces iteratively, so well-typed
+programs no longer overflow the stack on large closed naturals. One known limit
+remains: deep recursion over *user* inductive types can still exhaust the stack
+(a structural version of the same issue) — see the roadmap.
+
 The categorical vision below — *programs are diagrams, computation is universal
-completion* — is realized in this type theory: the universal properties the
-original `fill` calculus computed concretely are now stated and **proved as
-types** (see [`examples/category.kan`](examples/category.kan)). That original
-`fill` calculus lives on as an internal FinSet reference model
+completion* — is realized in this type theory. The original `fill` calculus
+lives on as an internal FinSet reference model
 ([`docs/core-calculus.md`](docs/core-calculus.md)).
 
 Kan remains a *living design document*: the philosophy chooses the
@@ -364,6 +393,8 @@ The fundamental concept of Kan is not, strictly, *the Kan extension* — it is t
 
 Both of the language's fillers — horn-filling (the Kan *complex*) and universal completion (the Kan *extension*) — are Daniel Kan's. The general primitive is precisely what *fuses* his two contributions. Naming the language after the mathematician whose fingerprints are on the whole region is the honest move, exactly as Turing machines and Church's λ are named for people, not mechanisms.
 
+As of now the namesake is not only the philosophy but a definition you can check: [`std/kan.kan`](std/kan.kan) states the left and right Kan extension universal properties as Kan types, resting on the lawful `Category`/`Functor`/`NatTrans` of [`std/category.kan`](std/category.kan). The extension along the identity is constructed, so the statement is inhabited — the language named for Kan extensions can express, and verify, a Kan extension.
+
 ---
 
 # 11. Examples of Kan Programs
@@ -444,14 +475,22 @@ dune exec bin/kan.exe -- run examples/nat.kan
 dune exec bin/kan.exe -- build examples/nat.kan -o nat && ./nat        # via OCaml
 dune exec bin/kan.exe -- build -c examples/nat.kan -o nat && ./nat     # via C
 
-# the FinSet `fill` reference model (composition, limits, colimits, folds):
-dune exec reference/kan_ref.exe
+# unbounded integers — exact fac 50, identical from every runtime:
+dune exec bin/kan.exe -- run examples/integer.kan
+
+# category theory: the terminal & opposite categories, functors, nat-trans:
+dune exec bin/kan.exe -- check examples/categories.kan
+
+# the whole regression gate (check + tri-runtime output diff):
+bash tests/run_all.sh
 ```
 
 Every program in [`examples/`](examples/) is a `.kan` file: `nat.kan` (induction),
 `list.kan` (polymorphic `List`), `data.kan` (user inductive types),
-`category.kan` (universal properties as theorems), `person.kan` (a type that
-depends on a value), `using_std.kan` (importing the standard library).
+`integer.kan` (unbounded arithmetic), `categories.kan` (category theory via the
+standard library), `category.kan` (universal properties as theorems),
+`person.kan` (a type that depends on a value), `using_std.kan` (importing the
+standard library).
 
 Kan has an `import` mechanism and a small **standard library** in
 [`std/`](std/) — combinators, boolean and natural-number arithmetic (with

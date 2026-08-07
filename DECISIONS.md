@@ -74,6 +74,55 @@ same erased IR is future additive work.
 
 ---
 
+## ADR-006 — `Integer` is a separate, machine-backed, unbounded type
+**Decision.** Add `Integer`: arbitrary-precision, signed, primitive (`iadd`,
+`isub`, `imul`, `ieq`, `ilt`, and `fromNat : Nat -> Integer`). It is **distinct
+from `Nat`**, which stays the inductive type for induction and proofs. Literals
+carry a trailing `z` (for ℤ): `0z`, `120z`. The bignum is **hand-rolled**
+(`lib/bigint.ml`, sign + base-10⁹ limbs) — no third-party dependency — and the
+OCaml backend splices `bigint.ml`'s own source (via a dune rule) so there is one
+source of truth; the C backend carries a twin bignum in C.
+**Why.** `Nat`'s arithmetic is unary (cost ∝ value), so it cannot compute large
+numbers; `Integer` gives Python-like unbounded arithmetic at native cost. Keeping
+them separate preserves `Nat`'s definitional unfolding, which the proofs
+(`add_n_zero`, …) depend on — never replace `add`/`mul`. Base 10⁹ keeps
+single-limb products inside both a 63-bit OCaml int and a C int64, so one
+algorithm ports to both backends. The idiom is a Nat counter driving an Integer
+accumulator (see `std/integer.kan`). A type-directed numeric literal (so a bare
+`50` is `Nat` or `Integer` by context) would be nicer but needs an elaboration
+pass; deferred — the `z` suffix is the safe, unambiguous interim.
+
+## ADR-007 — Universe literals `U1`, `U2`, …
+**Decision.** The parser accepts `Ui` for `U i` (i ≥ 1), matching how the printer
+already shows universes. **Why.** Needed to annotate higher-universe types (e.g.
+`Category : U1`); the printer/parser are now inverse.
+
+## ADR-008 — Category theory as dependent records (laws as fields)
+**Decision.** Encode `Category`/`Functor`/`NatTrans` as Σ-records whose fields
+include the laws as `Id`-proofs, with named accessor functions hiding the
+`fst`/`snd` projections (`std/category.kan`). State Kan extensions as universal
+properties (`std/kan.kan`). **Why.** This makes "is a category" a *checked*
+proposition and keeps use-sites readable (`cmp C a b c g f`). A dedicated record
+syntax would be more ergonomic than nested Σ + `fst/snd`, but the record encoding
+is sound today and needs no kernel change; record syntax is a future ergonomic
+refinement. Infix arithmetic (`+`, `*`) is deliberately **not** added: in a
+dependent language `A * B` (Σ) and `a * b` (multiply) share one grammar, so a
+clean fix must repurpose a core symbol — a sponsor-level call, left open.
+
+## ADR-009 — What a successful compile guarantees
+**Decision.** State the guarantee honestly: compilation certifies *well-typed and
+total*, not *feasible*. Fix avoidable runtime crashes where cheap (done:
+`natElim` now reduces iteratively, so large closed naturals no longer overflow
+the stack); document the limits that remain (unary `Nat` cost; deep recursion
+over user inductive types can still overflow — a structural version of the same
+issue, whose fix is invasive and deferred). **Why.** The sponsor's north star is
+"a successful compile should guarantee the program runs properly, as much as
+possible." Totality plus a fixed crash-class is real progress; over-claiming a
+blanket guarantee would be dishonest, since a total language can still be
+astronomically costly.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,
