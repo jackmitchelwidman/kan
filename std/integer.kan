@@ -1,0 +1,31 @@
+-- std/integer — the unbounded machine integer, and a little arithmetic on it.
+--
+-- `Integer` is Kan's type for *computation* with numbers: arbitrary precision,
+-- like Python's int. It is deliberately distinct from `Nat`, which is the
+-- inductive type you do induction and write proofs over. A good rule of thumb:
+--   • recurse / prove on `Nat`;
+--   • accumulate / compute large values in `Integer`.
+-- The bridge is `fromNat : Nat -> Integer`.
+--
+-- Integer literals carry a trailing `z` (for Z), e.g. `0z`, `1z`, `120z`.
+
+-- friendlier names for the primitive operations
+def plus  : Integer -> Integer -> Integer = \a b. iadd a b
+def minus : Integer -> Integer -> Integer = \a b. isub a b
+def times : Integer -> Integer -> Integer = \a b. imul a b
+def eqInt : Integer -> Integer -> Bool    = \a b. ieq a b
+def ltInt : Integer -> Integer -> Bool    = \a b. ilt a b
+
+def negate : Integer -> Integer = \a. isub 0z a
+def double : Integer -> Integer = \a. iadd a a
+def square : Integer -> Integer = \a. imul a a
+
+-- factorial: a Nat counter driving an Integer accumulator, so the *value* is
+-- unbounded and computed by fast native multiplication rather than by unary
+-- recursion. `factorial 50` is exact and instant.
+def factorial : Nat -> Integer
+  = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+
+-- sum 0..n as an Integer (again: Nat drives, Integer accumulates)
+def sumTo : Nat -> Integer
+  = \n. natElim (\_. Integer) 0z (\k ih. iadd (fromNat (suc k)) ih) n

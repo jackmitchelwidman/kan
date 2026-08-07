@@ -1,0 +1,24 @@
+-- main.kan — factorial in Kan, two ways.
+-- Run:  kan run playground/main.kan
+import "../std/nat.kan"        -- `add`, `mul` on Nat
+import "../std/integer.kan"    -- the unbounded `Integer` and `factorial`
+
+-- (1) On Nat. `Nat` is the INDUCTIVE type — the one you do proofs over.
+-- Its arithmetic is defined by recursion, so the *cost* grows with the value:
+-- great for reasoning and small numbers, but `facNat 50` would take ~10^64
+-- steps. Keep Nat for induction; compute big numbers in Integer instead.
+def facNat : Nat -> Nat
+        = \n. natElim (\_. Nat) 1 (\k ih. mul (suc k) ih) n
+
+eval facNat 0     -- 1
+eval facNat 5     -- 120
+eval facNat 6     -- 720
+
+-- (2) On Integer. A Nat counter drives an unbounded Integer accumulator, so
+-- each step is one native big-integer multiply. `fac 50` is exact and instant.
+-- (`factorial` is the same definition, shipped in std/integer.kan.)
+def fac : Nat -> Integer
+        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+
+eval fac 50       -- 30414093201713378043612608166064768844377641568960512000000000000
+eval fac 100      -- the exact 158-digit value

@@ -30,6 +30,7 @@ Each file is included at most once, even if reached through several imports.
 | `void.kan` | the empty type `Void` and `absurd` |
 | `unit.kan` | the one-element type `Unit` |
 | `string.kan` | `string_append`, `string_eq` (over the built-in `String`) |
+| `integer.kan` | the unbounded `Integer`: `plus`/`minus`/`times`, `factorial`, `sumTo` (compute large values exactly) |
 
 See `examples/using_std.kan` for a program that imports and uses several of these.
 
