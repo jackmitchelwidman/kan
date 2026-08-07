@@ -47,7 +47,27 @@ def fac : Nat -> Integer
 (Integer literals wear a `z`, for ℤ: `1z`, `120z`. Arithmetic is `iadd`, `isub`,
 `imul`, `ieq`, `ilt`, with friendlier `plus`/`times`/… in `std/integer.kan`.)
 
-## 3. Proofs are programs
+## 3. Defining functions by pattern matching
+
+Write functions with `match` and structural recursion — no hand-written
+eliminators:
+
+```kan
+def add : Nat -> Nat -> Nat = \m n. match m { | zero => n | suc k => suc (add k n) }
+
+data List (A : U) { nil : List A, cons : A -> List A -> List A }
+def length : (A : U) -> List A -> Nat
+  = \A xs. match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
+```
+
+`match` elaborates to the datatype's eliminator. Recursion is allowed only when
+it is **structural** — the recursive call is on a sub-part of the matched value —
+so every function you can write this way is total: **if it compiles, it
+terminates.** Try to loop on the whole value, or change another argument
+accumulator-style, and the compiler refuses. (Parameterized scrutinees name their
+type once: `match (xs : List A) { … }`.)
+
+## 4. Proofs are programs
 
 A proposition is a type; a proof is a term of that type; checking the term *is*
 verifying the proof. `Id A x y` is the type of proofs that `x` equals `y`.
@@ -64,7 +84,7 @@ def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
 If it type-checks, the theorem holds. There is no separate proof language — it is
 all Kan.
 
-## 4. Category theory, lawfully
+## 5. Category theory, lawfully
 
 `std/category.kan` defines a `Category` as a record whose fields include the
 identity and associativity **laws** (as `Id`-proofs). So a value of type
@@ -81,7 +101,7 @@ A concrete example: the natural numbers form a one-object category (the monoid
 [`examples/monoid_category.kan`](../examples/monoid_category.kan). Its laws are
 `add_n_zero`, `refl`, and `add_assoc`.
 
-## 5. The namesake: Kan extensions
+## 6. The namesake: Kan extensions
 
 The construction Kan is named for is a definition you can check. `std/kan.kan`
 states the left and right Kan extension as universal properties, and constructs

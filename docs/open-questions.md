@@ -44,6 +44,10 @@ project if you like the direction.
 
 ## 4. Smaller, already-noted
 
+- **Accumulator-style recursion** in `match` functions (e.g. `f k (suc acc)`,
+  where an argument *changes* in the recursive call): currently rejected. The fix
+  is to move the changing argument into the eliminator's motive (so the induction
+  hypothesis becomes a function); a clean extension of the existing elaboration.
 - **Integer division/modulo** (`idiv`/`imod`): bignum long division is the one
   arithmetic op I didn't hand-roll tonight (easy to get subtly wrong); add when
   needed.

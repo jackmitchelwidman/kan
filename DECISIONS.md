@@ -121,6 +121,30 @@ possible." Totality plus a fixed crash-class is real progress; over-claiming a
 blanket guarantee would be dishonest, since a total language can still be
 astronomically costly.
 
+## ADR-010 — Pattern-matching recursive functions, elaborated to eliminators
+**Decision.** Add `match` and structural recursion as **surface sugar**, lowered
+in the parser to the datatype's eliminator — no kernel change. `match e { | C x..
+=> body | .. }` becomes the eliminator with motive `\_. R` (R = the def's result
+type, threaded from its annotation by peeling one Pi per lambda binder; or given
+explicitly via `match e return R { .. }`). Recursive calls `f ..k..` become the
+induction hypothesis for the recursive-position binder `k`; the elaboration is
+done entirely in name-land (the `ns` scope), avoiding de Bruijn surgery.
+**Why.** This is the ergonomic "middle row" every total language occupies (Agda/
+Coq/Lean): pleasant recursion without unrestricted general recursion. Elaborating
+to eliminators keeps the kernel small and sound, and **totality is preserved by
+construction** — the elaborated term *is* an eliminator, so it can only recurse on
+structurally-smaller arguments. The subset (one decreasing matched argument; other
+arguments passed unchanged; exhaustive) is enforced by *rejecting* everything
+outside it with a clear message (accumulator-style recursion, non-structural
+recursion, and non-exhaustive matches each have a gate rejection test). The more
+general `fix`/`match`+guard-checker design (Coq-style, kernel-level) is deferred;
+so is accumulator-style recursion (needs the extra argument moved into the motive)
+and large elimination (motives above `U0`). The stdlib is **not** migrated to the
+new syntax in this change — the hand-written eliminator forms produce different
+stuck terms, and the proofs depend on them; migration is a separate, proof-gated
+pass. Also lands: lexer `|`/`=>`, a de Bruijn `lift` in the kernel, and
+parse-time per-constructor argument classification.
+
 ---
 
 ## Phase plan (tracks README §13)

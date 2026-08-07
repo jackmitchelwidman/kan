@@ -17,8 +17,19 @@ dependent function types, dependent pairs, identity types, a universe hierarchy
 (`U`, `U1`, `U2`, …), user-declared inductive types with induction, a primitive
 `String`, and an **unbounded `Integer`** (arbitrary precision, like Python's
 `int`) — so you can write real programs, state their properties as types, and
-*prove* them. It **type-checks and compiles to native binaries via two
-backends** — OCaml and C — which produce identical results.
+*prove* them. Functions are written with **pattern matching and structural
+recursion** — total by construction. It **type-checks and compiles to native
+binaries via two backends** — OCaml and C — which produce identical results.
+
+```kan
+def add : Nat -> Nat -> Nat = \m n. match m { | zero => n | suc k => suc (add k n) }
+def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
+  = \A B g xs. match (xs : List A) { | nil => nil B | cons y ys => cons B (g y) (map A B g ys) }
+```
+
+`match` elaborates to the datatype's eliminator, and recursion is accepted only
+when it is *structural* — so if a function compiles, it terminates. Non-structural
+or accumulator-style recursion, and non-exhaustive matches, are rejected.
 
 ```
 kan check foo.kan            # type-check and report the types
