@@ -133,17 +133,39 @@ done entirely in name-land (the `ns` scope), avoiding de Bruijn surgery.
 Coq/Lean): pleasant recursion without unrestricted general recursion. Elaborating
 to eliminators keeps the kernel small and sound, and **totality is preserved by
 construction** — the elaborated term *is* an eliminator, so it can only recurse on
-structurally-smaller arguments. The subset (one decreasing matched argument; other
-arguments passed unchanged; exhaustive) is enforced by *rejecting* everything
-outside it with a clear message (accumulator-style recursion, non-structural
-recursion, and non-exhaustive matches each have a gate rejection test). The more
-general `fix`/`match`+guard-checker design (Coq-style, kernel-level) is deferred;
-so is accumulator-style recursion (needs the extra argument moved into the motive)
-and large elimination (motives above `U0`). The stdlib is **not** migrated to the
+structurally-smaller arguments. The subset (one decreasing matched argument;
+exhaustive) is enforced by *rejecting* everything outside it (non-structural
+recursion and non-exhaustive matches each have a gate rejection test). The more
+general `fix`/`match`+guard-checker design (Coq-style, kernel-level) is deferred, as
+is large elimination (motives above `U0`). The stdlib is **not** migrated to the
 new syntax in this change — the hand-written eliminator forms produce different
 stuck terms, and the proofs depend on them; migration is a separate, proof-gated
 pass. Also lands: lexer `|`/`=>`, a de Bruijn `lift` in the kernel, and
 parse-time per-constructor argument classification.
+
+## ADR-011 — Accumulator-style recursion (motive-moving)
+**Decision.** Lift the "other arguments passed unchanged" restriction of ADR-010:
+a recursive `match` may now *change* an argument across the call. Arguments after
+the decreasing (matched) one are moved into the eliminator's motive — the motive
+becomes the def's return type as a function of those arguments (read off the
+annotation and lifted into scope), each method re-abstracts them, and the
+eliminator's result is applied to their outer binders (apply-after, so no de
+Bruijn binder-commuting). The recursive call `f pre.. r acc..` becomes `(hyp r)
+acc..`. When there are no such arguments it is exactly ADR-010's elaboration.
+**Why.** Equality, ordering, and tail-recursive accumulators (`eqNat`, `leq`,
+`sumAcc`) are natural and common; rejecting them was a real gap (a user hit it
+immediately). Still elaborates to an eliminator, so totality is preserved. Two
+guards: only a **tail-position** match on a def binder may claim the recursion —
+this also fixes a *latent* wrong-code bug in ADR-010's shipped path, where a
+nested match (under a non-binder scrutinee or wrapped in a constructor) could
+silently bind the recursion to the inner eliminator's hypothesis (two new
+rejection tests); and induction-hypothesis binder names are globally unique so a
+nested match can't shadow an enclosing one. `add`/`mul`/`append` change elaborated
+form but the proofs still check (the gate is the arbiter). **Cost:** motive-moving
+functions lose the O(1)-stack reduction of a plain fold — `(natElim … m) n` forces
+an m-deep closure chain at apply time; the raised-stack re-exec (ADR unlisted)
+absorbs it, and it is inherent to the eliminator encoding. Still deferred:
+accumulator recursion where the *motive type* would need large elimination.
 
 ---
 

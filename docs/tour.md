@@ -63,8 +63,9 @@ def length : (A : U) -> List A -> Nat
 `match` elaborates to the datatype's eliminator. Recursion is allowed only when
 it is **structural** — the recursive call is on a sub-part of the matched value —
 so every function you can write this way is total: **if it compiles, it
-terminates.** Try to loop on the whole value, or change another argument
-accumulator-style, and the compiler refuses. (Parameterized scrutinees name their
+terminates.** Try to loop on the whole value and the compiler refuses; other
+arguments may change across the call (accumulator-style — `eqNat`, `leq`,
+tail-recursive sums). (Parameterized scrutinees name their
 type once: `match (xs : List A) { … }`.)
 
 ## 4. Proofs are programs

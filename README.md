@@ -28,8 +28,9 @@ def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
 ```
 
 `match` elaborates to the datatype's eliminator, and recursion is accepted only
-when it is *structural* — so if a function compiles, it terminates. Non-structural
-or accumulator-style recursion, and non-exhaustive matches, are rejected.
+when it is *structural* — so if a function compiles, it terminates. Both plain and
+accumulator-style recursion are supported (an argument may shrink or change across
+the call); non-structural recursion and non-exhaustive matches are rejected.
 
 ```
 kan check foo.kan            # type-check and report the types

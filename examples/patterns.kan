@@ -4,8 +4,8 @@
 -- datatype's eliminator. Recursion is allowed only when it is STRUCTURAL — the
 -- recursive call is on a sub-part of the matched value — so every function here
 -- is total by construction: if it compiles, it terminates. (Try changing a
--- recursive call to loop on the whole value, or to change another argument, and
--- the compiler rejects it.)
+-- recursive call to loop on the whole value and the compiler rejects it. Other
+-- arguments MAY change across the call — see examples/accumulators.kan.)
 --
 -- Run:  kan run examples/patterns.kan   (identical from the OCaml and C backends)
 
