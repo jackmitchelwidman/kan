@@ -36,3 +36,36 @@ def add_comm : (m : Nat) -> (n : Nat) -> Id Nat (add m n) (add n m)
       | suc k => trans Nat (suc (add k n)) (suc (add n k)) (add n (suc k))
                    (ap Nat Nat (lambda x: suc x) (add k n) (add n k) (add_comm k n))
                    (sym Nat (add n (suc k)) (suc (add n k)) (add_suc n k)) }
+
+-- add a (add b c) = add b (add a c)  — rearrangement from assoc + comm.
+def add_swap : (a : Nat) -> (b : Nat) -> (c : Nat)
+            -> Id Nat (add a (add b c)) (add b (add a c))
+  = lambda a b c:
+      trans Nat (add a (add b c)) (add (add a b) c) (add b (add a c))
+        (sym Nat (add (add a b) c) (add a (add b c)) (add_assoc a b c))
+        (trans Nat (add (add a b) c) (add (add b a) c) (add b (add a c))
+           (ap Nat Nat (lambda z: add z c) (add a b) (add b a) (add_comm a b))
+           (add_assoc b a c))
+
+-- m · 0 = 0 — induction on m (add zero X = X definitionally).
+def mul_n_zero : (m : Nat) -> Id Nat (mul m zero) zero
+  = lambda m: match m { | zero => refl | suc k => mul_n_zero k }
+
+-- m · (suc n) = m + m·n — the distributive step, induction on m.
+def mul_suc : (m : Nat) -> (n : Nat) -> Id Nat (mul m (suc n)) (add m (mul m n))
+  = lambda m n: match m {
+      | zero  => refl
+      | suc k => trans Nat (suc (add n (mul k (suc n))))
+                           (suc (add n (add k (mul k n))))
+                           (suc (add k (add n (mul k n))))
+                   (ap Nat Nat (lambda z: suc (add n z)) (mul k (suc n)) (add k (mul k n)) (mul_suc k n))
+                   (ap Nat Nat (lambda z: suc z) (add n (add k (mul k n))) (add k (add n (mul k n)))
+                       (add_swap n k (mul k n))) }
+
+-- multiplication is commutative — induction on m, using mul_n_zero and mul_suc.
+def mul_comm : (m : Nat) -> (n : Nat) -> Id Nat (mul m n) (mul n m)
+  = lambda m n: match m {
+      | zero  => sym Nat (mul n zero) zero (mul_n_zero n)
+      | suc k => trans Nat (add n (mul k n)) (add n (mul n k)) (mul n (suc k))
+                   (ap Nat Nat (lambda z: add n z) (mul k n) (mul n k) (mul_comm k n))
+                   (sym Nat (mul n (suc k)) (add n (mul n k)) (mul_suc n k)) }
