@@ -237,6 +237,22 @@ proved by induction — the load-bearing formalization; (3) kernel acceleration
 (closed `Int` ↔ bignum); (4) the proof-carrying `Rational`. Milestones 2–3 are
 multi-session; this ADR locks the direction, not a delivery date.
 
+**Progress (2026-08-08).** Two rational types now ship, bracketing the design:
+- `std/rational.kan` — EFFICIENT (primitive `Integer`), with an honest safe API:
+  `recipQ`/`divQ` return `Option` (no silent divide-by-zero) and `mkQ` refuses a
+  zero denominator. Not yet type-enforced against a hand-written `rational 3 0`.
+- `std/rational_typed.kan` — TYPE-ENFORCED: `Frac`'s denominator is stored as
+  `suc denPred`, so a zero denominator is *unrepresentable* and divide-by-zero is
+  impossible by construction (no proofs needed); `Int` numerators. Practical only
+  for modest values until acceleration — correctness first.
+So **neither type permits a silent divide-by-zero today**, and one forbids it
+structurally. The remaining goal — a single type that is BOTH efficient and
+type-enforced — is gated on **milestone 3 (kernel acceleration of closed `Int`
+values via the bignum)**, which is deliberately left for supervised work: it
+touches the evaluator in all three runtimes and a subtle error there is
+language-wide. Tower proofs advanced meanwhile (no axioms): `std/nat.kan`
+`add_suc`/`add_comm`; `std/int.kan` `negI_negI` (i.e. `-(-i)=i`) and `addI_comm`.
+
 ---
 
 ## Phase plan (tracks README §13)
