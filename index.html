@@ -244,18 +244,23 @@ eval fac 50</pre>
 
   <section>
     <h2>Try it</h2>
-<pre><span class="c"># requires OCaml + dune</span>
-git clone https://github.com/jackmitchelwidman/kan
-cd kan &amp;&amp; dune build
+<pre><span class="c"># install — macOS / Linux, no OCaml required</span>
+curl -fsSL https://raw.githubusercontent.com/jackmitchelwidman/kan/main/install.sh | sh
 
+git clone https://github.com/jackmitchelwidman/kan &amp;&amp; cd kan   <span class="c"># grab the examples + stdlib</span>
 kan run   examples/tutorial.kan          <span class="c"># a runnable tour of the language, start here</span>
 kan run   examples/integer.kan           <span class="c"># unbounded arithmetic — exact fac 50</span>
 kan check examples/categories.kan        <span class="c"># category theory, lawful</span>
 kan build examples/tutorial.kan -o tut &amp;&amp; ./tut   <span class="c"># compile to native (add -c for the C backend)</span></pre>
-    <p style="margin-bottom:0">Every file in <code>examples/</code> is a <code>.kan</code> program; the
+    <p style="margin-bottom:0"><code>run</code> and <code>check</code> are built
+      into the binary — no toolchain to install. On Windows, use the
+      <a href="https://github.com/jackmitchelwidman/kan/blob/main/install.ps1">PowerShell installer</a>;
+      full instructions in <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/getting-started.md">Getting Started</a>.
+      Every file in <code>examples/</code> is a <code>.kan</code> program; the
       <a href="https://github.com/jackmitchelwidman/kan/blob/main/examples/tutorial.kan">tutorial</a> is the
       place to begin. Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
-      a hands-on <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/tour.md">tour</a> and the
+      the <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/examples.md">example gallery</a>,
+      a hands-on <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/tour.md">tour</a>, and the
       type-system notes are in <a href="https://github.com/jackmitchelwidman/kan/tree/main/docs">/docs</a>.</p>
   </section>
 
