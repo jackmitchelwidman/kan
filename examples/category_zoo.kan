@@ -92,11 +92,13 @@ def lanOfIdOnOne : LeftKanExt One One One (idFunctor One) (idFunctor One)
   = lanAlongId One One (idFunctor One)
 
 -- ============================================================================
--- TOWARD TOPOS THEORY: presheaves, sites, and sheaves.
--- These are STATED at the type level. Kan does not yet have a category of sets,
--- (co)limits, or a subobject classifier, so the descent/gluing CONDITION of a
--- sheaf can't be written out fully — but the structures themselves have honest
--- Kan types, and the vocabulary lives in the language.
+-- TOWARD TOPOS THEORY: presheaves, sites, and sheaves — VOCABULARY, NOT YET
+-- THEOREMS. The definitions below give honest Kan *types* for these concepts,
+-- but the conditions that make them substantive (functoriality of a presheaf,
+-- the coverage axioms of a site, and above all the unique-gluing CONDITION of a
+-- sheaf) require (co)limits, which Kan does not yet have. So read these as "the
+-- language can already name these structures", not "sheaf theory is formalized".
+-- Each `def` says exactly what it does and does not impose.
 -- ============================================================================
 
 -- A PRESHEAF on C (valued in types): a type at each object, with contravariant
@@ -124,7 +126,9 @@ def siteCat   : Site -> Category = lambda S: fst S
 def siteCovers : (S : Site) -> (a : obj (siteCat S)) -> Sieve (siteCat S) a -> U
   = lambda S: snd S
 
--- A SHEAF on a site: a presheaf on its underlying category that glues uniquely
--- over every covering sieve. (The presheaf is the data; the unique-gluing
--- condition — a limit over each covering sieve — awaits (co)limits in Kan.)
+-- NOT YET A SHEAF. This is *exactly* a presheaf on the site's underlying
+-- category — the defining sheaf condition (unique gluing of matching families
+-- over every covering sieve, i.e. a limit over each cover) is NOT imposed here,
+-- because it needs (co)limits Kan doesn't have yet. Named `Sheaf` for the
+-- vocabulary; a real sheaf is this together with that gluing condition.
 def Sheaf : Site -> U1 = lambda S: Presheaf (siteCat S)

@@ -1,0 +1,28 @@
+name: ci
+
+# Type-check every example and stdlib file, and verify that every runnable
+# program produces identical output from all three runtimes. This is the same
+# gate as `bash tests/run_all.sh`, run on every push and PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "4.14"
+
+      - name: Build
+        run: opam exec -- dune build --profile release
+
+      # The gate verifies tri-runtime agreement, which runs `kan build` — that
+      # shells out to `ocamlopt`, on PATH only inside `opam exec`.
+      - name: Regression gate (35 checks, tri-runtime agreement)
+        run: opam exec -- env KAN=_build/default/bin/kan.exe bash tests/run_all.sh

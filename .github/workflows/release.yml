@@ -1,0 +1,70 @@
+name: release
+
+# Build a standalone `kan` binary for each platform and attach it to the GitHub
+# Release for the pushed tag. Users then install with no OCaml toolchain at all:
+# `kan check` and `kan run` are fully self-contained in the binary.
+#
+# Cut a release by pushing a tag:
+#     git tag v0.1.0 && git push origin v0.1.0
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write        # needed to create/attach to the Release
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04      # older glibc => runs on more Linux distros
+            asset: kan-linux-x86_64
+          - os: macos-13          # Intel
+            asset: kan-macos-x86_64
+          - os: macos-14          # Apple Silicon
+            asset: kan-macos-arm64
+          - os: windows-latest
+            asset: kan-windows-x86_64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "4.14"
+
+      - name: Build (release profile)
+        run: opam exec -- dune build --profile release
+
+      # Every step below uses bash — the Windows runner provides it via Git Bash,
+      # so the copy/smoke-test/asset logic is identical on all four platforms.
+      - name: Stage the binary
+        shell: bash
+        run: cp _build/default/bin/kan.exe "${{ matrix.asset }}"
+
+      # The smoke test is our only way to exercise the macOS and Windows builds —
+      # if the binary is broken (e.g. the Windows stack re-exec regressed), fail
+      # here rather than shipping a broken artifact.
+      - name: Smoke test — run and check
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin="./${{ matrix.asset }}"
+          echo "== kan run examples/nat.kan =="
+          "$bin" run examples/nat.kan
+          echo "== kan check examples/categories.kan =="
+          "$bin" check examples/categories.kan
+          echo "== kan run examples/tutorial.kan (imports + eval) =="
+          "$bin" run examples/tutorial.kan >/dev/null
+          echo "smoke test passed"
+
+      - name: Attach to the Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}
+          fail_on_unmatched_files: true

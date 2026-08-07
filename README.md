@@ -39,6 +39,14 @@ kan build foo.kan -o foo     # compile to a native binary (OCaml)
 kan build -c foo.kan -o foo  # compile to a native binary (C)
 ```
 
+🚀 **[Getting Started](docs/getting-started.md)** — install `kan` in one line on
+macOS, Linux, or Windows (**no OCaml required** — `run` and `check` are built into
+the binary), then run your first program:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jackmitchelwidman/kan/main/install.sh | sh
+```
+
 Category theory lives *in* the language, not just in the philosophy.
 [`std/category.kan`](std/category.kan) defines `Category`, `Functor`, and
 `NatTrans` as dependent records whose **laws are fields** — so a value of type
@@ -413,6 +421,12 @@ As of now the namesake is not only the philosophy but a definition you can check
 
 # 11. Examples of Kan Programs
 
+📚 **[The gallery — Kan by Example](docs/examples.md)** is a large, browsable
+collection: everyday programming (functions, lists, trees, records, dictionaries,
+recursion), types and proofs (dependent types, induction, invariants), and
+category theory (categories, functors, natural transformations, adjunctions,
+monads, Kan extensions, and presheaves/sites/sheaves) — every snippet type-checks.
+
 Every file in [`examples/`](examples/) is a runnable `.kan` program (`kan run`, or `kan build` for a native binary):
 
 - [`tutorial.kan`](examples/tutorial.kan) — a guided tour of the whole language in one runnable file (start here).
@@ -485,37 +499,39 @@ Kan is not Haskell with category theory, Idris with more abstractions, or Lean a
 Kan is free and open source under the **Apache License 2.0** (see [`LICENSE`](LICENSE)).
 Contributions are welcome and are accepted under the same license.
 
-**Requirements:** OCaml ≥ 4.13 and dune ≥ 3.0. Kan compiles to native code via
-two backends — OCaml (`ocamlopt`, default) and C (`cc`, with `kan build -c`).
-No third-party libraries — Kan builds against the OCaml standard library only.
-If you don't have dune: `opam install dune`.
+**Install (no OCaml required):** grab a prebuilt binary — `kan run` and
+`kan check` are fully self-contained. See **[Getting Started](docs/getting-started.md)**
+for macOS / Linux / Windows, or in one line on Unix:
 
-**Try it now:**
+```
+curl -fsSL https://raw.githubusercontent.com/jackmitchelwidman/kan/main/install.sh | sh
+git clone https://github.com/jackmitchelwidman/kan && cd kan   # grab the examples + stdlib
+kan run examples/tutorial.kan
+```
+
+<a name="from-source"></a>
+**Build from source** (also gives you native `kan build`) — needs **OCaml ≥ 4.13**
+and **dune ≥ 3.0**, no third-party libraries (Kan builds against the OCaml standard
+library only). If you don't have dune: `opam install dune`.
 
 ```
 git clone https://github.com/jackmitchelwidman/kan
 cd kan
 dune build
+dune install --prefix ~/.local --sections bin    # puts `kan` on your PATH
 
-# type-check a dependently-typed program (proofs, inductive types, …):
-dune exec bin/kan.exe -- check examples/nat.kan
-
-# run it:
-dune exec bin/kan.exe -- run examples/nat.kan
-
-# COMPILE it to a native binary (this type-checks first) and run that:
-dune exec bin/kan.exe -- build examples/nat.kan -o nat && ./nat        # via OCaml
-dune exec bin/kan.exe -- build -c examples/nat.kan -o nat && ./nat     # via C
-
-# unbounded integers — exact fac 50, identical from every runtime:
-dune exec bin/kan.exe -- run examples/integer.kan
-
-# category theory: the terminal & opposite categories, functors, nat-trans:
-dune exec bin/kan.exe -- check examples/categories.kan
-
-# the whole regression gate (check + tri-runtime output diff):
-bash tests/run_all.sh
+# now, anywhere:
+kan check examples/nat.kan          # type-check a dependently-typed program
+kan run   examples/nat.kan          # run it
+kan build examples/nat.kan -o nat && ./nat        # compile to native (OCaml)
+kan build -c examples/nat.kan -o nat && ./nat     # compile to native (C)
+kan run   examples/integer.kan      # unbounded integers — exact fac 50
+kan check examples/categories.kan   # category theory, lawful
+bash tests/run_all.sh               # the whole regression gate
 ```
+
+Kan compiles to native code via two backends — OCaml (`ocamlopt`, default) and C
+(`cc`, with `kan build -c`) — verified to produce identical results.
 
 New here? Start with the **[hands-on tour](docs/tour.md)** — functions, dependent
 types, proofs, unbounded integers, and category theory in five short steps.
@@ -538,13 +554,8 @@ def xs : List Nat = cons Nat 3 (cons Nat 1 (nil Nat))
 eval add 2 (length Nat xs)
 ```
 
-**Install `kan` on your PATH** (so you can run `kan build foo.kan` anywhere):
-
-```
-dune build
-dune install --prefix ~/.local --sections bin    # installs `kan` to ~/.local/bin
-# re-run the last line after any rebuild to update the installed binary
-```
+(Installing `kan` on your PATH — one line either way — is covered in
+[Getting Started](docs/getting-started.md).)
 
 Layout: the type theory is `lib/core.ml` (kernel) and `lib/tt.ml` (surface);
 type erasure is `lib/erase.ml`; the native backends are `lib/ocaml_backend.ml`

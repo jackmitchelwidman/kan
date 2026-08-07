@@ -20,3 +20,8 @@ _opam/
 # Editor / OS
 *~
 .DS_Store
+
+# Local scratch: the `jack` native binary (a compiled `kan build` output).
+# The gate (tests/run_all.sh) still scans examples/*.kan, so keep any scratch
+# .kan that must NOT break the gate out of examples/ (e.g. a scratch/ dir).
+/examples/jack

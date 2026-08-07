@@ -128,9 +128,15 @@ let usage () =
    is a unary tower `suc (suc … zero)` as deep as its value, so `100000` needs a
    ~100k-deep traversal — more than the default 8 MB stack. Re-exec ourselves
    once under a raised stack limit so deep-but-bounded work doesn't overflow.
-   (Kan is total, so this only ever accommodates finite, input-bounded depth.) *)
+   (Kan is total, so this only ever accommodates finite, input-bounded depth.)
+
+   Unix only: the trick shells out to /bin/sh + ulimit, neither of which exists
+   on Windows (there the stack is fixed at link time and can't be raised at
+   startup). On Windows we simply skip it, so very deep Nat literals are bounded
+   by the default linked stack rather than the machine's hard limit — fine for
+   ordinary programs, and `check`/`run` are unaffected otherwise. *)
 let ensure_big_stack () =
-  if Sys.getenv_opt "KAN_STACK_RAISED" = None then begin
+  if not Sys.win32 && Sys.getenv_opt "KAN_STACK_RAISED" = None then begin
     let self = Filename.quote Sys.executable_name in
     let args = Array.to_list Sys.argv |> List.tl |> List.map Filename.quote |> String.concat " " in
     let script =
