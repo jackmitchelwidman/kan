@@ -1,0 +1,19 @@
+-- Unbounded integers in Kan. `Integer` is arbitrary-precision (like Python's
+-- int); the idiom for recursion is a Nat counter driving an Integer accumulator.
+-- Run:  kan run examples/integer.kan   (same output from the OCaml and C backends)
+
+import "../std/integer.kan"
+
+-- exact factorials, computed by native big-integer multiplication:
+eval factorial 25     -- 15511210043330985984000000
+eval factorial 50     -- 30414093201713378043612608166064768844377641568960512000000000000
+
+-- ordinary arithmetic on 30-digit numbers:
+eval times 123456789012345678901234567890z 999999999999999999999999999999z
+eval plus  999999999999999999999999999999z 1z
+eval minus 5z 12z                                   -- -7  (Integer is signed)
+
+-- sums, comparisons:
+eval sumTo 1000                                     -- 500500
+eval eqInt (times 7z 8z) 56z                        -- true
+eval ltInt (minus 0z 5z) 0z                         -- true
