@@ -10,7 +10,7 @@
 
 This is the guiding idea. Everything below is an unfolding of it.
 
-### What Kan is today
+### What is Kan?
 
 **Kan is a dependently typed language, and its files are `.kan`.** It has
 dependent function types, dependent pairs, identity types, a universe hierarchy
