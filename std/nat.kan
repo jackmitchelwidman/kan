@@ -10,3 +10,11 @@ def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
                 refl
                 (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)
                 n
+
+-- addition is associative — by induction on the first argument.
+def add_assoc : (a : Nat) -> (b : Nat) -> (c : Nat)
+             -> Id Nat (add (add a b) c) (add a (add b c))
+  = \a b c. natElim (\m. Id Nat (add (add m b) c) (add m (add b c)))
+                    refl
+                    (\k ih. ap Nat Nat (\x. suc x) (add (add k b) c) (add k (add b c)) ih)
+                    a

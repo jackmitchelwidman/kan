@@ -1,0 +1,28 @@
+-- A concrete, non-trivial category: the natural numbers as a one-object
+-- category — i.e. the monoid (Nat, +, 0) seen as a category. Its three category
+-- laws ARE the monoid laws, and they are supplied as *proofs*:
+--   right identity  add f 0 = f      →  add_n_zero
+--   left identity   add 0 f = f      →  holds definitionally (refl)
+--   associativity   (h+g)+f = h+(g+f) →  add_assoc
+-- That this file type-checks is a machine-checked proof that (Nat, +, 0) is a
+-- category. Run:  kan check examples/monoid_category.kan
+import "../std/category.kan"
+import "../std/nat.kan"
+
+def NatPlus : Category
+  = ( Unit
+    , ( \a b. Nat
+      , ( \a. zero
+        , ( \a b c g f. add g f
+          , ( \a b f. add_n_zero f
+            , ( \a b f. refl
+              , \a b c d h g f. add_assoc h g f ) ) ) ) ) )
+
+-- the identity functor and identity natural transformation exist on it, and
+-- NatPlus has an opposite category — all for free from std/category.kan.
+def IdNatPlus : Functor NatPlus NatPlus = idFunctor NatPlus
+def NatPlusOp : Category = op NatPlus
+
+-- composition of arrows is addition; identity is zero. Concretely:
+eval cmp NatPlus unit unit unit 3 4      -- 7   (3 "after" 4, i.e. 3 + 4)
+eval idn NatPlus unit                     -- 0   (the identity arrow)
