@@ -169,6 +169,26 @@ accumulator recursion where the *motive type* would need large elimination.
 
 ---
 
+## ADR-012 — Dependent-motive `match` (proofs by induction with match)
+**Decision.** The motive of a decreasing `match` is the def's return type as a
+*function of the scrutinee* — the annotation's Pi over the decreasing binder,
+turned into a `Lam` and lifted into scope — rather than `\_. R`. So the result
+type may mention the scrutinee, which is what proof-by-induction requires; the
+recursive call supplies the induction hypothesis. **Why.** It lets `match` prove
+theorems, retiring hand-written `natElim`/`Foo_elim` for the common (top-level
+def) case: `std/nat.kan`'s `add_n_zero` and `add_assoc` are now `match` proofs
+(the latter combining dependent motive + moved args + recursion). When the result
+type does *not* mention the scrutinee, the new motive is alpha-equivalent to the
+old `\_. R`, so every computational function is unchanged and the whole gate stays
+green. **Limit:** the motive is read from the *def's* annotation, so a `match`
+nested inside a data structure (e.g. the terminal category's law fields) has no
+annotation to draw it from and still uses the eliminator; a `match e return
+(motive) { .. }` form (explicit dependent motive anywhere) is the natural next
+step. Transport-based proofs (`sym`/`trans`/`ap` in `std/logic.kan`) are not
+inductions and stay as they are.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

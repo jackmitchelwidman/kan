@@ -71,19 +71,19 @@ type once: `match (xs : List A) { … }`.)
 ## 4. Proofs are programs
 
 A proposition is a type; a proof is a term of that type; checking the term *is*
-verifying the proof. `Id A x y` is the type of proofs that `x` equals `y`.
+verifying the proof. `Id A x y` is the type of proofs that `x` equals `y`. You
+prove things by induction with the **same `match`** you compute with — the
+recursive call is the induction hypothesis:
 
 ```kan
 -- for every n, add n 0 = n. Not true by computation — true by INDUCTION.
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. natElim (\m. Id Nat (add m zero) m)
-                refl                                           -- base: add 0 0 = 0
-                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)   -- step
-                n
+  = \n. match n { | zero  => refl                                          -- base
+                | suc k => ap Nat Nat (\x. suc x) (add k zero) k (add_n_zero k) }  -- step
 ```
 
-If it type-checks, the theorem holds. There is no separate proof language — it is
-all Kan.
+If it type-checks, the theorem holds. There is no separate proof language, and no
+separate recursion principle — it is all `match`, all Kan.
 
 ## 5. Category theory, lawfully
 
