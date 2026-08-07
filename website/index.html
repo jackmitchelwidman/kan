@@ -189,15 +189,48 @@
   </section>
 
   <section>
+    <h2>Unbounded integers — exact, and fast</h2>
+    <p>Numbers in Kan are arbitrary precision, like Python's <code>int</code>. <code>Nat</code> is the
+    inductive type you do <em>proofs</em> over; <code>Integer</code> is the machine-backed one you
+    <em>compute</em> with. A Nat counter drives an Integer accumulator, so <code>fac 50</code> is exact
+    and instant — and identical from <code>kan run</code>, the OCaml backend, and the C backend.</p>
+<pre><span class="c">-- a 65-digit factorial, by native big-integer multiplication</span>
+<span class="k">def</span> fac : Nat -> Integer
+        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+
+eval fac 50</pre>
+<pre><span class="c">$ kan run integer.kan</span>
+30414093201713378043612608166064768844377641568960512000000000000</pre>
+  </section>
+
+  <section>
+    <h2>Category theory, in the language</h2>
+    <p>The vision — <em>programs are diagrams, computation is universal completion</em> — is not just
+    prose. A <code>Category</code> is a dependent record whose <b>laws are fields</b>, so a value of
+    type <code>Category</code> is one the checker has verified. Functors, natural transformations, the
+    opposite category, composition — all lawful. And the construction the language is named for is a
+    definition you can check:</p>
+<pre><span class="c">-- std/kan.kan — the Kan extension, stated as a universal property</span>
+<span class="k">def</span> LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+                 -> Functor A B -> Functor A D -> U
+  = \A B D p F.
+      (L : Functor B D)
+    * (unit : NatTrans A D F (compFunctor A B D p L))
+    * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G) -> NatTrans B D L G)</pre>
+    <p class="out">The extension along the identity is constructed — so the statement is inhabited, not empty.</p>
+  </section>
+
+  <section>
     <h2>Status</h2>
-    <p><span class="pill">dependently typed · compiles to native</span> &nbsp;Kan is an early research
-    language — real and running, with the categorical layer growing on top.</p>
+    <p><span class="pill">dependently typed · compiles to native · category theory</span> &nbsp;Kan is an
+    early research language — real and running, with the categorical layer now inside it.</p>
     <ul class="plain">
       <li><span class="tick">✓</span> <b>Dependent types</b> — Π, Σ, identity types, a universe hierarchy</li>
       <li><span class="tick">✓</span> <b>User inductive types</b> (with parameters, e.g. <code>List A</code>) and induction — real proofs</li>
-      <li><span class="tick">✓</span> <b>Type-checks <em>and</em> compiles</b> to native binaries (via OCaml)</li>
-      <li><span class="tick">✓</span> <b>Universal properties as theorems</b> — the categorical vision, realized in the types</li>
-      <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), a C backend, <code>fill</code> as a typed operation</li>
+      <li><span class="tick">✓</span> <b>Unbounded <code>Integer</code></b> — arbitrary precision, exact <code>fac 50</code></li>
+      <li><span class="tick">✓</span> <b>Two native backends</b> — OCaml and C, verified to agree</li>
+      <li><span class="tick">✓</span> <b>Category theory, lawful</b> — <code>Category</code>, <code>Functor</code>, <code>NatTrans</code>, and Kan extensions, laws checked</li>
+      <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), record syntax, <code>fill</code> as a typed operation</li>
     </ul>
   </section>
 
@@ -207,9 +240,9 @@
 git clone https://github.com/jackmitchelwidman/kan
 cd kan &amp;&amp; dune build
 
-kan check examples/nat.kan               <span class="c"># type-check</span>
-kan run   examples/nat.kan               <span class="c"># run</span>
-kan build examples/nat.kan -o nat &amp;&amp; ./nat   <span class="c"># compile to native</span></pre>
+kan run   examples/integer.kan           <span class="c"># unbounded arithmetic — exact fac 50</span>
+kan check examples/categories.kan        <span class="c"># category theory, lawful</span>
+kan build examples/nat.kan -o nat &amp;&amp; ./nat   <span class="c"># compile to native (add -c for the C backend)</span></pre>
     <p style="margin-bottom:0">Every file in <code>examples/</code> is a <code>.kan</code> program.
       Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
       the type system and unification story are in
