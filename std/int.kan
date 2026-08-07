@@ -79,29 +79,54 @@ def addI_zero : (i : Int) -> Id Int (addI i (pos zero)) i
       | pos m    => ap Nat Int (lambda x: pos x) (add m zero) m (add_n_zero m)
       | negsuc n => refl }
 
+-- negation is involutive: neg (neg i) = i.  The `pos` case needs to inspect the
+-- Nat inside, which a NESTED match can't refine — so factor it into a top-level
+-- helper whose own annotation supplies the dependent motive. (This is the general
+-- technique for "nested dependent motive" proofs until `match e return` lands.)
+def negI_negI_pos : (m : Nat) -> Id Int (negI (negI (pos m))) (pos m)
+  = lambda m: match m { | zero => refl | suc k => refl }
+
+def negI_negI : (i : Int) -> Id Int (negI (negI i)) i
+  = lambda i: match i { | pos m => negI_negI_pos m | negsuc n => refl }
+
+-- addI is commutative. Case-split both arguments; the cross-sign cases collapse
+-- definitionally (both sides are the same `diff`), the same-sign cases reduce to
+-- Nat's add_comm through the `pos`/`negsuc` constructor. The inner split (on the
+-- SECOND argument) is a top-level helper so it gets its own dependent motive.
+def addI_comm_posR : (j : Int) -> (m : Nat) -> Id Int (addI (pos m) j) (addI j (pos m))
+  = lambda j m: match j {
+      | pos n    => ap Nat Int (lambda x: pos x) (add m n) (add n m) (add_comm m n)
+      | negsuc n => refl }
+
+def addI_comm_negsucR : (j : Int) -> (m : Nat) -> Id Int (addI (negsuc m) j) (addI j (negsuc m))
+  = lambda j m: match j {
+      | pos n    => refl
+      | negsuc n => ap Nat Int (lambda x: negsuc x) (add (suc m) n) (add (suc n) m)
+                       (ap Nat Nat (lambda x: suc x) (add m n) (add n m) (add_comm m n)) }
+
+def addI_comm : (i : Int) -> (j : Int) -> Id Int (addI i j) (addI j i)
+  = lambda i j: match i { | pos m => addI_comm_posR j m | negsuc m => addI_comm_negsucR j m }
+
 -- ============================================================================
--- WHAT WE CANNOT YET PROVE (honest record — see DECISIONS.md ADR-013).
+-- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
--- These are *true* and *will* be provable; they are blocked today on two known
--- gaps, not on anything false. Each is a milestone, not a dead end.
+-- The "nested dependent motive" gap (a `match` inside a constructor case can't
+-- refine its goal) does NOT block us: factor the inner match into a top-level
+-- helper def, whose own annotation supplies the dependent motive (see
+-- `negI_negI_pos` above). So these are provable with today's kernel — it is
+-- ordinary formalization work, not a missing feature.
 --
---  • negI (negI i) = i   (negation is involutive)
---      Blocked on: a NESTED dependent motive. The proof case-splits `i` (fine —
---      a top-level match gets a dependent motive, ADR-012), but the `pos` case
---      must then split the `Nat` inside, and that inner `match` cannot refine
---      the goal per sub-case. Needs `match e return (motive) { … }` (explicit
---      dependent motive on any match — ADR-012's flagged next step).
---  • addI commutative / associative; mulI commutative / associative / by-zero;
---    distributivity — the ring axioms.
---      Blocked on: the corresponding Nat lemmas (only `add_n_zero`/`add_assoc`
---      exist so far; `add_comm`, `mul_comm`, etc. must be proved first), and in
---      places the nested motive above.
---  • gcd / division on Int, and their correctness (gcd divides both; dividing by
---    the gcd yields coprime; Euclid terminates) — the load-bearing lemmas a
---    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
---      Blocked on: a verified fuel-Euclid gcd on Nat (fuel-sufficiency proved by
---      induction) — milestone 2 — plus the nested motive.
+-- Proved here: natAbs_pos, addI_zero (via Nat's add_n_zero), negI_negI (via a
+-- helper), addI_comm (via Nat's add_comm; the cross-sign cases collapse
+-- definitionally). std/nat.kan now also proves add_suc and add_comm.
 --
--- No axioms will be postulated to skip any of these. The tower is proven or it
--- does not ship.
+-- Still to prove (true; in progress; NO axioms will paper over them):
+--  • remaining ring axioms: addI assoc, mulI comm/assoc, mul-by-zero/one,
+--    distributivity — each reduces to a Nat lemma (mul_comm, mul_n_zero, …), some
+--    of which must be proved in std/nat.kan first.
+--  • gcd / division on Int and their correctness (gcd divides both; dividing by
+--    the gcd yields coprime; Euclid terminates) — via a verified fuel-Euclid on
+--    Nat (fuel-sufficiency proved by induction), milestone 2. These are the
+--    load-bearing lemmas a type-ENFORCED `Rational` (den ≠ 0 and coprimality as
+--    PROOF fields) needs.
 -- ============================================================================

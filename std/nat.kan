@@ -23,3 +23,16 @@ def add_assoc : (a : Nat) -> (b : Nat) -> (c : Nat)
              -> Id Nat (add (add a b) c) (add a (add b c))
   = lambda a b c: match a { | zero  => refl
                     | suc k => ap Nat Nat (lambda x: suc x) (add (add k b) c) (add k (add b c)) (add_assoc k b c) }
+
+-- add m (suc n) = suc (add m n) — induction on m (n rides along).
+def add_suc : (m : Nat) -> (n : Nat) -> Id Nat (add m (suc n)) (suc (add m n))
+  = lambda m n: match m { | zero  => refl
+                  | suc k => ap Nat Nat (lambda x: suc x) (add k (suc n)) (suc (add k n)) (add_suc k n) }
+
+-- addition is commutative — induction on m, using add_n_zero and add_suc.
+def add_comm : (m : Nat) -> (n : Nat) -> Id Nat (add m n) (add n m)
+  = lambda m n: match m {
+      | zero  => sym Nat (add n zero) n (add_n_zero n)
+      | suc k => trans Nat (suc (add k n)) (suc (add n k)) (add n (suc k))
+                   (ap Nat Nat (lambda x: suc x) (add k n) (add n k) (add_comm k n))
+                   (sym Nat (add n (suc k)) (suc (add n k)) (add_suc n k)) }
