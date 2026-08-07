@@ -1,0 +1,83 @@
+-- ============================================================================
+-- std/rational_typed — a TYPE-ENFORCED rational: divide-by-zero is impossible by
+-- construction, not by a runtime guard.
+--
+-- A `Frac` is  num / (suc denPred)  — the denominator is *stored* as `suc k`, so
+-- it is ≥ 1 STRUCTURALLY. A zero denominator cannot be written; there is no raw
+-- escape hatch like `rational 3 0`. Reciprocal/division of the zero fraction
+-- return `Option` (a fraction whose numerator is 0 has no inverse — that is
+-- honest math, not a hole). So: **you cannot divide by zero in this type, and the
+-- type system enforces it.**
+--
+-- Built on the inductive tower std/int.kan (numerators are `Int`). The safety is
+-- STRUCTURAL — it needs no proofs. The cost: `Int`/`Nat` are unary until the
+-- kernel accelerates their closed values (ADR-013 milestone 3), so this type is
+-- practical for modest numerators/denominators today. It is the correctness-first
+-- sibling of std/rational.kan (which is efficient but not yet type-enforced); the
+-- two converge once acceleration lands. Not normalized to lowest terms (that
+-- needs verified gcd, milestone 2); `eqF`/`ltF` cross-multiply, so they are
+-- correct regardless.
+-- ============================================================================
+import "int.kan"
+import "option.kan"
+
+def ltNat : Nat -> Nat -> Bool = lambda a b: leq (suc a) b
+
+-- structural Int equality / strict order (no primitives — pure induction)
+def eqI : Int -> Int -> Bool
+  = lambda a b: match a {
+      | pos m    => match b { | pos n => eqNat m n | negsuc n => false }
+      | negsuc m => match b { | pos n => false     | negsuc n => eqNat m n } }
+def ltI : Int -> Int -> Bool
+  = lambda a b: match a {
+      | pos m    => match b { | pos n => ltNat m n | negsuc n => false }
+      | negsuc m => match b { | pos n => true      | negsuc n => ltNat n m } }
+
+-- the type: numerator over a structurally-positive denominator
+data Frac { frac : Int -> Nat -> Frac }
+
+def fnum     : Frac -> Int = lambda x: match x { | frac n d => n }
+def fdenPred : Frac -> Nat = lambda x: match x { | frac n d => d }
+def fden     : Frac -> Int = lambda x: pos (suc (fdenPred x))   -- ≥ 1, always
+
+-- injections / constants (all total, all with nonzero denominator by construction)
+def fzero    : Frac        = frac (pos zero) zero
+def fone     : Frac        = frac (pos (suc zero)) zero
+def fromIntF : Int -> Frac = lambda i: frac i zero              -- i / 1
+
+-- denPred of the product of two positive denominators:  (a+1)(b+1) - 1 = ab+a+b
+def denProdPred : Nat -> Nat -> Nat
+  = lambda a b: add (mul a b) (add a b)
+
+-- field operations. Denominators stay ≥ 1 by construction — no zero can appear.
+def addF : Frac -> Frac -> Frac
+  = lambda x y: frac (addI (mulI (fnum x) (fden y)) (mulI (fnum y) (fden x)))
+                     (denProdPred (fdenPred x) (fdenPred y))
+def negF : Frac -> Frac = lambda x: frac (negI (fnum x)) (fdenPred x)
+def subF : Frac -> Frac -> Frac = lambda x y: addF x (negF y)
+def mulF : Frac -> Frac -> Frac
+  = lambda x y: frac (mulI (fnum x) (fnum y)) (denProdPred (fdenPred x) (fdenPred y))
+
+-- equality / order by cross-multiplication (denominators positive)
+def eqF : Frac -> Frac -> Bool
+  = lambda x y: eqI (mulI (fnum x) (fden y)) (mulI (fnum y) (fden x))
+def ltF : Frac -> Frac -> Bool
+  = lambda x y: ltI (mulI (fnum x) (fden y)) (mulI (fnum y) (fden x))
+
+def isZeroF : Frac -> Bool = lambda x: eqI (fnum x) (pos zero)
+
+-- SAFE reciprocal: the zero fraction has no inverse ⇒ none. Otherwise swap num
+-- and denominator, keeping the sign on the numerator. A positive denominator
+-- becomes the new numerator's magnitude (suc denPred), so it is again nonzero.
+def recipF : Frac -> Option Frac
+  = lambda x: match (fnum x) {
+      | pos m    => match m {
+          | zero  => none Frac                                   -- 0 has no inverse
+          | suc a => some Frac (frac (pos (suc (fdenPred x))) a) }   -- (den)/(m)
+      | negsuc a => some Frac (frac (negsuc (fdenPred x)) a) }       -- -(den)/(a+1)
+
+-- SAFE division: none exactly when the divisor is zero. Cannot divide by zero.
+def divF : Frac -> Frac -> Option Frac
+  = lambda x y: match (recipF y : Option Frac) {
+      | none   => none Frac
+      | some r => some Frac (mulF x r) }

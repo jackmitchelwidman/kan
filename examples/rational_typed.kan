@@ -1,0 +1,35 @@
+-- examples/rational_typed — the TYPE-ENFORCED rational (std/rational_typed.kan):
+-- a zero denominator cannot be written, and division by zero returns `none`.
+-- Runnable and tri-runtime (kan run / OCaml / C agree).
+--   kan run examples/rational_typed.kan
+import "../std/rational_typed.kan"
+
+-- display via the Integer bridge (Frac numerators/denominators are inductive Int)
+def showNum : Frac -> Integer = lambda x: toInteger (fnum x)
+def showDen : Frac -> Integer = lambda x: toInteger (fden x)
+def numOrF  : Integer -> Option Frac -> Integer
+  = lambda d o: match (o : Option Frac) { | none => d | some r => toInteger (fnum r) }
+def denOrF  : Integer -> Option Frac -> Integer
+  = lambda d o: match (o : Option Frac) { | none => d | some r => toInteger (fden r) }
+
+-- num / (suc denPred):  frac (pos 1) 1 = 1/2,  frac (pos 1) 2 = 1/3,  frac (pos 2) 3 = 2/4
+def half        : Frac = frac (pos 1) 1
+def third       : Frac = frac (pos 1) 2
+def twoQuarters : Frac = frac (pos 2) 3
+
+eval showNum (addF half third)      -- 5     (1/2 + 1/3 = 5/6)
+eval showDen (addF half third)      -- 6
+eval showNum (mulF half third)      -- 1     (1/2 · 1/3 = 1/6)
+eval showDen (mulF half third)      -- 6
+eval showNum (negF half)            -- -1    (-1/2)
+eval showDen (negF half)            -- 2
+eval eqF twoQuarters half           -- true  (2/4 = 1/2, cross-multiplied)
+eval ltF third half                 -- true  (1/3 < 1/2)
+eval isZeroF fzero                  -- true
+
+-- SAFE division: real quotient gives `some`; ÷0 gives `none` — impossible to
+-- divide by zero. And there is NO way to build a zero-denominator Frac at all.
+eval numOrF (isub 0z 999z) (divF half third)   -- 3     ((1/2)÷(1/3) = 3/2)
+eval denOrF (isub 0z 999z) (divF half third)   -- 2
+eval numOrF (isub 0z 999z) (divF half fzero)   -- -999  (÷0 → none)
+eval numOrF (isub 0z 999z) (recipF fzero)      -- -999  (0 has no inverse → none)
