@@ -1,0 +1,130 @@
+-- examples/category_zoo.kan — category theory you can type-check.
+-- Builds on std/category.kan (Category / Functor / NatTrans, with their laws)
+-- and std/kan.kan (Kan extensions). Everything here type-checks: each definition
+-- is a categorical concept STATED in Kan, and several are constructed.
+-- Run:  kan check examples/category_zoo.kan
+import "../std/category.kan"
+import "../std/kan.kan"
+import "../std/logic.kan"
+
+-- ============================================================================
+-- The PRODUCT category C × D: objects are pairs, morphisms are pairs of
+-- morphisms, composition is componentwise, and each law is the pair of the two
+-- component laws (glued by `pairId`). A lawful category, built mechanically.
+-- ============================================================================
+def pairId : (A : U) -> (B : U) -> (a : A) -> (a2 : A) -> (b : B) -> (b2 : B)
+           -> Id A a a2 -> Id B b b2 -> Id (A * B) (a, b) (a2, b2)
+  = lambda A B a a2 b b2 p q:
+      trans (A * B) (a, b) (a2, b) (a2, b2)
+            (ap A (A * B) (lambda x: (x, b)) a a2 p)
+            (ap B (A * B) (lambda y: (a2, y)) b b2 q)
+
+def prod : Category -> Category -> Category
+  = lambda C D:
+    ( obj C * obj D
+    , ( lambda a b: hom C (fst a) (fst b) * hom D (snd a) (snd b)
+      , ( lambda a: (idn C (fst a), idn D (snd a))
+        , ( lambda a b c g f: (cmp C (fst a) (fst b) (fst c) (fst g) (fst f), cmp D (snd a) (snd b) (snd c) (snd g) (snd f))
+          , ( lambda a b f: pairId (hom C (fst a) (fst b)) (hom D (snd a) (snd b))
+                  (cmp C (fst a) (fst a) (fst b) (fst f) (idn C (fst a))) (fst f)
+                  (cmp D (snd a) (snd a) (snd b) (snd f) (idn D (snd a))) (snd f)
+                  (idl C (fst a) (fst b) (fst f)) (idl D (snd a) (snd b) (snd f))
+            , ( lambda a b f: pairId (hom C (fst a) (fst b)) (hom D (snd a) (snd b))
+                    (cmp C (fst a) (fst b) (fst b) (idn C (fst b)) (fst f)) (fst f)
+                    (cmp D (snd a) (snd b) (snd b) (idn D (snd b)) (snd f)) (snd f)
+                    (idr C (fst a) (fst b) (fst f)) (idr D (snd a) (snd b) (snd f))
+              , lambda a b c d h g f: pairId (hom C (fst a) (fst d)) (hom D (snd a) (snd d))
+                    (cmp C (fst a) (fst b) (fst d) (cmp C (fst b) (fst c) (fst d) (fst h) (fst g)) (fst f))
+                    (cmp C (fst a) (fst c) (fst d) (fst h) (cmp C (fst a) (fst b) (fst c) (fst g) (fst f)))
+                    (cmp D (snd a) (snd b) (snd d) (cmp D (snd b) (snd c) (snd d) (snd h) (snd g)) (snd f))
+                    (cmp D (snd a) (snd c) (snd d) (snd h) (cmp D (snd a) (snd b) (snd c) (snd g) (snd f)))
+                    (assoc C (fst a) (fst b) (fst c) (fst d) (fst h) (fst g) (fst f))
+                    (assoc D (snd a) (snd b) (snd c) (snd d) (snd h) (snd g) (snd f)) ) ) ) ) ) )
+
+-- ============================================================================
+-- ADJUNCTION  F ⊣ G : the unit η : Id ⇒ G∘F and counit ε : F∘G ⇒ Id.
+-- (The two natural transformations are the data; the triangle identities are
+--  the remaining conditions — stateable once nat-trans composition is in the
+--  library, like the universal property in std/kan.kan.)
+-- ============================================================================
+def Adjunction : (C : Category) -> (D : Category) -> Functor C D -> Functor D C -> U
+  = lambda C D F G:
+      (unit : NatTrans C C (idFunctor C) (compFunctor C D C F G))
+    * (NatTrans D D (compFunctor D C D G F) (idFunctor D))
+
+-- the identity functor is (trivially) left adjoint to itself
+def idAdjunction : (C : Category) -> Adjunction C C (idFunctor C) (idFunctor C)
+  = lambda C: ( idNat C C (idFunctor C) , idNat C C (idFunctor C) )
+
+-- ============================================================================
+-- MONAD  (T, η, μ) : an endofunctor with a unit η : Id ⇒ T and a
+-- multiplication μ : T∘T ⇒ T. And its dual, a COMONAD.
+-- ============================================================================
+def Monad : (C : Category) -> Functor C C -> U
+  = lambda C T:
+      (unit : NatTrans C C (idFunctor C) T)
+    * (NatTrans C C (compFunctor C C C T T) T)
+
+def Comonad : (C : Category) -> Functor C C -> U
+  = lambda C W:
+      (counit : NatTrans C C W (idFunctor C))
+    * (NatTrans C C W (compFunctor C C C W W))
+
+-- the identity functor is a monad (η = μ = the identity natural transformation,
+-- since Id∘Id computes to Id)
+def idMonad : (C : Category) -> Monad C (idFunctor C)
+  = lambda C: ( idNat C C (idFunctor C) , idNat C C (idFunctor C) )
+
+-- ============================================================================
+-- Some inhabited categories to plug in: the terminal category, its opposite,
+-- and the product of a category with itself.
+-- ============================================================================
+def OneOp    : Category = op One
+def OneSq    : Category = prod One One
+def monadOnOne : Monad One (idFunctor One) = idMonad One
+
+-- ============================================================================
+-- KAN EXTENSIONS (the namesake) — stated in std/kan.kan, and the left extension
+-- along the identity is constructed there. A functor's left Kan extension along
+-- the identity is the functor itself.
+-- ============================================================================
+def lanOfIdOnOne : LeftKanExt One One One (idFunctor One) (idFunctor One)
+  = lanAlongId One One (idFunctor One)
+
+-- ============================================================================
+-- TOWARD TOPOS THEORY: presheaves, sites, and sheaves.
+-- These are STATED at the type level. Kan does not yet have a category of sets,
+-- (co)limits, or a subobject classifier, so the descent/gluing CONDITION of a
+-- sheaf can't be written out fully — but the structures themselves have honest
+-- Kan types, and the vocabulary lives in the language.
+-- ============================================================================
+
+-- A PRESHEAF on C (valued in types): a type at each object, with contravariant
+-- restriction maps along morphisms. (P0, P1) is the data; functoriality of P1
+-- is the remaining condition.
+def Presheaf : Category -> U1
+  = lambda C:
+      (P0 : obj C -> U)
+    * ((a : obj C) -> (b : obj C) -> hom C a b -> P0 b -> P0 a)
+
+-- A SIEVE on an object a: a proof-relevant family selecting morphisms into a
+-- (for each f : b -> a, a type witnessing "f is in the sieve").
+def Sieve : (C : Category) -> obj C -> U1
+  = lambda C a: (b : obj C) -> hom C b a -> U
+
+-- A SITE (Grothendieck): a category together with a coverage — a choice, for
+-- each object, of which sieves on it are COVERING. (The coverage axioms — the
+-- maximal sieve covers, stability under pullback, and local character — are the
+-- conditions on `covers`.)
+def Site
+  = (C : Category)
+  * ((a : obj C) -> Sieve C a -> U)
+
+def siteCat   : Site -> Category = lambda S: fst S
+def siteCovers : (S : Site) -> (a : obj (siteCat S)) -> Sieve (siteCat S) a -> U
+  = lambda S: snd S
+
+-- A SHEAF on a site: a presheaf on its underlying category that glues uniquely
+-- over every covering sieve. (The presheaf is the data; the unique-gluing
+-- condition — a limit over each covering sieve — awaits (co)limits in Kan.)
+def Sheaf : Site -> U1 = lambda S: Presheaf (siteCat S)

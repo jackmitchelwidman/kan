@@ -1,0 +1,86 @@
+-- examples/cookbook.kan — a big grab-bag of everyday Kan, all runnable.
+-- Run:  kan run examples/cookbook.kan
+import "../std/bool.kan"
+import "../std/nat.kan"
+import "../std/integer.kan"
+import "../std/list.kan"
+import "../std/option.kan"
+
+-- ---- higher-order functions ------------------------------------------------
+def compose : (A : U) -> (B : U) -> (C : U) -> (B -> C) -> (A -> B) -> A -> C
+  = lambda A B C g f x: g (f x)
+def flip : (A : U) -> (B : U) -> (C : U) -> (A -> B -> C) -> B -> A -> C
+  = lambda A B C f b a: f a b
+def twice : (A : U) -> (A -> A) -> A -> A = lambda A f x: f (f x)
+def apply : (A : U) -> (B : U) -> (A -> B) -> A -> B = lambda A B f x: f x
+
+-- ---- more natural-number functions -----------------------------------------
+def pred   : Nat -> Nat  = lambda n: match n { | zero => zero | suc k => k }
+def isZero : Nat -> Bool = lambda n: match n { | zero => true | suc k => false }
+def even   : Nat -> Bool = lambda n: match n { | zero => true | suc k => not (even k) }
+def sub    : Nat -> Nat -> Nat = lambda m n: match n { | zero => m | suc k => pred (sub m k) }
+def max    : Nat -> Nat -> Nat = lambda m n: if (leq m n) n m
+def min    : Nat -> Nat -> Nat = lambda m n: if (leq m n) m n
+def pow    : Nat -> Nat -> Nat = lambda b e: match e { | zero => suc zero | suc k => mul b (pow b k) }
+-- Fibonacci: structural recursion can't do `fib (n-2)` directly, so carry a pair
+-- (fib n, fib (n+1)) and step it — one recursive call, still total.
+def fibPair : Nat -> Nat * Nat
+  = lambda n: match n { | zero => (zero, suc zero)
+                      | suc k => (snd (fibPair k), add (fst (fibPair k)) (snd (fibPair k))) }
+def fib : Nat -> Nat = lambda n: fst (fibPair n)
+
+eval even 10                 -- true
+eval sub 10 3                -- 7
+eval max 3 9                 -- 9
+eval pow 2 10                -- 1024
+eval fib 10                  -- 55
+eval twice Nat (add 3) 10    -- 16
+
+-- ---- list operations (a small library) -------------------------------------
+def foldr : (A : U) -> (B : U) -> (A -> B -> B) -> B -> List A -> B
+  = lambda A B f z xs: match (xs : List A) { | nil => z | cons y ys => f y (foldr A B f z ys) }
+def filter : (A : U) -> (A -> Bool) -> List A -> List A
+  = lambda A p xs: match (xs : List A) { | nil => nil A | cons y ys => if (p y) (cons A y (filter A p ys)) (filter A p ys) }
+def reverse : (A : U) -> List A -> List A
+  = lambda A xs: match (xs : List A) { | nil => nil A | cons y ys => append A (reverse A ys) (cons A y (nil A)) }
+def all : (A : U) -> (A -> Bool) -> List A -> Bool
+  = lambda A p xs: match (xs : List A) { | nil => true | cons y ys => and (p y) (all A p ys) }
+def any : (A : U) -> (A -> Bool) -> List A -> Bool
+  = lambda A p xs: match (xs : List A) { | nil => false | cons y ys => or (p y) (any A p ys) }
+def elem : Nat -> List Nat -> Bool
+  = lambda x xs: match (xs : List Nat) { | nil => false | cons y ys => or (eqNat x y) (elem x ys) }
+def sumL : List Nat -> Nat = lambda xs: foldr Nat Nat add zero xs
+def take : (A : U) -> Nat -> List A -> List A          -- decrease on n; the list rides along
+  = lambda A n xs: match n { | zero => nil A | suc k => match (xs : List A) { | nil => nil A | cons y ys => cons A y (take A k ys) } }
+
+def nums : List Nat = cons Nat 1 (cons Nat 2 (cons Nat 3 (cons Nat 4 (nil Nat))))
+eval sumL nums                       -- 10
+eval reverse Nat nums                -- (4 3 2 1)
+eval filter Nat even nums            -- (2 4)
+eval all Nat (leq 1) nums            -- true
+eval any Nat isZero nums             -- false
+eval elem 3 nums                     -- true
+eval take Nat 2 nums                 -- (1 2)
+
+-- ---- a recursive datatype: binary trees ------------------------------------
+data Tree (A : U) { leaf : Tree A, node : Tree A -> A -> Tree A -> Tree A }
+def size  : (A : U) -> Tree A -> Nat
+  = lambda A t: match (t : Tree A) { | leaf => zero | node l x r => add (add (size A l) (suc zero)) (size A r) }
+def mirror : (A : U) -> Tree A -> Tree A
+  = lambda A t: match (t : Tree A) { | leaf => leaf A | node l x r => node A (mirror A r) x (mirror A l) }
+def sumTree : Tree Nat -> Nat
+  = lambda t: match (t : Tree Nat) { | leaf => zero | node l x r => add (add (sumTree l) x) (sumTree r) }
+
+def tree : Tree Nat = node Nat (node Nat (leaf Nat) 1 (leaf Nat)) 2 (node Nat (leaf Nat) 3 (leaf Nat))
+eval size Nat tree                   -- 3
+eval sumTree tree                    -- 6
+
+-- ---- options with a default ------------------------------------------------
+def getOrElse : (A : U) -> A -> Option A -> A
+  = lambda A d o: match (o : Option A) { | none => d | some x => x }
+eval getOrElse Nat 0 (some Nat 7)    -- 7
+eval getOrElse Nat 0 (none Nat)      -- 0
+
+-- ---- big integers ----------------------------------------------------------
+eval factorial 40                    -- exact, 48 digits
+eval imul 999999999z 999999999z      -- 999999998000000001

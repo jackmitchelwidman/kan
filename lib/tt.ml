@@ -330,7 +330,10 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
       let meth_binders = bs @ ih_names @ moved_names in
       let ns_body = List.rev meth_binders @ ns in
       if decreasing then rec_ihmap := rec_pairs;   (* only the decreasing match drives recursion *)
-      let body = term ~expected:rty ns_body in
+      (* the result type is valid in the match's scope; lift it over the method's
+         own binders so a NESTED match in the body reads a correctly-indexed motive *)
+      let body_expected = (match rty with Some r -> Some (lift (List.length meth_binders) 0 r) | None -> None) in
+      let body = term ~expected:body_expected ns_body in
       let meth = List.fold_right (fun x b -> Lam (x, b)) meth_binders body in
       arms := (cname, meth) :: !arms
     done;
