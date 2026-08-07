@@ -2,4 +2,4 @@
 data Option (A : U) { none : Option A, some : A -> Option A }
 
 def map_option : (A : U) -> (B : U) -> (A -> B) -> Option A -> Option B
-  = \A B f o. match (o : Option A) { | none => none B | some a => some B (f a) }
+  = lambda A B f o: match (o : Option A) { | none => none B | some a => some B (f a) }

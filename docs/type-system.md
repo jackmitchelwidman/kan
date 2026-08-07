@@ -32,7 +32,7 @@ dependently typed language is built on:
 Runnable check (`test/core_test.exe`): it type-checks the dependent identity
 `id : (A : U) -> (x : A) -> A`, shows dependent application (`id U : (x:U) -> U`,
 the return type depending on the argument), demonstrates NbE computing
-(`id idty idtm` normalizes to `\A. \x. x`), and rejects ill-typed terms such as
+(`id idty idtm` normalizes to `lambda A: lambda x: x`), and rejects ill-typed terms such as
 `(U U)` and `(U : (x:U) -> x)` with messages.
 
 Milestone 1 used Type-in-Type as a first step; that was replaced by a real
@@ -59,7 +59,7 @@ this layer can now express and check.
 ## Milestone 3 — a surface you can write (done)
 
 `lib/tt.ml` is a readable syntax for the core, run with `kan check file.kan`.
-It has named binders (elaborated to de Bruijn), `\x. t` lambdas, `(x:A) -> B`
+It has named binders (elaborated to de Bruijn), `lambda x: t` lambdas, `(x:A) -> B`
 and `A -> B`, Σ as `(x:A) * B`, `Id A a b`, `refl`, `transp`, `fst`/`snd`, and
 top-level `def` / `check` / `eval` declarations.
 
@@ -67,7 +67,7 @@ top-level `def` / `check` / `eval` declarations.
 
 ```
 def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
-  = \A a b p. transp A (\z. Id A z a) a b p refl
+  = lambda A a b p: transp A (lambda z: Id A z a) a b p refl
 ```
 
 `kan check examples/proofs.kan` elaborates and type-checks `id`, `sym`, `ap`,
@@ -101,8 +101,8 @@ induction**. In `examples/nat.kan`, `add` is defined by `natElim`, and
 
 ```
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. natElim (\m. Id Nat (add m zero) m) refl
-                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih) n
+  = lambda n: natElim (lambda m: Id Nat (add m zero) m) refl
+                (lambda k ih: ap Nat Nat (lambda x: suc x) (add k zero) k ih) n
 ```
 
 type-checks — a genuine inductive proof (Id-type motive, congruence in the step,
@@ -124,7 +124,7 @@ introduces `N`, its constructors `z`/`s`, and
 which iota-reduces. In `examples/data.kan`, `add` is defined by `N_elim`, and
 
 ```
-def add_n_z : (n : N) -> Id N (add n z) n = \n. N_elim … 
+def add_n_z : (n : N) -> Id N (add n z) n = lambda n: N_elim … 
 ```
 
 type-checks — **a proof by induction over a user-declared type**. A `Tree` type
@@ -140,7 +140,7 @@ definition. `examples/list.kan`:
 
 ```
 data List (A : U) { nil : List A, cons : A -> List A -> List A }
-def length : (A : U) -> List A -> Nat = \A xs. List_elim A (\l. Nat) 0 (\x xs ih. suc ih) xs
+def length : (A : U) -> List A -> Nat = lambda A xs: List_elim A (lambda l: Nat) 0 (lambda x xs ih: suc ih) xs
 def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B = …
 ```
 

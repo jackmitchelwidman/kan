@@ -124,7 +124,7 @@ astronomically costly.
 ## ADR-010 — Pattern-matching recursive functions, elaborated to eliminators
 **Decision.** Add `match` and structural recursion as **surface sugar**, lowered
 in the parser to the datatype's eliminator — no kernel change. `match e { | C x..
-=> body | .. }` becomes the eliminator with motive `\_. R` (R = the def's result
+=> body | .. }` becomes the eliminator with motive `lambda _: R` (R = the def's result
 type, threaded from its annotation by peeling one Pi per lambda binder; or given
 explicitly via `match e return R { .. }`). Recursive calls `f ..k..` become the
 induction hypothesis for the recursive-position binder `k`; the elaboration is
@@ -172,14 +172,14 @@ accumulator recursion where the *motive type* would need large elimination.
 ## ADR-012 — Dependent-motive `match` (proofs by induction with match)
 **Decision.** The motive of a decreasing `match` is the def's return type as a
 *function of the scrutinee* — the annotation's Pi over the decreasing binder,
-turned into a `Lam` and lifted into scope — rather than `\_. R`. So the result
+turned into a `Lam` and lifted into scope — rather than `lambda _: R`. So the result
 type may mention the scrutinee, which is what proof-by-induction requires; the
 recursive call supplies the induction hypothesis. **Why.** It lets `match` prove
 theorems, retiring hand-written `natElim`/`Foo_elim` for the common (top-level
 def) case: `std/nat.kan`'s `add_n_zero` and `add_assoc` are now `match` proofs
 (the latter combining dependent motive + moved args + recursion). When the result
 type does *not* mention the scrutinee, the new motive is alpha-equivalent to the
-old `\_. R`, so every computational function is unchanged and the whole gate stays
+old `lambda _: R`, so every computational function is unchanged and the whole gate stays
 green. **Limit:** the motive is read from the *def's* annotation, so a `match`
 nested inside a data structure (e.g. the terminal category's law fields) has no
 annotation to draw it from and still uses the eliminator; a `match e return
@@ -230,7 +230,7 @@ inductions and stay as they are.
      Type-in-Type. Next: universes, a type surface in `.kan`, then connect types
      to `fill` so a universal property becomes a checkable proposition.
    → **STATUS: milestone 3 done — a surface you can write.** `lib/tt.ml` +
-     `kan check file.ktt`: named binders elaborated to de Bruijn, `\x. t`,
+     `kan check file.ktt`: named binders elaborated to de Bruijn, `lambda x: t`,
      `(x:A)->B`, `A->B`, Σ `(x:A)*B`, `Id`, `refl`, `transp`, `fst`/`snd`,
      top-level `def`/`check`/`eval`. `examples/proofs.ktt` type-checks
      id/sym/ap/trans and computes.

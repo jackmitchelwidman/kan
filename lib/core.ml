@@ -517,7 +517,7 @@ and show ?(ns = []) (t : tm) : string =
   | U i -> "U" ^ string_of_int i
   | Pi ("_", a, b) -> Printf.sprintf "%s -> %s" (dom a) (show ~ns:("_" :: ns) b)
   | Pi (x, a, b) -> Printf.sprintf "(%s : %s) -> %s" x (show ~ns a) (show ~ns:(x :: ns) b)
-  | Lam (x, b) -> Printf.sprintf "\\%s. %s" x (show ~ns:(x :: ns) b)
+  | Lam (x, b) -> Printf.sprintf "lambda %s: %s" x (show ~ns:(x :: ns) b)
   | App _ ->
       (* flatten the application spine: (f a b c) rather than (((f a) b) c) *)
       let rec spine acc = function App (f, a) -> spine (a :: acc) f | h -> (h, acc) in

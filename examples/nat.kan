@@ -3,13 +3,13 @@
 
 -- congruence (needed for the inductive step)
 def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
-       = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl
+       = lambda A B f a b p: transp A (lambda z: Id B (f a) (f z)) a b p refl
 
 -- addition by recursion on the first argument:
 --   add zero    n = n
 --   add (suc k) n = suc (add k n)
 def add : Nat -> Nat -> Nat
-        = \m n. natElim (\_. Nat) n (\k ih. suc ih) m
+        = lambda m n: natElim (lambda _: Nat) n (lambda k ih: suc ih) m
 
 eval add 2 3            -- 5
 eval add 0 7            -- 7
@@ -19,7 +19,7 @@ eval add 0 7            -- 7
 --   step:  add (suc k) zero = suc (add k zero); apply suc to the hypothesis
 -- The `def` type-checking IS the proof: if this is accepted, the theorem holds.
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. natElim (\m. Id Nat (add m zero) m)
+  = lambda n: natElim (lambda m: Id Nat (add m zero) m)
                 refl
-                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)
+                (lambda k ih: ap Nat Nat (lambda x: suc x) (add k zero) k ih)
                 n

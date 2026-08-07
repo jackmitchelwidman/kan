@@ -22,9 +22,9 @@ recursion** — total by construction. It **type-checks and compiles to native
 binaries via two backends** — OCaml and C — which produce identical results.
 
 ```kan
-def add : Nat -> Nat -> Nat = \m n. match m { | zero => n | suc k => suc (add k n) }
+def add : Nat -> Nat -> Nat = lambda m n: match m { | zero => n | suc k => suc (add k n) }
 def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
-  = \A B g xs. match (xs : List A) { | nil => nil B | cons y ys => cons B (g y) (map A B g ys) }
+  = lambda A B g xs: match (xs : List A) { | nil => nil B | cons y ys => cons B (g y) (map A B g ys) }
 ```
 
 `match` elaborates to the datatype's eliminator, and recursion is accepted only
@@ -53,7 +53,7 @@ Two exact factorials, computed by native big-integer arithmetic:
 
 ```
 def fac : Nat -> Integer                       -- Nat counter, Integer accumulator
-        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+        = lambda n: natElim (lambda _: Integer) 1z (lambda k ih: imul (fromNat (suc k)) ih) n
 eval fac 50   -- 30414093201713378043612608166064768844377641568960512000000000000
 ```
 

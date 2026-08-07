@@ -10,22 +10,22 @@
 -- Integer literals carry a trailing `z` (for Z), e.g. `0z`, `1z`, `120z`.
 
 -- friendlier names for the primitive operations
-def plus  : Integer -> Integer -> Integer = \a b. iadd a b
-def minus : Integer -> Integer -> Integer = \a b. isub a b
-def times : Integer -> Integer -> Integer = \a b. imul a b
-def eqInt : Integer -> Integer -> Bool    = \a b. ieq a b
-def ltInt : Integer -> Integer -> Bool    = \a b. ilt a b
+def plus  : Integer -> Integer -> Integer = lambda a b: iadd a b
+def minus : Integer -> Integer -> Integer = lambda a b: isub a b
+def times : Integer -> Integer -> Integer = lambda a b: imul a b
+def eqInt : Integer -> Integer -> Bool    = lambda a b: ieq a b
+def ltInt : Integer -> Integer -> Bool    = lambda a b: ilt a b
 
-def negate : Integer -> Integer = \a. isub 0z a
-def double : Integer -> Integer = \a. iadd a a
-def square : Integer -> Integer = \a. imul a a
+def negate : Integer -> Integer = lambda a: isub 0z a
+def double : Integer -> Integer = lambda a: iadd a a
+def square : Integer -> Integer = lambda a: imul a a
 
 -- factorial: a Nat counter driving an Integer accumulator, so the *value* is
 -- unbounded and computed by fast native multiplication rather than by unary
 -- recursion. `factorial 50` is exact and instant.
 def factorial : Nat -> Integer
-  = \n. match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
+  = lambda n: match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
 
 -- sum 0..n as an Integer (again: Nat drives, Integer accumulates)
 def sumTo : Nat -> Integer
-  = \n. match n { | zero => 0z | suc k => iadd (fromNat (suc k)) (sumTo k) }
+  = lambda n: match n { | zero => 0z | suc k => iadd (fromNat (suc k)) (sumTo k) }

@@ -1,5 +1,5 @@
 -- std/bool — the booleans.
-def not : Bool -> Bool          = \b.   match b { | true => false | false => true }
-def and : Bool -> Bool -> Bool  = \a b. match a { | true => b     | false => false }
-def or  : Bool -> Bool -> Bool  = \a b. match a { | true => true  | false => b }
-def xor : Bool -> Bool -> Bool  = \a b. match a { | true => not b | false => b }
+def not : Bool -> Bool          = lambda b:   match b { | true => false | false => true }
+def and : Bool -> Bool -> Bool  = lambda a b: match a { | true => b     | false => false }
+def or  : Bool -> Bool -> Bool  = lambda a b: match a { | true => true  | false => b }
+def xor : Bool -> Bool -> Bool  = lambda a b: match a { | true => not b | false => b }

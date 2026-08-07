@@ -8,5 +8,5 @@ def xs : List Nat = cons Nat 3 (cons Nat 1 (cons Nat 4 (nil Nat)))
 
 eval length Nat xs                       -- 3
 eval add 2 (length Nat xs)               -- 5
-eval map Nat Nat (\n. add 1 n) xs        -- each element + 1
+eval map Nat Nat (lambda n: add 1 n) xs        -- each element + 1
 eval and true (not false)                -- true

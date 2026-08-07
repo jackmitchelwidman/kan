@@ -9,10 +9,10 @@ import "../std/nat.kan"        -- eqNat, leq (defined by this kind of recursion)
 
 -- a tail-recursive sum with a running accumulator (the accumulator CHANGES each step)
 def sumAcc : Nat -> Nat -> Nat
-  = \n acc. match n { | zero => acc | suc k => sumAcc k (suc acc) }
+  = lambda n acc: match n { | zero => acc | suc k => sumAcc k (suc acc) }
 
 -- "is n exactly 5?" — now a clean one-liner, using Nat equality
-def isFive : Nat -> Bool = \n. eqNat n 5
+def isFive : Nat -> Bool = lambda n: eqNat n 5
 
 eval eqNat 5 5        -- true
 eval eqNat 5 4        -- false

@@ -11,12 +11,12 @@ import "../std/nat.kan"
 
 def NatPlus : Category
   = ( Unit
-    , ( \a b. Nat
-      , ( \a. zero
-        , ( \a b c g f. add g f
-          , ( \a b f. add_n_zero f
-            , ( \a b f. refl
-              , \a b c d h g f. add_assoc h g f ) ) ) ) ) )
+    , ( lambda a b: Nat
+      , ( lambda a: zero
+        , ( lambda a b c g f: add g f
+          , ( lambda a b f: add_n_zero f
+            , ( lambda a b f: refl
+              , lambda a b c d h g f: add_assoc h g f ) ) ) ) ) )
 
 -- the identity functor and identity natural transformation exist on it, and
 -- NatPlus has an opposite category — all for free from std/category.kan.

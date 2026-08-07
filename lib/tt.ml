@@ -85,7 +85,7 @@ let tokenize (s : string) : tok array =
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
                       "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
-let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -142,9 +142,12 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   let peel_pi k t = let rec go k t = if k <= 0 then t else (match t with Pi (_, _, b) -> go (k - 1) b | _ -> t) in go k t in
   let rec term ?(expected = None) ns =
     match peek () with
-    | LAM ->
+    | LAM | ID "lambda" ->
+        (* two spellings: `\p q. body` (terminator '.') and `lambda p q: body`
+           (terminator ':', the Python spelling). Both take any number of binders. *)
+        let sep, sepname = (match peek () with LAM -> (DOT, "'.'") | _ -> (COLON, "':'")) in
         adv ();
-        let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | DOT -> adv (); List.rev acc | _ -> fail "expected lambda binders then '.'" in
+        let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | t when t = sep -> adv (); List.rev acc | _ -> fail ("expected lambda binders then " ^ sepname) in
         let bs = names [] in
         let ns' = List.fold_left (fun a x -> x :: a) ns bs in
         (* peel one Pi of the expected type per binder, so a `match` in the body
@@ -399,11 +402,13 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         (* capture the leading lambda binders, so the body may recurse structurally
            on one of them (elaborated to that type's eliminator) *)
         let lead =
-          if peek () = LAM then begin
-            adv ();
-            let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | DOT -> adv (); List.rev acc | _ -> fail "expected lambda binders then '.'" in
-            names []
-          end else []
+          match peek () with
+          | (LAM | ID "lambda") as intro ->
+              let sep = (match intro with LAM -> DOT | _ -> COLON) in
+              adv ();
+              let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | t when t = sep -> adv (); List.rev acc | _ -> fail "expected lambda binders then the body" in
+              names []
+          | _ -> []
         in
         let ns' = List.rev lead @ ns in
         let rec peel n exp = if n <= 0 then exp else (match exp with Some (Pi (_, _, b)) -> peel (n - 1) (Some b) | _ -> None) in

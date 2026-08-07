@@ -14,7 +14,7 @@ kan build file.kan -o out   # compile to a native binary (add -c for the C backe
 Kan is dependently typed: the *same* language writes programs and their types.
 
 ```kan
-def id : (A : U) -> A -> A = \A x. x        -- the polymorphic identity
+def id : (A : U) -> A -> A = lambda A x: x        -- the polymorphic identity
 eval id Bool true                            -- true
 ```
 
@@ -41,7 +41,7 @@ the value:
 
 ```kan
 def fac : Nat -> Integer
-        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+        = lambda n: natElim (lambda _: Integer) 1z (lambda k ih: imul (fromNat (suc k)) ih) n
 ```
 
 (Integer literals wear a `z`, for ℤ: `1z`, `120z`. Arithmetic is `iadd`, `isub`,
@@ -53,11 +53,11 @@ Write functions with `match` and structural recursion — no hand-written
 eliminators:
 
 ```kan
-def add : Nat -> Nat -> Nat = \m n. match m { | zero => n | suc k => suc (add k n) }
+def add : Nat -> Nat -> Nat = lambda m n: match m { | zero => n | suc k => suc (add k n) }
 
 data List (A : U) { nil : List A, cons : A -> List A -> List A }
 def length : (A : U) -> List A -> Nat
-  = \A xs. match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
+  = lambda A xs: match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
 ```
 
 `match` elaborates to the datatype's eliminator. Recursion is allowed only when
@@ -78,8 +78,8 @@ recursive call is the induction hypothesis:
 ```kan
 -- for every n, add n 0 = n. Not true by computation — true by INDUCTION.
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. match n { | zero  => refl                                          -- base
-                | suc k => ap Nat Nat (\x. suc x) (add k zero) k (add_n_zero k) }  -- step
+  = lambda n: match n { | zero  => refl                                          -- base
+                | suc k => ap Nat Nat (lambda x: suc x) (add k zero) k (add_n_zero k) }  -- step
 ```
 
 If it type-checks, the theorem holds. There is no separate proof language, and no
@@ -111,7 +111,7 @@ the extension along the identity — so the statement is inhabited, not empty.
 ```kan
 def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
                  -> Functor A B -> Functor A D -> U
-  = \A B D p F.
+  = lambda A B D p F:
       (L : Functor B D)                                    -- the extension
     * (unit : NatTrans A D F (compFunctor A B D p L))      -- F ⇒ L∘p
     * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G) -> NatTrans B D L G)  -- universal

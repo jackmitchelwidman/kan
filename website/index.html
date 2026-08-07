@@ -174,11 +174,11 @@
     terminates.</b> Totality isn't a promise here, it's enforced. Both plain and accumulator-style
     recursion work (the argument may shrink or change); non-structural recursion is rejected.</p>
 <pre><span class="c">-- addition, by pattern matching and structural recursion</span>
-<span class="k">def</span> add : Nat -> Nat -> Nat = \m n. <span class="k">match</span> m { | zero => n | suc k => suc (add k n) }
+<span class="k">def</span> add : Nat -> Nat -> Nat = lambda m n: <span class="k">match</span> m { | zero => n | suc k => suc (add k n) }
 
 <span class="c">-- a generic map over lists</span>
 <span class="k">def</span> map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
-  = \A B f xs. <span class="k">match</span> (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (map A B f ys) }</pre>
+  = lambda A B f xs: <span class="k">match</span> (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (map A B f ys) }</pre>
 
     <h2 style="margin-top:40px">A type is a theorem — and it compiles to native code</h2>
     <p>Kan is dependently typed: you state a program's property as a type, and the checker proves it.
@@ -187,8 +187,8 @@
     proof is simply that it type-checks:</p>
 <pre><span class="c">-- for ALL n, add n zero = n  —  a theorem, proved by induction with match</span>
 <span class="k">def</span> add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. <span class="k">match</span> n { | zero  => refl
-                | suc k => ap Nat Nat (\x. suc x) (add k zero) k (add_n_zero k) }</pre>
+  = lambda n: <span class="k">match</span> n { | zero  => refl
+                | suc k => ap Nat Nat (lambda x: suc x) (add k zero) k (add_n_zero k) }</pre>
 <pre><span class="c">$ kan build nat.kan -o nat &amp;&amp; ./nat</span>
 5
 7</pre>
@@ -203,7 +203,7 @@
     and instant — and identical from <code>kan run</code>, the OCaml backend, and the C backend.</p>
 <pre><span class="c">-- a 65-digit factorial, by native big-integer multiplication</span>
 <span class="k">def</span> fac : Nat -> Integer
-  = \n. <span class="k">match</span> n { | zero => 1z | suc k => imul (fromNat (suc k)) (fac k) }
+  = lambda n: <span class="k">match</span> n { | zero => 1z | suc k => imul (fromNat (suc k)) (fac k) }
 
 eval fac 50</pre>
 <pre><span class="c">$ kan run integer.kan</span>
@@ -220,7 +220,7 @@ eval fac 50</pre>
 <pre><span class="c">-- std/kan.kan — the Kan extension, stated as a universal property</span>
 <span class="k">def</span> LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
                  -> Functor A B -> Functor A D -> U
-  = \A B D p F.
+  = lambda A B D p F:
       (L : Functor B D)
     * (unit : NatTrans A D F (compFunctor A B D p L))
     * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G) -> NatTrans B D L G)</pre>

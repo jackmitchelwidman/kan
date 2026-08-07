@@ -20,25 +20,25 @@ eval 42
 
 -- ---- Lesson 2 : the booleans ----------------------------------------------
 -- `Bool` has two values, `true` and `false`. `match` inspects them.
-def not : Bool -> Bool         = \b.   match b { | true => false | false => true }
-def and : Bool -> Bool -> Bool = \a b. match a { | true => b     | false => false }
+def not : Bool -> Bool         = lambda b:   match b { | true => false | false => true }
+def and : Bool -> Bool -> Bool = lambda a b: match a { | true => b     | false => false }
 eval not true              -- false
 eval and true true         -- true
 
 
 -- ---- Lesson 3 : functions --------------------------------------------------
--- `\x. body` is a function; apply it by writing it next to its argument.
--- Functions of several arguments are just nested: `\a b. ...`.
-def const_true : Bool -> Bool = \x. true
+-- `lambda x: body` is a function; apply it by writing it next to its argument.
+-- Functions of several arguments are just nested: `lambda a b: ...`.
+def const_true : Bool -> Bool = lambda x: true
 eval const_true false      -- true
 
 
 -- ---- Lesson 4 : numbers, pattern matching, and recursion ------------------
 -- `Nat` is the natural numbers, built from `zero` and `suc` (successor).
 -- We define addition and multiplication by structural recursion with `match`.
-def add : Nat -> Nat -> Nat = \m n. match m { | zero => n    | suc k => suc (add k n) }
-def mul : Nat -> Nat -> Nat = \m n. match m { | zero => zero | suc k => add n (mul k n) }
-def double : Nat -> Nat = \n. add n n
+def add : Nat -> Nat -> Nat = lambda m n: match m { | zero => n    | suc k => suc (add k n) }
+def mul : Nat -> Nat -> Nat = lambda m n: match m { | zero => zero | suc k => add n (mul k n) }
+def double : Nat -> Nat = lambda n: add n n
 eval add 2 3               -- 5
 eval mul 6 7               -- 42
 eval double 21             -- 42
@@ -47,8 +47,8 @@ eval double 21             -- 42
 -- ---- Lesson 5 : polymorphism — `(A : U)` means "for any type A" ------------
 -- `U` is the type of types (Nat : U, Bool : U). A function can take a TYPE as
 -- an argument, which is how Kan writes generics. You pass the type explicitly.
-def id    : (A : U) -> A -> A           = \A x. x
-def apply : (A : U) -> (B : U) -> (A -> B) -> A -> B = \A B f x. f x
+def id    : (A : U) -> A -> A           = lambda A x: x
+def apply : (A : U) -> (B : U) -> (A -> B) -> A -> B = lambda A B f x: f x
 eval id Nat 7              -- 7
 eval id Bool true          -- true
 eval apply Nat Nat double 5   -- 10
@@ -56,7 +56,7 @@ eval apply Nat Nat double 5   -- 10
 
 -- ---- Lesson 6 : pairs (product types) -------------------------------------
 -- `A * B` is the type of pairs; `(a, b)` builds one; `fst` and `snd` project.
-def swap : (A : U) -> (B : U) -> (A * B) -> (B * A) = \A B p. (snd p, fst p)
+def swap : (A : U) -> (B : U) -> (A * B) -> (B * A) = lambda A B p: (snd p, fst p)
 def p : Nat * Bool = (5, true)
 eval fst p                 -- 5
 eval snd p                 -- true
@@ -77,7 +77,7 @@ eval snd str               -- "ninety-nine"
 
 -- ---- Lesson 8 : strings ----------------------------------------------------
 -- `String` is a built-in type. `strcat` concatenates; `streq` compares.
-def greet : String -> String = \who. strcat "hello, " who
+def greet : String -> String = lambda who: strcat "hello, " who
 eval greet "world"         -- "hello, world"
 eval streq "kan" "kan"     -- true
 
@@ -87,7 +87,7 @@ eval streq "kan" "kan"     -- true
 -- trailing `z`. `Nat` is for induction/proofs; `Integer` is for big computation.
 -- Factorial: a Nat counter drives an Integer accumulator.
 def factorial : Nat -> Integer
-  = \n. match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
+  = lambda n: match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
 eval factorial 10          -- 3628800
 eval factorial 30          -- a 33-digit number, computed exactly
 
@@ -95,7 +95,7 @@ eval factorial 30          -- a 33-digit number, computed exactly
 -- ---- Lesson 10 : your own datatypes ---------------------------------------
 -- `data` declares a new type by listing its constructors. A simple enum:
 data Color { red : Color, green : Color, blue : Color }
-def isGreen : Color -> Bool = \c. match c { | red => false | green => true | blue => false }
+def isGreen : Color -> Bool = lambda c: match c { | red => false | green => true | blue => false }
 eval isGreen green         -- true
 eval isGreen blue          -- false
 
@@ -105,11 +105,11 @@ eval isGreen blue          -- false
 -- over it recurse structurally — total by construction (if it compiles, it stops).
 data List (A : U) { nil : List A, cons : A -> List A -> List A }
 def length : (A : U) -> List A -> Nat
-  = \A xs. match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
+  = lambda A xs: match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
 def sum : List Nat -> Nat
-  = \xs. match (xs : List Nat) { | nil => zero | cons y ys => add y (sum ys) }
+  = lambda xs: match (xs : List Nat) { | nil => zero | cons y ys => add y (sum ys) }
 def mapL : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
-  = \A B f xs. match (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (mapL A B f ys) }
+  = lambda A B f xs: match (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (mapL A B f ys) }
 def xs : List Nat = cons Nat 1 (cons Nat 2 (cons Nat 3 (nil Nat)))
 eval length Nat xs         -- 3
 eval sum xs                -- 6
@@ -133,10 +133,10 @@ def strings_eq  : Id String (strcat "ab" "c") "abc" = refl
 -- recursive call is the induction hypothesis. `ap` lifts an equality through a
 -- function. That this def type-checks is the proof.
 def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
-       = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl
+       = lambda A B f a b p: transp A (lambda z: Id B (f a) (f z)) a b p refl
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. match n { | zero  => refl                                          -- base: add 0 0 = 0
-                | suc k => ap Nat Nat (\x. suc x) (add k zero) k (add_n_zero k) }  -- step: uses the hypothesis
+  = lambda n: match n { | zero  => refl                                          -- base: add 0 0 = 0
+                | suc k => ap Nat Nat (lambda x: suc x) (add k zero) k (add_n_zero k) }  -- step: uses the hypothesis
 -- add_n_zero is a THEOREM: for every n, add n 0 = n, proved for all n at once.
 
 

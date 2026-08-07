@@ -5,7 +5,7 @@
 -- Here every person's data is an age (a Nat); `Person` is a family of types
 -- indexed by the name string.
 def Person : String -> U
-           = \n. Nat
+           = lambda n: Nat
 
 -- inhabitants for specific, named people; the TYPE mentions the string value.
 def alice_data : Person "alice" = 30
@@ -13,4 +13,4 @@ def bob_data   : Person "bob"   = 42
 
 -- a dependent function over names: the result type `Person n` depends on `n`.
 def new_person : (n : String) -> Person n
-              = \n. 0
+              = lambda n: 0
