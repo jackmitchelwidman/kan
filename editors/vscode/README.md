@@ -2,26 +2,30 @@
 
 Syntax highlighting for the Kan programming language (`.kan`).
 
-## Try it locally (no packaging)
+## Install (recommended)
 
-Symlink (or copy) this folder into your VS Code extensions directory, then
-reload:
-
-```sh
-ln -s "$PWD/editors/vscode" ~/.vscode/extensions/kan-language
-# then: VS Code → Command Palette → "Developer: Reload Window"
-```
-
-Open any `.kan` file (e.g. `examples/tutorial.kan`) and it highlights.
-
-## Package it as a .vsix (to share)
+Package it into a `.vsix` and install through VS Code's normal flow — this is
+the reliable path (needs Node/npm, which you already have if you use VS Code):
 
 ```sh
-npm install -g @vscode/vsce
 cd editors/vscode
-vsce package            # produces kan-language-0.1.0.vsix
+npx --yes @vscode/vsce package --allow-missing-repository   # -> kan-language-0.1.0.vsix
 code --install-extension kan-language-0.1.0.vsix
+# then: Command Palette → "Developer: Reload Window"
 ```
+
+Open any `.kan` file (e.g. `examples/tutorial.kan`) and it highlights; the status
+bar should read **Kan**.
+
+> **Don't** drop this folder (or a symlink to it) directly into
+> `~/.vscode/extensions/` — modern VS Code's extension manager marks hand-placed
+> extensions as "removed" on the next reload. Always install the `.vsix`.
+
+## Live-editing the grammar (development)
+
+If you're iterating on the grammar itself, open `editors/vscode/` in VS Code and
+press **F5** to launch an Extension Development Host with it loaded — changes show
+on reload without repackaging. (For everyday *use*, install the `.vsix` above.)
 
 ## What it covers
 
