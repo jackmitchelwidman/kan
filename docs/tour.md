@@ -18,6 +18,10 @@ def id : (A : U) -> A -> A = lambda A x: x        -- the polymorphic identity
 eval id Bool true                            -- true
 ```
 
+A lambda takes any number of binders and can be written three ways — pick your
+taste; they are identical: `lambda A x: …`, `\A x. …` (or `\A x: …`), and
+`λA x: …` (the literal λ). The body follows a `.` or a `:`.
+
 `U` is the universe of types; `(A : U) -> …` is a dependent function type. There
 is a whole hierarchy `U : U1 : U2 : …` (no "type in type", so the logic is sound).
 
