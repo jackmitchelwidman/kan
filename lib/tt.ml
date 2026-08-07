@@ -219,6 +219,8 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
       | ID "iadd" -> adv (); let a = atom ns in let b = atom ns in IntAdd (a, b)
       | ID "isub" -> adv (); let a = atom ns in let b = atom ns in IntSub (a, b)
       | ID "imul" -> adv (); let a = atom ns in let b = atom ns in IntMul (a, b)
+      | ID "idiv" -> adv (); let a = atom ns in let b = atom ns in IntDiv (a, b)
+      | ID "igcd" -> adv (); let a = atom ns in let b = atom ns in IntGcd (a, b)
       | ID "ieq" -> adv (); let a = atom ns in let b = atom ns in IntEq (a, b)
       | ID "ilt" -> adv (); let a = atom ns in let b = atom ns in IntLt (a, b)
       | ID "fromNat" -> adv (); IntFromNat (atom ns)
@@ -446,7 +448,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
           | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _
           | IntT | IntLit _ -> true
           | Pi (_, a, b) | Sig (_, a, b) | App (a, b) | Pair (a, b) | Ann (a, b) | StrApp (a, b) | StrEq (a, b)
-          | IntAdd (a, b) | IntSub (a, b) | IntMul (a, b) | IntEq (a, b) | IntLt (a, b) -> no_vars a && no_vars b
+          | IntAdd (a, b) | IntSub (a, b) | IntMul (a, b) | IntEq (a, b) | IntLt (a, b) | IntDiv (a, b) | IntGcd (a, b) -> no_vars a && no_vars b
           | Lam (_, b) | Suc b | Fst b | Snd b | IntFromNat b -> no_vars b
           | Id (a, b, c) | If (a, b, c) -> no_vars a && no_vars b && no_vars c
           | NatElim (a, b, c, d) -> no_vars a && no_vars b && no_vars c && no_vars d

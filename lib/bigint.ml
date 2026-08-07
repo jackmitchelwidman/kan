@@ -126,3 +126,50 @@ let compare x y =
   else let c = cmp_mag x.mag y.mag in if x.sign > 0 then c else - c
 
 let equal x y = compare x y = 0
+
+(* ----------------------------------------------------------------------------
+   Division and gcd.
+
+   We deliberately avoid Knuth long division (quotient-digit estimation + the
+   Algorithm-D correction step): it is fiddly and easy to get subtly wrong, and
+   this same code must be reproduced *identically* in the OCaml and C backend
+   runtimes (the gate checks all three agree). Instead we divide by repeated
+   DOUBLING, which uses only add / sub / compare — operations all three runtimes
+   already share and agree on. O(bits) doublings; ample at Kan's scale, and the
+   *semantics* (not the speed) are what's pinned, so a faster algorithm can drop
+   in behind the same interface later.
+   ---------------------------------------------------------------------------- *)
+
+let one = of_int 1
+let abs_t x = if x.sign = 0 then zero else { sign = 1; mag = x.mag }
+
+(* divmod on NON-NEGATIVE t: a >= 0, b > 0.  Returns (quotient, remainder),
+   both non-negative, with a = quotient*b + remainder and 0 <= remainder < b. *)
+let divmod_pos (a : t) (b : t) : t * t =
+  if compare a b < 0 then (zero, a)
+  else begin
+    (* doublings of b that are <= a, highest-first: [(2^k b, 2^k); … ; (b, 1)] *)
+    let dbls = ref [ (b, one) ] in
+    let cur = ref b and p = ref one in
+    while compare (add !cur !cur) a <= 0 do
+      cur := add !cur !cur;
+      p := add !p !p;
+      dbls := (!cur, !p) :: !dbls
+    done;
+    let q = ref zero and r = ref a in
+    List.iter (fun (sb, pw) -> if compare sb !r <= 0 then (r := sub !r sb; q := add !q pw)) !dbls;
+    (!q, !r)
+  end
+
+(* Truncated division (quotient rounds toward zero). Division by zero yields 0
+   — Kan is total, so this must never raise: "compile ⇒ runs" is the mandate. *)
+let div x y =
+  if y.sign = 0 then zero
+  else
+    let q, _ = divmod_pos (abs_t x) (abs_t y) in
+    if q.sign = 0 then zero else { sign = x.sign * y.sign; mag = q.mag }
+
+(* Greatest common divisor, always NON-NEGATIVE.  gcd 0 0 = 0; gcd a 0 = |a|. *)
+let gcd x y =
+  let rec go a b = if b.sign = 0 then a else let _, r = divmod_pos a b in go b r in
+  go (abs_t x) (abs_t y)

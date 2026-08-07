@@ -37,6 +37,8 @@ let istreq a b = match a, b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failw
 let iintadd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.add x y) | _ -> failwith "iadd"
 let iintsub a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.sub x y) | _ -> failwith "isub"
 let iintmul a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.mul x y) | _ -> failwith "imul"
+let iintdiv a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.div x y) | _ -> failwith "idiv"
+let iintgcd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.gcd x y) | _ -> failwith "igcd"
 let iinteq a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.equal x y) | _ -> failwith "ieq"
 let iintlt a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.compare x y < 0) | _ -> failwith "ilt"
 let iintfromnat n = match n with VNatV k -> VIntV (Bi.of_int k) | _ -> failwith "fromNat"
@@ -104,6 +106,8 @@ let rec cexpr globals locals (e : iexpr) : string =
   | IIntAdd (a, b) -> Printf.sprintf "(iintadd %s %s)" (go a) (go b)
   | IIntSub (a, b) -> Printf.sprintf "(iintsub %s %s)" (go a) (go b)
   | IIntMul (a, b) -> Printf.sprintf "(iintmul %s %s)" (go a) (go b)
+  | IIntDiv (a, b) -> Printf.sprintf "(iintdiv %s %s)" (go a) (go b)
+  | IIntGcd (a, b) -> Printf.sprintf "(iintgcd %s %s)" (go a) (go b)
   | IIntEq (a, b) -> Printf.sprintf "(iinteq %s %s)" (go a) (go b)
   | IIntLt (a, b) -> Printf.sprintf "(iintlt %s %s)" (go a) (go b)
   | IIntFromNat n -> Printf.sprintf "(iintfromnat %s)" (go n)

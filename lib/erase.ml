@@ -32,6 +32,8 @@ type iexpr =
   | IIntAdd of iexpr * iexpr
   | IIntSub of iexpr * iexpr
   | IIntMul of iexpr * iexpr
+  | IIntDiv of iexpr * iexpr
+  | IIntGcd of iexpr * iexpr
   | IIntEq of iexpr * iexpr
   | IIntLt of iexpr * iexpr
   | IIntFromNat of iexpr
@@ -60,6 +62,8 @@ let rec erase (t : tm) : iexpr =
   | IntAdd (a, b) -> IIntAdd (erase a, erase b)
   | IntSub (a, b) -> IIntSub (erase a, erase b)
   | IntMul (a, b) -> IIntMul (erase a, erase b)
+  | IntDiv (a, b) -> IIntDiv (erase a, erase b)
+  | IntGcd (a, b) -> IIntGcd (erase a, erase b)
   | IntEq (a, b) -> IIntEq (erase a, erase b)
   | IntLt (a, b) -> IIntLt (erase a, erase b)
   | IntFromNat n -> IIntFromNat (erase n)
@@ -139,6 +143,8 @@ and ieval env t =
   | IIntAdd (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.add x y) | _ -> failwith "iadd")
   | IIntSub (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.sub x y) | _ -> failwith "isub")
   | IIntMul (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.mul x y) | _ -> failwith "imul")
+  | IIntDiv (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.div x y) | _ -> failwith "idiv")
+  | IIntGcd (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.gcd x y) | _ -> failwith "igcd")
   | IIntEq (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.equal x y) | _ -> failwith "ieq")
   | IIntLt (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.compare x y < 0) | _ -> failwith "ilt")
   | IIntFromNat n -> (match ieval env n with VNatV k -> VIntV (Bigint.of_int k) | _ -> failwith "fromNat")

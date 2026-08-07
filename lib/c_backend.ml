@@ -109,6 +109,41 @@ static int big_cmp(Big *a, Big *b) {
   if (a->sign == 0) return 0;
   int c = big_cmpmag(a, b); return a->sign > 0 ? c : -c;
 }
+static Big *big_abs(Big *a) { if (a->sign == 0) return a; Big *b = malloc(sizeof(Big)); b->sign = 1; b->len = a->len; b->d = a->d; return b; }
+/* divmod on non-negative a>=0, b>0 by repeated DOUBLING (add/sub/compare only,
+   matching lib/bigint.ml so all three runtimes agree). */
+static void big_divmod_pos(Big *a, Big *b, Big **qout, Big **rout) {
+  if (big_cmpmag(a, b) < 0) { *qout = big_from_int(0); *rout = a; return; }
+  int cap = 8, cnt = 0;
+  Big **sb = malloc(sizeof(Big *) * cap), **pw = malloc(sizeof(Big *) * cap);
+  Big *cur = b, *p = big_from_int(1);
+  sb[cnt] = cur; pw[cnt] = p; cnt++;
+  for (;;) {
+    Big *nc = big_add(cur, cur);
+    if (big_cmpmag(nc, a) > 0) break;
+    cur = nc; p = big_add(p, p);
+    if (cnt == cap) { cap *= 2; sb = realloc(sb, sizeof(Big *) * cap); pw = realloc(pw, sizeof(Big *) * cap); }
+    sb[cnt] = cur; pw[cnt] = p; cnt++;
+  }
+  Big *q = big_from_int(0), *r = a;
+  for (int k = cnt - 1; k >= 0; k--)
+    if (big_cmpmag(sb[k], r) <= 0) { r = big_submag(1, r, sb[k]); q = big_add(q, pw[k]); }
+  free(sb); free(pw);
+  *qout = q; *rout = r;
+}
+/* truncated division (toward zero); n / 0 = 0 (total: must never trap). */
+static Big *big_div(Big *a, Big *b) {
+  if (b->sign == 0) return big_from_int(0);
+  Big *q, *r; big_divmod_pos(big_abs(a), big_abs(b), &q, &r);
+  if (q->sign == 0) return q;
+  Big *res = malloc(sizeof(Big)); res->sign = a->sign * b->sign; res->len = q->len; res->d = q->d; return res;
+}
+/* gcd, always non-negative; gcd 0 0 = 0, gcd a 0 = |a|. */
+static Big *big_gcd(Big *a, Big *b) {
+  Big *x = big_abs(a), *y = big_abs(b);
+  while (y->sign != 0) { Big *q, *r; big_divmod_pos(x, y, &q, &r); x = y; y = r; }
+  return x;
+}
 
 static Value *alloc(int tag) { Value *v = malloc(sizeof(Value)); v->tag = tag; return v; }
 static Value UNIT_V = { VUNIT };
@@ -130,6 +165,8 @@ static Value *mk_int(Big *b) { Value *v = alloc(VINT); v->big = b; return v; }
 static Value *int_add(Value *a, Value *b) { return mk_int(big_add(a->big, b->big)); }
 static Value *int_sub(Value *a, Value *b) { return mk_int(big_sub(a->big, b->big)); }
 static Value *int_mul(Value *a, Value *b) { return mk_int(big_mul(a->big, b->big)); }
+static Value *int_div(Value *a, Value *b) { return mk_int(big_div(a->big, b->big)); }
+static Value *int_gcd(Value *a, Value *b) { return mk_int(big_gcd(a->big, b->big)); }
 static Value *int_eq(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) == 0); }
 static Value *int_lt(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) < 0); }
 static Value *int_fromnat(Value *n) { return mk_int(big_from_int((long long)n->i)); }
@@ -259,6 +296,8 @@ let compile (decls : Tt.decl list) : string =
     | IIntAdd (a, b) -> Printf.sprintf "int_add(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IIntSub (a, b) -> Printf.sprintf "int_sub(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IIntMul (a, b) -> Printf.sprintf "int_mul(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntDiv (a, b) -> Printf.sprintf "int_div(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntGcd (a, b) -> Printf.sprintf "int_gcd(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IIntEq (a, b) -> Printf.sprintf "int_eq(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IIntLt (a, b) -> Printf.sprintf "int_lt(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IIntFromNat n -> Printf.sprintf "int_fromnat(%s)" (cexpr nloc envv n)

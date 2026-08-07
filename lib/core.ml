@@ -49,6 +49,8 @@ type tm =
   | IntAdd of tm * tm                 (* Integer addition *)
   | IntSub of tm * tm                 (* Integer subtraction *)
   | IntMul of tm * tm                 (* Integer multiplication *)
+  | IntDiv of tm * tm                 (* Integer truncated division (n / 0 = 0) *)
+  | IntGcd of tm * tm                 (* Integer gcd, always non-negative *)
   | IntEq of tm * tm                  (* Integer equality -> Bool *)
   | IntLt of tm * tm                  (* Integer strict less-than -> Bool *)
   | IntFromNat of tm                  (* the canonical Nat -> Integer inclusion *)
@@ -84,6 +86,8 @@ let rec lift d cutoff t =
   | IntAdd (a, b) -> IntAdd (l a, l b)
   | IntSub (a, b) -> IntSub (l a, l b)
   | IntMul (a, b) -> IntMul (l a, l b)
+  | IntDiv (a, b) -> IntDiv (l a, l b)
+  | IntGcd (a, b) -> IntGcd (l a, l b)
   | IntEq (a, b) -> IntEq (l a, l b)
   | IntLt (a, b) -> IntLt (l a, l b)
   | IntFromNat a -> IntFromNat (l a)
@@ -215,6 +219,8 @@ type value =
   | VIntAdd of value * value           (* stuck integer ops (at least one neutral operand) *)
   | VIntSub of value * value
   | VIntMul of value * value
+  | VIntDiv of value * value
+  | VIntGcd of value * value
   | VIntEq of value * value
   | VIntLt of value * value
   | VIntFromNat of value               (* stuck Nat -> Integer *)
@@ -258,6 +264,8 @@ let rec eval (env : value list) (t : tm) : value =
   | IntAdd (a, b) -> vintadd (eval env a) (eval env b)
   | IntSub (a, b) -> vintsub (eval env a) (eval env b)
   | IntMul (a, b) -> vintmul (eval env a) (eval env b)
+  | IntDiv (a, b) -> vintdiv (eval env a) (eval env b)
+  | IntGcd (a, b) -> vintgcd (eval env a) (eval env b)
   | IntEq (a, b) -> vinteq (eval env a) (eval env b)
   | IntLt (a, b) -> vintlt (eval env a) (eval env b)
   | IntFromNat n -> vintfromnat (eval env n)
@@ -315,6 +323,8 @@ and vstreq a b = match a, b with VStr x, VStr y -> if x = y then VTrue else VFal
 and vintadd a b = match a, b with VInt x, VInt y -> VInt (Bigint.add x y) | _ -> VIntAdd (a, b)
 and vintsub a b = match a, b with VInt x, VInt y -> VInt (Bigint.sub x y) | _ -> VIntSub (a, b)
 and vintmul a b = match a, b with VInt x, VInt y -> VInt (Bigint.mul x y) | _ -> VIntMul (a, b)
+and vintdiv a b = match a, b with VInt x, VInt y -> VInt (Bigint.div x y) | _ -> VIntDiv (a, b)
+and vintgcd a b = match a, b with VInt x, VInt y -> VInt (Bigint.gcd x y) | _ -> VIntGcd (a, b)
 and vinteq a b = match a, b with VInt x, VInt y -> if Bigint.equal x y then VTrue else VFalse | _ -> VIntEq (a, b)
 and vintlt a b = match a, b with VInt x, VInt y -> if Bigint.compare x y < 0 then VTrue else VFalse | _ -> VIntLt (a, b)
 and vintfromnat n =
@@ -358,6 +368,8 @@ let rec quote (l : int) (v : value) : tm =
   | VIntAdd (a, b) -> IntAdd (quote l a, quote l b)
   | VIntSub (a, b) -> IntSub (quote l a, quote l b)
   | VIntMul (a, b) -> IntMul (quote l a, quote l b)
+  | VIntDiv (a, b) -> IntDiv (quote l a, quote l b)
+  | VIntGcd (a, b) -> IntGcd (quote l a, quote l b)
   | VIntEq (a, b) -> IntEq (quote l a, quote l b)
   | VIntLt (a, b) -> IntLt (quote l a, quote l b)
   | VIntFromNat n -> IntFromNat (quote l n)
@@ -402,6 +414,8 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VIntAdd (a, b), VIntAdd (a', b') -> conv l a a' && conv l b b'
   | VIntSub (a, b), VIntSub (a', b') -> conv l a a' && conv l b b'
   | VIntMul (a, b), VIntMul (a', b') -> conv l a a' && conv l b b'
+  | VIntDiv (a, b), VIntDiv (a', b') -> conv l a a' && conv l b b'
+  | VIntGcd (a, b), VIntGcd (a', b') -> conv l a a' && conv l b b'
   | VIntEq (a, b), VIntEq (a', b') -> conv l a a' && conv l b b'
   | VIntLt (a, b), VIntLt (a', b') -> conv l a a' && conv l b b'
   | VIntFromNat a, VIntFromNat b -> conv l a b
@@ -499,6 +513,8 @@ and infer (ctx : ctx) (t : tm) : value =
   | IntAdd (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
   | IntSub (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
   | IntMul (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
+  | IntDiv (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
+  | IntGcd (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
   | IntEq (a, b) -> check ctx a VIntT; check ctx b VIntT; VBool
   | IntLt (a, b) -> check ctx a VIntT; check ctx b VIntT; VBool
   | IntFromNat n -> check ctx n VNat; VIntT
@@ -552,6 +568,8 @@ and show ?(ns = []) (t : tm) : string =
   | IntAdd (a, b) -> Printf.sprintf "iadd %s %s" (show ~ns a) (show ~ns b)
   | IntSub (a, b) -> Printf.sprintf "isub %s %s" (show ~ns a) (show ~ns b)
   | IntMul (a, b) -> Printf.sprintf "imul %s %s" (show ~ns a) (show ~ns b)
+  | IntDiv (a, b) -> Printf.sprintf "idiv %s %s" (show ~ns a) (show ~ns b)
+  | IntGcd (a, b) -> Printf.sprintf "igcd %s %s" (show ~ns a) (show ~ns b)
   | IntEq (a, b) -> Printf.sprintf "ieq %s %s" (show ~ns a) (show ~ns b)
   | IntLt (a, b) -> Printf.sprintf "ilt %s %s" (show ~ns a) (show ~ns b)
   | IntFromNat n -> Printf.sprintf "fromNat %s" (show ~ns n)
