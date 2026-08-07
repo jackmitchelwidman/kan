@@ -1,0 +1,33 @@
+{
+  "name": "kan-language",
+  "displayName": "Kan Language",
+  "description": "Syntax highlighting for the Kan programming language (.kan)",
+  "version": "0.1.0",
+  "publisher": "kan-lang",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jackmitchelwidman/kan"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kan",
+        "aliases": ["Kan", "kan"],
+        "extensions": [".kan"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kan",
+        "scopeName": "source.kan",
+        "path": "./syntaxes/kan.tmLanguage.json"
+      }
+    ]
+  }
+}

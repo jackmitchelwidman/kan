@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kan",
+  "scopeName": "source.kan",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#declaration" },
+    { "include": "#keyword" },
+    { "include": "#primitive-type" },
+    { "include": "#constant" },
+    { "include": "#builtin" },
+    { "include": "#number" },
+    { "include": "#constructor" },
+    { "include": "#type-name" },
+    { "include": "#operator" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "--.*$",
+      "name": "comment.line.double-dash.kan"
+    },
+    "string": {
+      "name": "string.quoted.double.kan",
+      "begin": "\"",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.kan" } },
+      "end": "\"",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.kan" } }
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "comment": "def NAME  ->  color the defined name as a function",
+          "match": "\\b(def)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.kan" },
+            "2": { "name": "entity.name.function.kan" }
+          }
+        },
+        {
+          "comment": "data NAME  ->  color the type name",
+          "match": "\\b(data)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.control.kan" },
+            "2": { "name": "entity.name.type.kan" }
+          }
+        }
+      ]
+    },
+    "keyword": {
+      "match": "\\b(def|data|eval|import|match|lambda)\\b",
+      "name": "keyword.control.kan"
+    },
+    "primitive-type": {
+      "comment": "universes U, U1, U2, ... and the built-in base types",
+      "match": "\\b(U[0-9]*|Type|Nat|Integer|String|Bool)\\b",
+      "name": "support.type.primitive.kan"
+    },
+    "constant": {
+      "match": "\\b(zero|suc|refl|true|false)\\b",
+      "name": "constant.language.kan"
+    },
+    "builtin": {
+      "match": "\\b(natElim|fst|snd)\\b",
+      "name": "support.function.builtin.kan"
+    },
+    "number": {
+      "patterns": [
+        { "match": "\\b[0-9]+z\\b", "name": "constant.numeric.integer.kan" },
+        { "match": "\\b[0-9]+\\b", "name": "constant.numeric.nat.kan" }
+      ]
+    },
+    "constructor": {
+      "comment": "identifier immediately after a match/data bar `|` is a constructor",
+      "match": "(\\|)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.operator.bar.kan" },
+        "2": { "name": "entity.name.tag.constructor.kan" }
+      }
+    },
+    "type-name": {
+      "comment": "heuristic: a capitalized identifier is a type / type constructor",
+      "match": "\\b[A-Z][A-Za-z0-9_]*\\b",
+      "name": "entity.name.type.kan"
+    },
+    "operator": {
+      "match": "->|=>|λ|[\\\\:=*.,|]",
+      "name": "keyword.operator.kan"
+    }
+  }
+}
