@@ -11,6 +11,10 @@
 open Core
 open Erase
 
+(* the hand-rolled bignum (lib/bigint.ml), spliced verbatim so emitted programs
+   carry the SAME Integer arithmetic the checker uses. *)
+let bignum_module = "module Bi = struct\n" ^ Bigint_src.ocaml_source ^ "\nend\n\n"
+
 let prelude1 = {ml|type ival =
   | VClo of (ival -> ival)
   | VConV of string * ival list
@@ -18,6 +22,7 @@ let prelude1 = {ml|type ival =
   | VBoolV of bool
   | VNatV of int
   | VStrV of string
+  | VIntV of Bi.t
   | VPairV of ival * ival
   | VUnit
 
@@ -29,10 +34,17 @@ let iif c t e = match c with VBoolV true -> t () | VBoolV false -> e () | _ -> f
 let isuc = function VNatV k -> VNatV (k + 1) | _ -> failwith "suc"
 let istrapp a b = match a, b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat"
 let istreq a b = match a, b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq"
+let iintadd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.add x y) | _ -> failwith "iadd"
+let iintsub a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.sub x y) | _ -> failwith "isub"
+let iintmul a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.mul x y) | _ -> failwith "imul"
+let iinteq a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.equal x y) | _ -> failwith "ieq"
+let iintlt a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.compare x y < 0) | _ -> failwith "ilt"
+let iintfromnat n = match n with VNatV k -> VIntV (Bi.of_int k) | _ -> failwith "fromNat"
 let rec ishow = function
   | VNatV n -> string_of_int n
   | VBoolV b -> if b then "true" else "false"
   | VStrV s -> "\"" ^ s ^ "\""
+  | VIntV b -> Bi.to_string b
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
   | VConV (c, []) -> c
@@ -88,6 +100,13 @@ let rec cexpr globals locals (e : iexpr) : string =
   | IStr s -> Printf.sprintf "(VStrV %S)" s
   | IStrApp (a, b) -> Printf.sprintf "(istrapp %s %s)" (go a) (go b)
   | IStrEq (a, b) -> Printf.sprintf "(istreq %s %s)" (go a) (go b)
+  | IInt b -> Printf.sprintf "(VIntV (Bi.of_string %S))" (Bigint.to_string b)
+  | IIntAdd (a, b) -> Printf.sprintf "(iintadd %s %s)" (go a) (go b)
+  | IIntSub (a, b) -> Printf.sprintf "(iintsub %s %s)" (go a) (go b)
+  | IIntMul (a, b) -> Printf.sprintf "(iintmul %s %s)" (go a) (go b)
+  | IIntEq (a, b) -> Printf.sprintf "(iinteq %s %s)" (go a) (go b)
+  | IIntLt (a, b) -> Printf.sprintf "(iintlt %s %s)" (go a) (go b)
+  | IIntFromNat n -> Printf.sprintf "(iintfromnat %s)" (go n)
   | IUnit -> "VUnit"
 
 let registry elims ctors =
@@ -134,4 +153,4 @@ let compile (decls : Tt.decl list) : string =
       | Tt.Check tm -> ignore (infer !ctx tm)
       | Tt.Import _ -> ())
     decls;
-  prelude1 ^ "\n" ^ registry !elims !ctors ^ "\n" ^ prelude2 ^ "\n" ^ Buffer.contents body
+  bignum_module ^ prelude1 ^ "\n" ^ registry !elims !ctors ^ "\n" ^ prelude2 ^ "\n" ^ Buffer.contents body

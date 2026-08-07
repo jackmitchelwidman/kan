@@ -44,6 +44,14 @@ type tm =
   | Str of string                     (* a string literal *)
   | StrApp of tm * tm                 (* string concatenation *)
   | StrEq of tm * tm                  (* string equality -> Bool *)
+  | IntT                              (* the primitive type of unbounded integers *)
+  | IntLit of Bigint.t                (* an Integer literal *)
+  | IntAdd of tm * tm                 (* Integer addition *)
+  | IntSub of tm * tm                 (* Integer subtraction *)
+  | IntMul of tm * tm                 (* Integer multiplication *)
+  | IntEq of tm * tm                  (* Integer equality -> Bool *)
+  | IntLt of tm * tm                  (* Integer strict less-than -> Bool *)
+  | IntFromNat of tm                  (* the canonical Nat -> Integer inclusion *)
   | Ann of tm * tm
 
 (* closed Nat numerals -> int, for display *)
@@ -173,6 +181,14 @@ type value =
   | VStr of string
   | VStrApp of value * value           (* stuck concatenation *)
   | VStrEq of value * value            (* stuck equality *)
+  | VIntT
+  | VInt of Bigint.t
+  | VIntAdd of value * value           (* stuck integer ops (at least one neutral operand) *)
+  | VIntSub of value * value
+  | VIntMul of value * value
+  | VIntEq of value * value
+  | VIntLt of value * value
+  | VIntFromNat of value               (* stuck Nat -> Integer *)
 
 and closure = { env : value list; body : tm }
 
@@ -208,6 +224,14 @@ let rec eval (env : value list) (t : tm) : value =
   | Str s -> VStr s
   | StrApp (a, b) -> vstrapp (eval env a) (eval env b)
   | StrEq (a, b) -> vstreq (eval env a) (eval env b)
+  | IntT -> VIntT
+  | IntLit b -> VInt b
+  | IntAdd (a, b) -> vintadd (eval env a) (eval env b)
+  | IntSub (a, b) -> vintsub (eval env a) (eval env b)
+  | IntMul (a, b) -> vintmul (eval env a) (eval env b)
+  | IntEq (a, b) -> vinteq (eval env a) (eval env b)
+  | IntLt (a, b) -> vintlt (eval env a) (eval env b)
+  | IntFromNat n -> vintfromnat (eval env n)
   | Ann (t, _) -> eval env t
 
 and vapp f a =
@@ -259,6 +283,15 @@ and vnatelim p z s n =
   List.fold_left (fun acc m -> vapp (vapp s m) acc) start preds
 and vstrapp a b = match a, b with VStr x, VStr y -> VStr (x ^ y) | _ -> VStrApp (a, b)
 and vstreq a b = match a, b with VStr x, VStr y -> if x = y then VTrue else VFalse | _ -> VStrEq (a, b)
+and vintadd a b = match a, b with VInt x, VInt y -> VInt (Bigint.add x y) | _ -> VIntAdd (a, b)
+and vintsub a b = match a, b with VInt x, VInt y -> VInt (Bigint.sub x y) | _ -> VIntSub (a, b)
+and vintmul a b = match a, b with VInt x, VInt y -> VInt (Bigint.mul x y) | _ -> VIntMul (a, b)
+and vinteq a b = match a, b with VInt x, VInt y -> if Bigint.equal x y then VTrue else VFalse | _ -> VIntEq (a, b)
+and vintlt a b = match a, b with VInt x, VInt y -> if Bigint.compare x y < 0 then VTrue else VFalse | _ -> VIntLt (a, b)
+and vintfromnat n =
+  (* reduce on a fully-concrete Nat tower; stay stuck on a neutral *)
+  let rec count acc = function VZero -> Some acc | VSuc m -> count (acc + 1) m | _ -> None in
+  (match count 0 n with Some k -> VInt (Bigint.of_int k) | None -> VIntFromNat n)
 and inst c v = eval (v :: c.env) c.body
 
 let rec quote (l : int) (v : value) : tm =
@@ -291,6 +324,14 @@ let rec quote (l : int) (v : value) : tm =
   | VStr s -> Str s
   | VStrApp (a, b) -> StrApp (quote l a, quote l b)
   | VStrEq (a, b) -> StrEq (quote l a, quote l b)
+  | VIntT -> IntT
+  | VInt b -> IntLit b
+  | VIntAdd (a, b) -> IntAdd (quote l a, quote l b)
+  | VIntSub (a, b) -> IntSub (quote l a, quote l b)
+  | VIntMul (a, b) -> IntMul (quote l a, quote l b)
+  | VIntEq (a, b) -> IntEq (quote l a, quote l b)
+  | VIntLt (a, b) -> IntLt (quote l a, quote l b)
+  | VIntFromNat n -> IntFromNat (quote l n)
 
 let normalize (t : tm) : tm = quote 0 (eval [] t)
 
@@ -327,6 +368,14 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VStr a, VStr b -> a = b
   | VStrApp (a, b), VStrApp (a', b') -> conv l a a' && conv l b b'
   | VStrEq (a, b), VStrEq (a', b') -> conv l a a' && conv l b b'
+  | VIntT, VIntT -> true
+  | VInt a, VInt b -> Bigint.equal a b
+  | VIntAdd (a, b), VIntAdd (a', b') -> conv l a a' && conv l b b'
+  | VIntSub (a, b), VIntSub (a', b') -> conv l a a' && conv l b b'
+  | VIntMul (a, b), VIntMul (a', b') -> conv l a a' && conv l b b'
+  | VIntEq (a, b), VIntEq (a', b') -> conv l a a' && conv l b b'
+  | VIntLt (a, b), VIntLt (a', b') -> conv l a a' && conv l b b'
+  | VIntFromNat a, VIntFromNat b -> conv l a b
   | _ -> false
 
 (* -------- Bidirectional type checking -------- *)
@@ -416,6 +465,14 @@ and infer (ctx : ctx) (t : tm) : value =
   | Str _ -> VStringT
   | StrApp (a, b) -> check ctx a VStringT; check ctx b VStringT; VStringT
   | StrEq (a, b) -> check ctx a VStringT; check ctx b VStringT; VBool
+  | IntT -> VU 0
+  | IntLit _ -> VIntT
+  | IntAdd (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
+  | IntSub (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
+  | IntMul (a, b) -> check ctx a VIntT; check ctx b VIntT; VIntT
+  | IntEq (a, b) -> check ctx a VIntT; check ctx b VIntT; VBool
+  | IntLt (a, b) -> check ctx a VIntT; check ctx b VIntT; VBool
+  | IntFromNat n -> check ctx n VNat; VIntT
   | Ann (tm, ty) -> ignore (infer_univ ctx ty); let vty = eval ctx.env ty in check ctx tm vty; vty
 
 and infer_univ (ctx : ctx) (t : tm) : int =
@@ -461,6 +518,14 @@ and show ?(ns = []) (t : tm) : string =
   | Str s -> "\"" ^ s ^ "\""
   | StrApp (a, b) -> Printf.sprintf "strcat %s %s" (show ~ns a) (show ~ns b)
   | StrEq (a, b) -> Printf.sprintf "streq %s %s" (show ~ns a) (show ~ns b)
+  | IntT -> "Integer"
+  | IntLit b -> Bigint.to_string b
+  | IntAdd (a, b) -> Printf.sprintf "iadd %s %s" (show ~ns a) (show ~ns b)
+  | IntSub (a, b) -> Printf.sprintf "isub %s %s" (show ~ns a) (show ~ns b)
+  | IntMul (a, b) -> Printf.sprintf "imul %s %s" (show ~ns a) (show ~ns b)
+  | IntEq (a, b) -> Printf.sprintf "ieq %s %s" (show ~ns a) (show ~ns b)
+  | IntLt (a, b) -> Printf.sprintf "ilt %s %s" (show ~ns a) (show ~ns b)
+  | IntFromNat n -> Printf.sprintf "fromNat %s" (show ~ns n)
   | Ann (t, ty) -> Printf.sprintf "(%s : %s)" (show ~ns t) (show ~ns ty)
 
 let type_of (t : tm) : tm = quote 0 (infer empty t)

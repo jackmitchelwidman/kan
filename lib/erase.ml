@@ -28,6 +28,13 @@ type iexpr =
   | IStr of string
   | IStrApp of iexpr * iexpr
   | IStrEq of iexpr * iexpr
+  | IInt of Bigint.t
+  | IIntAdd of iexpr * iexpr
+  | IIntSub of iexpr * iexpr
+  | IIntMul of iexpr * iexpr
+  | IIntEq of iexpr * iexpr
+  | IIntLt of iexpr * iexpr
+  | IIntFromNat of iexpr
   | IUnit                    (* an erased type or proof *)
 
 let rec erase (t : tm) : iexpr =
@@ -49,9 +56,16 @@ let rec erase (t : tm) : iexpr =
   | Str s -> IStr s
   | StrApp (a, b) -> IStrApp (erase a, erase b)
   | StrEq (a, b) -> IStrEq (erase a, erase b)
+  | IntLit b -> IInt b
+  | IntAdd (a, b) -> IIntAdd (erase a, erase b)
+  | IntSub (a, b) -> IIntSub (erase a, erase b)
+  | IntMul (a, b) -> IIntMul (erase a, erase b)
+  | IntEq (a, b) -> IIntEq (erase a, erase b)
+  | IntLt (a, b) -> IIntLt (erase a, erase b)
+  | IntFromNat n -> IIntFromNat (erase n)
   | Transp (_, _, _, _, _, d) -> erase d                           (* transport is identity on its value *)
   | Ann (t, _) -> erase t
-  | U _ | Pi _ | Sig _ | Id _ | Refl | Bool | Nat | Data _ | StringT -> IUnit  (* types & proofs erase *)
+  | U _ | Pi _ | Sig _ | Id _ | Refl | Bool | Nat | Data _ | StringT | IntT -> IUnit  (* types & proofs erase *)
 
 (* -------- reference runtime -------- *)
 type ival =
@@ -61,6 +75,7 @@ type ival =
   | VBoolV of bool
   | VNatV of int
   | VStrV of string
+  | VIntV of Bigint.t
   | VPairV of ival * ival
   | VUnit
 
@@ -120,12 +135,20 @@ and ieval env t =
   | IStr s -> VStrV s
   | IStrApp (a, b) -> (match ieval env a, ieval env b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat")
   | IStrEq (a, b) -> (match ieval env a, ieval env b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq")
+  | IInt b -> VIntV b
+  | IIntAdd (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.add x y) | _ -> failwith "iadd")
+  | IIntSub (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.sub x y) | _ -> failwith "isub")
+  | IIntMul (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.mul x y) | _ -> failwith "imul")
+  | IIntEq (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.equal x y) | _ -> failwith "ieq")
+  | IIntLt (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.compare x y < 0) | _ -> failwith "ilt")
+  | IIntFromNat n -> (match ieval env n with VNatV k -> VIntV (Bigint.of_int k) | _ -> failwith "fromNat")
   | IUnit -> VUnit
 
 let rec ishow = function
   | VNatV n -> string_of_int n
   | VBoolV b -> if b then "true" else "false"
   | VStrV s -> "\"" ^ s ^ "\""
+  | VIntV b -> Bigint.to_string b
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
   | VConV (c, []) -> c

@@ -1,3 +1,16 @@
 (library
  (name kanlib)
  (wrapped false))
+
+; Embed bigint.ml's source as a string so the OCaml backend can splice the
+; SAME bignum into the standalone programs it emits (single source of truth).
+(rule
+ (target bigint_src.ml)
+ (deps bigint.ml)
+ (action
+  (with-stdout-to
+   bigint_src.ml
+   (progn
+    (echo "let ocaml_source = {kanbigint|")
+    (cat bigint.ml)
+    (echo "|kanbigint}\n")))))

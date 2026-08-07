@@ -20,7 +20,12 @@ typedef struct Value Value;
 typedef struct Env { Value *head; struct Env *tail; } Env;
 typedef Value *(*Fn)(Env *, Value *);
 
-enum { VCLO, VCON, VELIM, VBOOL, VNAT, VSTR, VPAIR, VUNIT };
+/* --- arbitrary-precision integers (sign + little-endian base 10^9 limbs),
+   the C twin of lib/bigint.ml; single-limb products stay within int64. --- */
+#define BASE 1000000000LL
+typedef struct { int sign; int len; long long *d; } Big;   /* zero: sign=0,len=0,d=NULL */
+
+enum { VCLO, VCON, VELIM, VBOOL, VNAT, VSTR, VPAIR, VINT, VUNIT };
 struct Value {
   int tag;
   Fn fn; Env *env;                       /* VCLO */
@@ -28,7 +33,82 @@ struct Value {
   int i;                                 /* VBOOL (0/1) / VNAT */
   const char *str;                       /* VSTR */
   Value *a; Value *b;                    /* VPAIR */
+  Big *big;                              /* VINT */
 };
+
+static Big *big_norm(int sign, long long *d, int len) {
+  while (len > 0 && d[len - 1] == 0) len--;
+  Big *b = malloc(sizeof(Big));
+  if (len == 0) { free(d); b->sign = 0; b->len = 0; b->d = NULL; }
+  else { b->sign = sign; b->len = len; b->d = d; }
+  return b;
+}
+static Big *big_from_int(long long v) {
+  if (v == 0) return big_norm(0, NULL, 0);
+  int sign = v < 0 ? -1 : 1;
+  unsigned long long n = v < 0 ? -(unsigned long long)v : (unsigned long long)v;
+  long long tmp[8]; int len = 0;
+  while (n > 0) { tmp[len++] = n % BASE; n /= BASE; }
+  long long *d = malloc(sizeof(long long) * len);
+  for (int k = 0; k < len; k++) d[k] = tmp[k];
+  return big_norm(sign, d, len);
+}
+static Big *big_from_str(const char *s) {
+  int sign = 1; if (*s == '-') { sign = -1; s++; }
+  int len = (int)strlen(s), nl = (len + 8) / 9, li = 0, i = len;
+  long long *d = malloc(sizeof(long long) * (nl > 0 ? nl : 1));
+  while (i > 0) { int lo = i - 9 < 0 ? 0 : i - 9; long long c = 0;
+    for (int k = lo; k < i; k++) c = c * 10 + (s[k] - '0'); d[li++] = c; i = lo; }
+  return big_norm(sign, d, li);
+}
+static char *big_to_str(Big *b) {
+  if (b->sign == 0) { char *r = malloc(2); r[0] = '0'; r[1] = 0; return r; }
+  char *r = malloc((size_t)b->len * 9 + 2); int p = 0;
+  if (b->sign < 0) r[p++] = '-';
+  p += sprintf(r + p, "%lld", b->d[b->len - 1]);
+  for (int j = b->len - 2; j >= 0; j--) p += sprintf(r + p, "%09lld", b->d[j]);
+  r[p] = 0; return r;
+}
+static int big_cmpmag(Big *a, Big *b) {
+  if (a->len != b->len) return a->len < b->len ? -1 : 1;
+  for (int i = a->len - 1; i >= 0; i--) if (a->d[i] != b->d[i]) return a->d[i] < b->d[i] ? -1 : 1;
+  return 0;
+}
+static Big *big_addmag(int sign, Big *a, Big *b) {
+  int n = a->len > b->len ? a->len : b->len; long long carry = 0;
+  long long *d = malloc(sizeof(long long) * (n + 1));
+  for (int i = 0; i < n; i++) { long long s = (i < a->len ? a->d[i] : 0) + (i < b->len ? b->d[i] : 0) + carry;
+    d[i] = s % BASE; carry = s / BASE; }
+  d[n] = carry; return big_norm(sign, d, n + 1);
+}
+static Big *big_submag(int sign, Big *a, Big *b) {   /* precondition |a| >= |b| */
+  long long *d = malloc(sizeof(long long) * a->len); long long borrow = 0;
+  for (int i = 0; i < a->len; i++) { long long s = a->d[i] - (i < b->len ? b->d[i] : 0) - borrow;
+    if (s < 0) { d[i] = s + BASE; borrow = 1; } else { d[i] = s; borrow = 0; } }
+  return big_norm(sign, d, a->len);
+}
+static Big *big_add(Big *a, Big *b) {
+  if (a->sign == 0) return b; if (b->sign == 0) return a;
+  if (a->sign == b->sign) return big_addmag(a->sign, a, b);
+  int c = big_cmpmag(a, b);
+  if (c == 0) return big_from_int(0);
+  return c > 0 ? big_submag(a->sign, a, b) : big_submag(b->sign, b, a);
+}
+static Big *big_neg(Big *a) { if (a->sign == 0) return a; Big *b = malloc(sizeof(Big)); b->sign = -a->sign; b->len = a->len; b->d = a->d; return b; }
+static Big *big_sub(Big *a, Big *b) { return big_add(a, big_neg(b)); }
+static Big *big_mul(Big *a, Big *b) {
+  if (a->sign == 0 || b->sign == 0) return big_from_int(0);
+  int n = a->len + b->len; long long *d = calloc(n, sizeof(long long));
+  for (int i = 0; i < a->len; i++) { long long carry = 0;
+    for (int j = 0; j < b->len; j++) { long long cur = d[i + j] + a->d[i] * b->d[j] + carry; d[i + j] = cur % BASE; carry = cur / BASE; }
+    d[i + b->len] += carry; }
+  return big_norm(a->sign * b->sign, d, n);
+}
+static int big_cmp(Big *a, Big *b) {
+  if (a->sign != b->sign) return a->sign < b->sign ? -1 : 1;
+  if (a->sign == 0) return 0;
+  int c = big_cmpmag(a, b); return a->sign > 0 ? c : -c;
+}
 
 static Value *alloc(int tag) { Value *v = malloc(sizeof(Value)); v->tag = tag; return v; }
 static Value UNIT_V = { VUNIT };
@@ -46,6 +126,13 @@ static Value *mk_con(const char *name) { return mk_head(VCON, name); }
 static Value *mk_elim(const char *name) { return mk_head(VELIM, name); }
 
 static Value *mk_str(const char *s) { Value *v = alloc(VSTR); v->str = s; return v; }
+static Value *mk_int(Big *b) { Value *v = alloc(VINT); v->big = b; return v; }
+static Value *int_add(Value *a, Value *b) { return mk_int(big_add(a->big, b->big)); }
+static Value *int_sub(Value *a, Value *b) { return mk_int(big_sub(a->big, b->big)); }
+static Value *int_mul(Value *a, Value *b) { return mk_int(big_mul(a->big, b->big)); }
+static Value *int_eq(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) == 0); }
+static Value *int_lt(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) < 0); }
+static Value *int_fromnat(Value *n) { return mk_int(big_from_int((long long)n->i)); }
 static int as_bool(Value *v) { return v->i; }
 static Value *fst_v(Value *v) { return v->tag == VPAIR ? v->a : UNIT; }
 static Value *snd_v(Value *v) { return v->tag == VPAIR ? v->b : UNIT; }
@@ -123,6 +210,7 @@ static void print_value(Value *v) {
     case VNAT: printf("%d", v->i); break;
     case VBOOL: printf(v->i ? "true" : "false"); break;
     case VSTR: printf("\"%s\"", v->str); break;
+    case VINT: { char *s = big_to_str(v->big); printf("%s", s); free(s); break; }
     case VUNIT: printf("_"); break;
     case VPAIR: printf("("); print_value(v->a); printf(", "); print_value(v->b); printf(")"); break;
     case VCON:
@@ -167,6 +255,13 @@ let compile (decls : Tt.decl list) : string =
     | IStr s -> Printf.sprintf "mk_str(%s)" (quote s)
     | IStrApp (a, b) -> Printf.sprintf "str_app(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | IStrEq (a, b) -> Printf.sprintf "str_eq(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IInt b -> Printf.sprintf "mk_int(big_from_str(%s))" (quote (Bigint.to_string b))
+    | IIntAdd (a, b) -> Printf.sprintf "int_add(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntSub (a, b) -> Printf.sprintf "int_sub(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntMul (a, b) -> Printf.sprintf "int_mul(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntEq (a, b) -> Printf.sprintf "int_eq(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntLt (a, b) -> Printf.sprintf "int_lt(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | IIntFromNat n -> Printf.sprintf "int_fromnat(%s)" (cexpr nloc envv n)
     | IUnit -> "UNIT"
   in
   List.iter

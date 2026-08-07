@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | STR of string | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | INTLIT of string | STR of string | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -62,7 +62,17 @@ let tokenize (s : string) : tok array =
     else if c >= '0' && c <= '9' then begin
       let j = ref !i in
       while !j < n && s.[!j] >= '0' && s.[!j] <= '9' do incr j done;
-      push (NUM (int_of_string (String.sub s !i (!j - !i)))); i := !j
+      let digits = String.sub s !i (!j - !i) in
+      (* an Integer literal is written with a trailing `z` (for ℤ): 120z.
+         The suffix binds only when it is not the start of an identifier. *)
+      if !j < n && s.[!j] = 'z' && not (!j + 1 < n && is_a s.[!j + 1]) then
+        (push (INTLIT digits); i := !j + 1)
+      else begin
+        (match int_of_string_opt digits with
+         | Some k -> push (NUM k)
+         | None -> failwith (digits ^ ": Nat literal too large; write it as an Integer with a 'z' suffix (" ^ digits ^ "z)"));
+        i := !j
+      end
     end
     else failwith (Printf.sprintf "type-theory lexer: unexpected character '%c'" c)
   done;
@@ -71,7 +81,8 @@ let tokenize (s : string) : tok array =
 
 (* -------- parser: names -> de Bruijn core terms -------- *)
 
-let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq" ]
+let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
+                      "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
 let decl_kw = [ "def"; "check"; "eval"; "data"; "import" ]
 
 let index_of (x : string) (ns : string list) : int option =
@@ -105,7 +116,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   let fail m = failwith ("type-theory parse error: " ^ m) in
   let eat t m = if peek () = t then adv () else fail ("expected " ^ m) in
   let ident () = match peek () with ID x -> adv (); x | _ -> fail "expected a name" in
-  let starts_atom = function LP | NUM _ | STR _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
+  let starts_atom = function LP | NUM _ | INTLIT _ | STR _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
   let rec term ns =
     match peek () with
     | LAM ->
@@ -146,6 +157,12 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
           NatElim (p, z, s, nt)
       | ID "strcat" -> adv (); let a = atom ns in let b = atom ns in StrApp (a, b)
       | ID "streq" -> adv (); let a = atom ns in let b = atom ns in StrEq (a, b)
+      | ID "iadd" -> adv (); let a = atom ns in let b = atom ns in IntAdd (a, b)
+      | ID "isub" -> adv (); let a = atom ns in let b = atom ns in IntSub (a, b)
+      | ID "imul" -> adv (); let a = atom ns in let b = atom ns in IntMul (a, b)
+      | ID "ieq" -> adv (); let a = atom ns in let b = atom ns in IntEq (a, b)
+      | ID "ilt" -> adv (); let a = atom ns in let b = atom ns in IntLt (a, b)
+      | ID "fromNat" -> adv (); IntFromNat (atom ns)
       | ID x when (match Hashtbl.find_opt ctors x with Some k -> k > 0 | None -> false) ->
           adv (); List.fold_left (fun acc a -> App (acc, a)) (Con x) (take_atoms (Hashtbl.find ctors x))
       | ID x when Hashtbl.mem elims x ->
@@ -166,6 +183,8 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     | NUM k -> adv (); let rec mk i = if i <= 0 then Zero else Suc (mk (i - 1)) in mk k
     | ID "String" -> adv (); StringT
     | STR s -> adv (); Str s
+    | ID "Integer" -> adv (); IntT
+    | INTLIT s -> adv (); IntLit (Bigint.of_string s)
     | ID "refl" -> adv (); Refl
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")
@@ -208,9 +227,11 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         in
         let rec no_vars = function
           | Var _ -> false
-          | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _ -> true
-          | Pi (_, a, b) | Sig (_, a, b) | App (a, b) | Pair (a, b) | Ann (a, b) | StrApp (a, b) | StrEq (a, b) -> no_vars a && no_vars b
-          | Lam (_, b) | Suc b | Fst b | Snd b -> no_vars b
+          | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _
+          | IntT | IntLit _ -> true
+          | Pi (_, a, b) | Sig (_, a, b) | App (a, b) | Pair (a, b) | Ann (a, b) | StrApp (a, b) | StrEq (a, b)
+          | IntAdd (a, b) | IntSub (a, b) | IntMul (a, b) | IntEq (a, b) | IntLt (a, b) -> no_vars a && no_vars b
+          | Lam (_, b) | Suc b | Fst b | Snd b | IntFromNat b -> no_vars b
           | Id (a, b, c) | If (a, b, c) -> no_vars a && no_vars b && no_vars c
           | NatElim (a, b, c, d) -> no_vars a && no_vars b && no_vars c && no_vars d
           | Transp (a, b, c, d, e, f) -> List.for_all no_vars [ a; b; c; d; e; f ]
