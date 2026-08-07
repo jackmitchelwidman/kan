@@ -1,0 +1,49 @@
+-- std/kan — Kan extensions, the construction the language is named for.
+--
+-- "The notion of Kan extension subsumes all the other fundamental concepts of
+--  category theory." (Mac Lane, *Categories for the Working Mathematician*.)
+--
+-- Given functors  p : A -> B  and  F : A -> D, the LEFT Kan extension of F along
+-- p is the best approximation of F by a functor defined on all of B: a functor
+-- L : B -> D together with a natural transformation  η : F ⇒ L∘p, universal
+-- among such — every competitor factors through it. This file *states* that
+-- universal property as a Kan type. (Constructing an extension in general needs
+-- colimits/coends, which Kan does not yet have; the statement is the point —
+-- the thing Kan is named for, expressed in Kan.)
+
+import "category.kan"
+
+-- A left Kan extension of F along p: a functor L, a unit η : F ⇒ L∘p, and the
+-- universal mapping-out — every (G, γ : F ⇒ G∘p) factors through a σ : L ⇒ G.
+-- (The full universal property also asks that σ be the unique arrow whose
+--  whiskering by p recovers γ; the mediating σ is the computational heart.)
+def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+                 -> Functor A B -> Functor A D -> U
+  = \A B D p F.
+      (L : Functor B D)
+    * (unit : NatTrans A D F (compFunctor A B D p L))
+    * ( (G : Functor B D)
+        -> NatTrans A D F (compFunctor A B D p G)
+        -> NatTrans B D L G )
+
+-- Dually, the RIGHT Kan extension: a functor R, a counit ε : R∘p ⇒ F, and the
+-- universal mapping-in — every (G, γ : G∘p ⇒ F) factors through a σ : G ⇒ R.
+def RightKanExt : (A : Category) -> (B : Category) -> (D : Category)
+                  -> Functor A B -> Functor A D -> U
+  = \A B D p F.
+      (R : Functor B D)
+    * (counit : NatTrans A D (compFunctor A B D p R) F)
+    * ( (G : Functor B D)
+        -> NatTrans A D (compFunctor A B D p G) F
+        -> NatTrans B D G R )
+
+-- A functor F : A -> D always has a (trivial) left Kan extension along the
+-- identity functor on A: take L = F, and η the identity F ⇒ F∘id = F. The
+-- mediating map just forwards its input. This is the base case that anchors the
+-- definition — a Kan extension that Kan can actually build and check.
+def lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+                 -> LeftKanExt A A D (idFunctor A) F
+  = \A D F.
+      ( F
+      , ( idNat A D F
+        , \G gamma. gamma ) )

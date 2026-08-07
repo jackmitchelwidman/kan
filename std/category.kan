@@ -76,10 +76,53 @@ def fobj : (C : Category) -> (D : Category) -> Functor C D -> obj C -> obj D = \
 def fhom : (C : Category) -> (D : Category) -> (F : Functor C D) -> (a : obj C) -> (b : obj C)
            -> hom C a b -> hom D (fobj C D F a) (fobj C D F b)
          = \C D F. fst (snd F)
+def ffid : (C : Category) -> (D : Category) -> (F : Functor C D) -> (a : obj C)
+           -> Id (hom D (fobj C D F a) (fobj C D F a)) (fhom C D F a a (idn C a)) (idn D (fobj C D F a))
+         = \C D F. fst (snd (snd F))
+def ffcmp : (C : Category) -> (D : Category) -> (F : Functor C D)
+            -> (a : obj C) -> (b : obj C) -> (c : obj C) -> (g : hom C b c) -> (f : hom C a b)
+            -> Id (hom D (fobj C D F a) (fobj C D F c)) (fhom C D F a c (cmp C a b c g f))
+                  (cmp D (fobj C D F a) (fobj C D F b) (fobj C D F c) (fhom C D F b c g) (fhom C D F a b f))
+          = \C D F. snd (snd (snd F))
 
 -- the identity functor; both functor laws hold definitionally.
 def idFunctor : (C : Category) -> Functor C C
   = \C. ( \a. a , ( \a b f. f , ( \a. refl , \a b c g f. refl ) ) )
+
+-- composition of functors G ∘ F. The functor laws follow from F's and G's laws,
+-- transported along G's action on arrows (ap) and glued with trans.
+def compFunctor : (C : Category) -> (D : Category) -> (E : Category) -> Functor C D -> Functor D E -> Functor C E
+  = \C D E F G.
+      ( \a. fobj D E G (fobj C D F a)
+      , ( \a b f. fhom D E G (fobj C D F a) (fobj C D F b) (fhom C D F a b f)
+        , ( \a.
+              trans (hom E (fobj D E G (fobj C D F a)) (fobj D E G (fobj C D F a)))
+                    (fhom D E G (fobj C D F a) (fobj C D F a) (fhom C D F a a (idn C a)))
+                    (fhom D E G (fobj C D F a) (fobj C D F a) (idn D (fobj C D F a)))
+                    (idn E (fobj D E G (fobj C D F a)))
+                    (ap (hom D (fobj C D F a) (fobj C D F a))
+                        (hom E (fobj D E G (fobj C D F a)) (fobj D E G (fobj C D F a)))
+                        (fhom D E G (fobj C D F a) (fobj C D F a))
+                        (fhom C D F a a (idn C a))
+                        (idn D (fobj C D F a))
+                        (ffid C D F a))
+                    (ffid D E G (fobj C D F a))
+          , \a b c g f.
+              trans (hom E (fobj D E G (fobj C D F a)) (fobj D E G (fobj C D F c)))
+                    (fhom D E G (fobj C D F a) (fobj C D F c) (fhom C D F a c (cmp C a b c g f)))
+                    (fhom D E G (fobj C D F a) (fobj C D F c)
+                         (cmp D (fobj C D F a) (fobj C D F b) (fobj C D F c) (fhom C D F b c g) (fhom C D F a b f)))
+                    (cmp E (fobj D E G (fobj C D F a)) (fobj D E G (fobj C D F b)) (fobj D E G (fobj C D F c))
+                         (fhom D E G (fobj C D F b) (fobj C D F c) (fhom C D F b c g))
+                         (fhom D E G (fobj C D F a) (fobj C D F b) (fhom C D F a b f)))
+                    (ap (hom D (fobj C D F a) (fobj C D F c))
+                        (hom E (fobj D E G (fobj C D F a)) (fobj D E G (fobj C D F c)))
+                        (fhom D E G (fobj C D F a) (fobj C D F c))
+                        (fhom C D F a c (cmp C a b c g f))
+                        (cmp D (fobj C D F a) (fobj C D F b) (fobj C D F c) (fhom C D F b c g) (fhom C D F a b f))
+                        (ffcmp C D F a b c g f))
+                    (ffcmp D E G (fobj C D F a) (fobj C D F b) (fobj C D F c)
+                           (fhom C D F b c g) (fhom C D F a b f)) ) ) )
 
 -- A natural transformation F => G: a family of components with the naturality
 -- square commuting for every arrow.
