@@ -1,30 +1,33 @@
 -- ============================================================================
--- std/rational — exact rational numbers, as NORMALIZED COPRIME pairs of Integers.
+-- std/rational — exact rational numbers as normalized coprime pairs of Integers.
 --
--- A `Rat` is  num / den  kept in canonical form:  den > 0  and  gcd(|num|, den) = 1.
--- The smart constructor `mkQ` restores that form after every operation, so equal
--- rationals have IDENTICAL representations and arithmetic is exact — no floats,
--- no rounding, decidable equality.
+-- A `Rational` is  num / den  kept canonical:  den > 0  and  gcd(|num|,den) = 1,
+-- restored by the internal normalizer `normQ` after every operation — so equal
+-- rationals share a representation and arithmetic is exact (no floats, no
+-- rounding, decidable equality). ℚ as the field of fractions of ℤ, made canonical.
 --
--- Philosophy: ℚ is the field of fractions of ℤ (localization at the nonzero
--- integers). This file is that construction, made canonical. Kan's position:
--- the primitive numbers are exact — ℤ and ℚ; irrationals are limits, not values.
+-- SAFETY: there is no silent divide-by-zero. Reciprocal and division return
+-- `Option Rational` — `none` exactly when the divisor is the zero rational — and
+-- the public constructor `mkQ` returns `none` on a zero denominator. Total,
+-- honest, no junk values from the public API.
 --
--- Honesty about the invariant (T1): coprimality/positivity are MAINTAINED by
--- `mkQ`, not PROVEN in the type. Kan cannot yet state lemmas about the `idiv`
--- and `igcd` primitives, so a proof-carrying `Rat` (den > 0 and coprimality as
--- fields, à la `Category`'s laws) is future work — it needs well-founded
--- recursion or an inductive view of `Integer`. Until then, always build rationals
--- through `mkQ` and the operations below; a hand-built `rational n d` may not be
--- canonical. `eqQ`/`ltQ` cross-multiply, so they stay correct even if it isn't.
+-- Scope note (see DECISIONS.md ADR-013): den≠0 / coprimality are MAINTAINED by
+-- the smart constructors here, not yet PROVEN in the type. The raw `rational`
+-- constructor can still build a non-canonical value (e.g. `rational 3 0`); it is
+-- the documented unsafe escape hatch. The type-ENFORCED version is being built on
+-- the verified integer tower (std/int.kan); until it lands, always construct via
+-- `mkQ` / `fromInt` and divide via `divQ` / `recipQ`, and the API stays safe.
+-- (`eqQ`/`ltQ` cross-multiply, so they are correct even on a non-canonical input.)
 --
 -- Integer literals carry a `z` suffix (0z, 1z, …). Decimal-literal sugar
 -- (0.25 ↦ 1/4) is a separate, deferred lexer change.
 -- ============================================================================
+import "option.kan"
 
 -- --- Integer helpers (idiv / igcd / iadd / … are built-in primitives) --------
 def ineg : Integer -> Integer = lambda a: isub 0z a
 def imod : Integer -> Integer -> Integer = lambda a b: isub a (imul (idiv a b) b)
+def iabs : Integer -> Integer = lambda a: match (ilt a 0z) { | true => ineg a | false => a }
 
 -- --- the type: a numerator and a denominator --------------------------------
 data Rational { rational : Integer -> Integer -> Rational }
@@ -32,11 +35,11 @@ data Rational { rational : Integer -> Integer -> Rational }
 def num : Rational -> Integer = lambda q: match q { | rational n d => n }
 def den : Rational -> Integer = lambda q: match q { | rational n d => d }
 
--- --- the smart constructor: normalize a raw (n, d) into canonical form -------
---   • d = 0 is treated as the junk rational 0 (keeps everything total);
---   • otherwise divide out gcd(|n|,d) and force the denominator positive.
+-- --- internal normalizer: raw (n, d) with d ≠ 0 into canonical form ----------
 -- (idiv by the gcd is exact — the gcd divides both — so no rounding occurs.)
-def mkQ : Integer -> Integer -> Rational
+-- A d = 0 input maps to the zero rational; the public entry points below never
+-- pass 0 here, so callers of the public API never observe that fallback.
+def normQ : Integer -> Integer -> Rational
   = lambda n d:
       match (ieq d 0z) {
       | true  => rational 0z 1z
@@ -50,30 +53,44 @@ def mkQ : Integer -> Integer -> Rational
 -- --- constants and injections -----------------------------------------------
 def qzero : Rational = rational 0z 1z
 def qone  : Rational = rational 1z 1z
-def fromInt  : Integer -> Rational = lambda n: rational n 1z          -- already canonical
+def fromInt  : Integer -> Rational = lambda n: rational n 1z          -- always safe (den 1)
 def qFromNat : Nat -> Rational     = lambda n: rational (fromNat n) 1z
 
--- --- field operations --------------------------------------------------------
+-- SAFE public constructor: none on a zero denominator, else the canonical value.
+def mkQ : Integer -> Integer -> Option Rational
+  = lambda n d: match (ieq d 0z) {
+      | true  => none Rational
+      | false => some Rational (normQ n d) }
+
+-- --- field operations (total: operate on already-valid rationals) ------------
 -- a/b + c/d = (a·d + c·b) / (b·d)
 def addQ : Rational -> Rational -> Rational
-  = lambda x y: mkQ (iadd (imul (num x) (den y)) (imul (num y) (den x)))
-                    (imul (den x) (den y))
+  = lambda x y: normQ (iadd (imul (num x) (den y)) (imul (num y) (den x)))
+                      (imul (den x) (den y))
 
--- negation keeps den > 0 and coprimality, so it needs no renormalization
 def negQ : Rational -> Rational = lambda x: rational (ineg (num x)) (den x)
-
 def subQ : Rational -> Rational -> Rational = lambda x y: addQ x (negQ y)
 
 def mulQ : Rational -> Rational -> Rational
-  = lambda x y: mkQ (imul (num x) (num y)) (imul (den x) (den y))
+  = lambda x y: normQ (imul (num x) (num y)) (imul (den x) (den y))
 
--- reciprocal: d/n.  recip of 0 is 0 (junk, so the language stays total).
-def recipQ : Rational -> Rational = lambda x: mkQ (den x) (num x)
+-- --- predicates --------------------------------------------------------------
+def isZeroQ : Rational -> Bool = lambda x: ieq (num x) 0z
 
-def divQ : Rational -> Rational -> Rational = lambda x y: mulQ x (recipQ y)
+-- --- SAFE reciprocal and division — no silent divide-by-zero -----------------
+-- recip of the zero rational is `none`; otherwise d/n (renormalized for sign).
+def recipQ : Rational -> Option Rational
+  = lambda x: match (isZeroQ x) {
+      | true  => none Rational
+      | false => some Rational (normQ (den x) (num x)) }
+
+-- x ÷ y : `none` exactly when y is zero. Impossible to divide by zero silently.
+def divQ : Rational -> Rational -> Option Rational
+  = lambda x y: match (recipQ y : Option Rational) {
+      | none   => none Rational
+      | some r => some Rational (mulQ x r) }
 
 -- --- comparison and equality (cross-multiply; dens are positive) -------------
--- Correct even for a non-canonical input: no reliance on the maintained invariant.
 def eqQ : Rational -> Rational -> Bool
   = lambda x y: ieq (imul (num x) (den y)) (imul (num y) (den x))
 
@@ -84,34 +101,13 @@ def ltQ : Rational -> Rational -> Bool
 def leqQ : Rational -> Rational -> Bool
   = lambda x y: ilt (imul (num x) (den y)) (iadd (imul (num y) (den x)) 1z)
 
--- --- demonstrations (also the tri-runtime regression coverage) ---------------
--- 2/4 is stored as 1/2:
---eval num (mkQ 2z 4z)          -- 1
---eval den (mkQ 2z 4z)          -- 2
--- a negative denominator moves its sign to the numerator: 1/(-2) = -1/2
---eval num (mkQ 1z (ineg 2z))   -- -1
---eval den (mkQ 1z (ineg 2z))   -- 2
--- 1/2 + 1/3 = 5/6
---eval num (addQ (mkQ 1z 2z) (mkQ 1z 3z))   -- 5
---eval den (addQ (mkQ 1z 2z) (mkQ 1z 3z))   -- 6
--- 1/2 + 1/2 = 1/1
---eval num (addQ (mkQ 1z 2z) (mkQ 1z 2z))   -- 1
---eval den (addQ (mkQ 1z 2z) (mkQ 1z 2z))   -- 1
--- (2/3)·(3/4) = 1/2
---eval num (mulQ (mkQ 2z 3z) (mkQ 3z 4z))   -- 1
---eval den (mulQ (mkQ 2z 3z) (mkQ 3z 4z))   -- 2
--- (1/2) ÷ (3/4) = 2/3
---eval num (divQ (mkQ 1z 2z) (mkQ 3z 4z))   -- 2
---eval den (divQ (mkQ 1z 2z) (mkQ 3z 4z))   -- 3
--- recip(2/3) = 3/2 ; recip(0) = 0 (junk, total)
---eval num (recipQ (mkQ 2z 3z))             -- 3
---eval den (recipQ qzero)                   -- 1
--- 3/4 - 1/4 = 1/2
---eval num (subQ (mkQ 3z 4z) (mkQ 1z 4z))   -- 1
--- equality is exact across representations
---eval eqQ (mkQ 2z 4z) (mkQ 1z 2z)          -- true
---eval eqQ (mkQ 1z 2z) (mkQ 1z 3z)          -- false
---eval ltQ (mkQ 1z 3z) (mkQ 1z 2z)          -- true
---eval leqQ (mkQ 1z 2z) (mkQ 1z 2z)         -- true
--- big exact denominators, no overflow, no rounding
---eval den (addQ (mkQ 1z 1000000000000z) (mkQ 1z 3z))  -- 3000000000000
+-- --- more everyday operations ------------------------------------------------
+def absQ  : Rational -> Rational = lambda x: rational (iabs (num x)) (den x)
+def signQ : Rational -> Integer
+  = lambda x: match (ieq (num x) 0z) {
+      | true  => 0z
+      | false => match (ilt (num x) 0z) { | true => isub 0z 1z | false => 1z } }
+def minQ : Rational -> Rational -> Rational
+  = lambda x y: match (leqQ x y) { | true => x | false => y }
+def maxQ : Rational -> Rational -> Rational
+  = lambda x y: match (leqQ x y) { | true => y | false => x }

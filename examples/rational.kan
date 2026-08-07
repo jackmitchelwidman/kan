@@ -1,0 +1,36 @@
+-- examples/rational — exact rational arithmetic, and SAFE (no divide-by-zero)
+-- division. Runnable and tri-runtime (kan run / OCaml / C all agree).
+--   kan run examples/rational.kan
+import "../std/rational.kan"
+
+-- display helpers: an Option Rational shown as a plain Integer for `eval`
+-- (a `none` — i.e. a divide-by-zero — shows as the sentinel -999).
+def numOr : Integer -> Option Rational -> Integer
+  = lambda d o: match (o : Option Rational) { | none => d | some r => num r }
+def denOr : Integer -> Option Rational -> Integer
+  = lambda d o: match (o : Option Rational) { | none => d | some r => den r }
+
+def half      : Rational = normQ 1z 2z
+def third     : Rational = normQ 1z 3z
+def twoThirds : Rational = normQ 2z 3z
+
+-- exact arithmetic, always in lowest terms
+eval num (addQ half third)                 -- 5     (1/2 + 1/3 = 5/6)
+eval den (addQ half third)                 -- 6
+eval num (mulQ twoThirds (normQ 3z 4z))    -- 1     ((2/3)(3/4) = 1/2)
+eval den (mulQ twoThirds (normQ 3z 4z))    -- 2
+eval eqQ (normQ 2z 4z) half                -- true  (2/4 = 1/2 exactly)
+eval ltQ third half                        -- true  (1/3 < 1/2)
+eval signQ (negQ half)                     -- -1
+eval num (absQ (negQ half))                -- 1
+
+-- SAFE division: a real quotient gives `some`; dividing by zero gives `none`.
+eval numOr (isub 0z 999z) (divQ half twoThirds)   -- 3     ((1/2)÷(2/3) = 3/4)
+eval denOr (isub 0z 999z) (divQ half twoThirds)   -- 4
+eval numOr (isub 0z 999z) (divQ half qzero)       -- -999  (÷0 → none, no crash)
+eval numOr (isub 0z 999z) (recipQ twoThirds)      -- 3     (recip(2/3) = 3/2)
+eval numOr (isub 0z 999z) (recipQ qzero)          -- -999  (recip 0 → none)
+
+-- the safe public constructor also refuses a zero denominator
+eval numOr (isub 0z 999z) (mkQ 5z 0z)             -- -999
+eval numOr (isub 0z 999z) (mkQ 5z 10z)            -- 1     (5/10 = 1/2)

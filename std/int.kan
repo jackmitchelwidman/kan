@@ -78,3 +78,30 @@ def addI_zero : (i : Int) -> Id Int (addI i (pos zero)) i
   = lambda i: match i {
       | pos m    => ap Nat Int (lambda x: pos x) (add m zero) m (add_n_zero m)
       | negsuc n => refl }
+
+-- ============================================================================
+-- WHAT WE CANNOT YET PROVE (honest record — see DECISIONS.md ADR-013).
+--
+-- These are *true* and *will* be provable; they are blocked today on two known
+-- gaps, not on anything false. Each is a milestone, not a dead end.
+--
+--  • negI (negI i) = i   (negation is involutive)
+--      Blocked on: a NESTED dependent motive. The proof case-splits `i` (fine —
+--      a top-level match gets a dependent motive, ADR-012), but the `pos` case
+--      must then split the `Nat` inside, and that inner `match` cannot refine
+--      the goal per sub-case. Needs `match e return (motive) { … }` (explicit
+--      dependent motive on any match — ADR-012's flagged next step).
+--  • addI commutative / associative; mulI commutative / associative / by-zero;
+--    distributivity — the ring axioms.
+--      Blocked on: the corresponding Nat lemmas (only `add_n_zero`/`add_assoc`
+--      exist so far; `add_comm`, `mul_comm`, etc. must be proved first), and in
+--      places the nested motive above.
+--  • gcd / division on Int, and their correctness (gcd divides both; dividing by
+--    the gcd yields coprime; Euclid terminates) — the load-bearing lemmas a
+--    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
+--      Blocked on: a verified fuel-Euclid gcd on Nat (fuel-sufficiency proved by
+--      induction) — milestone 2 — plus the nested motive.
+--
+-- No axioms will be postulated to skip any of these. The tower is proven or it
+-- does not ship.
+-- ============================================================================
