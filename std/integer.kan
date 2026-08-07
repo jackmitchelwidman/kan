@@ -24,8 +24,8 @@ def square : Integer -> Integer = \a. imul a a
 -- unbounded and computed by fast native multiplication rather than by unary
 -- recursion. `factorial 50` is exact and instant.
 def factorial : Nat -> Integer
-  = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+  = \n. match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
 
 -- sum 0..n as an Integer (again: Nat drives, Integer accumulates)
 def sumTo : Nat -> Integer
-  = \n. natElim (\_. Integer) 0z (\k ih. iadd (fromNat (suc k)) ih) n
+  = \n. match n { | zero => 0z | suc k => iadd (fromNat (suc k)) (sumTo k) }

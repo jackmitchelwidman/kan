@@ -2,8 +2,10 @@
 data List (A : U) { nil : List A, cons : A -> List A -> List A }
 
 def length : (A : U) -> List A -> Nat
-           = \A xs. List_elim A (\l. Nat) 0 (\x xs ih. suc ih) xs
+  = \A xs. match (xs : List A) { | nil => zero | cons x ys => suc (length A ys) }
+
 def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
-        = \A B f xs. List_elim A (\l. List B) (nil B) (\x xs ih. cons B (f x) ih) xs
+  = \A B f xs. match (xs : List A) { | nil => nil B | cons x ys => cons B (f x) (map A B f ys) }
+
 def append : (A : U) -> List A -> List A -> List A
-           = \A xs ys. List_elim A (\l. List A) ys (\x rest ih. cons A x ih) xs
+  = \A xs ys. match (xs : List A) { | nil => ys | cons x rest => cons A x (append A rest ys) }

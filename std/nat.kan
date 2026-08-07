@@ -1,8 +1,8 @@
 -- std/nat — natural-number arithmetic, with a proof.
 import "logic.kan"
 
-def add : Nat -> Nat -> Nat = \m n. natElim (\_. Nat) n (\k ih. suc ih) m
-def mul : Nat -> Nat -> Nat = \m n. natElim (\_. Nat) 0 (\k ih. add n ih) m
+def add : Nat -> Nat -> Nat = \m n. match m { | zero => n    | suc k => suc (add k n) }
+def mul : Nat -> Nat -> Nat = \m n. match m { | zero => zero | suc k => add n (mul k n) }
 
 -- for all n, add n zero = n — proved by induction (the def checking IS the proof)
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n

@@ -302,7 +302,6 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     eat RBRACE "}";
     rec_decarg := saved_decarg; rec_ihmap := saved_ihmap;
     let arms = List.rev !arms in
-    if arms = [] then fail "match: needs at least one arm ( | Ctor .. => body )";
     let names_of = List.map fst arms in
     let find c = try List.assoc c arms with Not_found -> fail ("match: missing case for '" ^ c ^ "'") in
     let motive () = match rty with
@@ -314,28 +313,34 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     else if List.mem "true" names_of || List.mem "false" names_of then
       If (scrut, find "true", find "false")
     else begin
-      match Hashtbl.find_opt ctor_owner (List.hd names_of) with
-      | None -> fail ("match: unknown constructor '" ^ List.hd names_of ^ "'")
-      | Some d ->
-          let k, cs = Hashtbl.find data_info d in
-          let ctor_set = List.map fst cs in
-          List.iter (fun c -> if not (List.mem c ctor_set) then fail ("match: '" ^ c ^ "' is not a constructor of " ^ d)) names_of;
-          let params =
-            if k = 0 then []
-            else match scrut_ty with
-              | None -> fail (Printf.sprintf "match on %s needs the scrutinee's type: write `match (x : %s ..) { .. }`" d d)
-              | Some t ->
-                  let rec sp acc = function App (f, a) -> sp (a :: acc) f | h -> (h, acc) in
-                  (match sp [] t with
-                   | Data d', args when d' = d ->
-                       if List.length args <> k then fail (Printf.sprintf "match: %s takes %d type parameter(s)" d k) else args
-                   | _ -> fail ("match: scrutinee type must be " ^ d ^ " applied to its parameters"))
-          in
-          let methods = List.map (fun (cn, _) -> find cn) cs in
-          let head = List.fold_left (fun acc p -> App (acc, p)) (Elim (d ^ "_elim")) params in
-          let head = App (head, motive ()) in
-          let head = List.fold_left (fun acc m -> App (acc, m)) head methods in
-          App (head, scrut)
+      (* user datatype: identified from an arm, or — for an empty match, e.g. on
+         Void — from the scrutinee's type annotation *)
+      let d = match names_of with
+        | c :: _ -> (match Hashtbl.find_opt ctor_owner c with Some d -> d | None -> fail ("match: '" ^ c ^ "' is not a constructor"))
+        | [] -> (match scrut_ty with
+                 | Some t -> let rec sp = function App (f, _) -> sp f | h -> h in
+                             (match sp t with Data d -> d | _ -> fail "match: cannot tell which type this is; annotate `(x : D ..)`")
+                 | None -> fail "empty match needs the scrutinee's type: `match (x : D ..) return R { }`")
+      in
+      let k, cs = (try Hashtbl.find data_info d with Not_found -> fail ("match: unknown datatype " ^ d)) in
+      let ctor_set = List.map fst cs in
+      List.iter (fun c -> if not (List.mem c ctor_set) then fail ("match: '" ^ c ^ "' is not a constructor of " ^ d)) names_of;
+      let params =
+        if k = 0 then []
+        else match scrut_ty with
+          | None -> fail (Printf.sprintf "match on %s needs the scrutinee's type: write `match (x : %s ..) { .. }`" d d)
+          | Some t ->
+              let rec sp acc = function App (f, a) -> sp (a :: acc) f | h -> (h, acc) in
+              (match sp [] t with
+               | Data d', args when d' = d ->
+                   if List.length args <> k then fail (Printf.sprintf "match: %s takes %d type parameter(s)" d k) else args
+               | _ -> fail ("match: scrutinee type must be " ^ d ^ " applied to its parameters"))
+      in
+      let methods = List.map (fun (cn, _) -> find cn) cs in
+      let head = List.fold_left (fun acc p -> App (acc, p)) (Elim (d ^ "_elim")) params in
+      let head = App (head, motive ()) in
+      let head = List.fold_left (fun acc m -> App (acc, m)) head methods in
+      App (head, scrut)
     end
   in
   let decl ns =

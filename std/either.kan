@@ -2,4 +2,4 @@
 data Either (A : U) (B : U) { left : A -> Either A B, right : B -> Either A B }
 
 def either : (A : U) -> (B : U) -> (C : U) -> (A -> C) -> (B -> C) -> Either A B -> C
-           = \A B C f g e. Either_elim A B (\l. C) (\a. f a) (\b. g b) e
+  = \A B C f g e. match (e : Either A B) { | left a => f a | right b => g b }
