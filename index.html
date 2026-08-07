@@ -171,8 +171,8 @@
     <h2>Pattern matching, total by construction</h2>
     <p>You write functions with <code>match</code> and structural recursion. A function is accepted
     only when the recursion is on a smaller piece of its input — so <b>if it compiles, it
-    terminates.</b> Totality isn't a promise here, it's enforced; non-structural or accumulator-style
-    recursion is rejected.</p>
+    terminates.</b> Totality isn't a promise here, it's enforced. Both plain and accumulator-style
+    recursion work (the argument may shrink or change); non-structural recursion is rejected.</p>
 <pre><span class="c">-- addition, by pattern matching and structural recursion</span>
 <span class="k">def</span> add : Nat -> Nat -> Nat = \m n. <span class="k">match</span> m { | zero => n | suc k => suc (add k n) }
 
