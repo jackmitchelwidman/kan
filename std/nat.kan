@@ -12,17 +12,14 @@ def eqNat : Nat -> Nat -> Bool
 def leq : Nat -> Nat -> Bool
   = \m n. match m { | zero => true | suc j => match n { | zero => false | suc k => leq j k } }
 
--- for all n, add n zero = n — proved by induction (the def checking IS the proof)
+-- for all n, add n zero = n — proved by induction with `match` (the recursive
+-- call is the induction hypothesis; the def checking IS the proof).
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
-  = \n. natElim (\m. Id Nat (add m zero) m)
-                refl
-                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)
-                n
+  = \n. match n { | zero  => refl
+                | suc k => ap Nat Nat (\x. suc x) (add k zero) k (add_n_zero k) }
 
--- addition is associative — by induction on the first argument.
+-- addition is associative — induction on the first argument; b and c ride along.
 def add_assoc : (a : Nat) -> (b : Nat) -> (c : Nat)
              -> Id Nat (add (add a b) c) (add a (add b c))
-  = \a b c. natElim (\m. Id Nat (add (add m b) c) (add m (add b c)))
-                    refl
-                    (\k ih. ap Nat Nat (\x. suc x) (add (add k b) c) (add k (add b c)) ih)
-                    a
+  = \a b c. match a { | zero  => refl
+                    | suc k => ap Nat Nat (\x. suc x) (add (add k b) c) (add k (add b c)) (add_assoc k b c) }

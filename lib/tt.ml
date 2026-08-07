@@ -339,8 +339,15 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
        scope); otherwise the plain result type R *)
     let motive () =
       if decreasing then
+        (* DEPENDENT motive: the annotation's Pi over the scrutinee, as a lambda
+           (so the result type may mention the scrutinee — this is what lets a
+           `match` prove things by induction), lifted into the eliminator's scope.
+           When the result type doesn't mention the scrutinee it is the plain
+           `\_. R` up to the unused binder, so ordinary functions are unchanged. *)
         (match !rec_annot with
-         | Some t -> Lam ("_", lift (num_moved + 1) 0 (peel_pi (dpos + 1) t))
+         | Some t -> (match peel_pi dpos t with
+                      | Pi (x, _, r) -> lift (num_moved + 1) 0 (Lam (x, r))
+                      | _ -> fail "a recursive `match` needs a function-typed def annotation")
          | None -> fail "a recursive `match` needs its def to carry a type annotation")
       else match rty with
         | Some r -> Lam ("_", lift 1 0 r)
