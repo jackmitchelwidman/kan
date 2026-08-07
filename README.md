@@ -51,9 +51,11 @@ terminates in principle. It does **not** promise the program is *feasible* — a
 total program can still cost more steps than there is time to run them (`Nat` is
 Peano, so its arithmetic is unary; that is what `Integer` is for). What used to
 be an outright crash is gone: `natElim` reduces iteratively, so well-typed
-programs no longer overflow the stack on large closed naturals. One known limit
-remains: deep recursion over *user* inductive types can still exhaust the stack
-(a structural version of the same issue) — see the roadmap.
+programs no longer overflow the stack on large closed naturals, and `kan` runs
+itself under a raised stack limit so deep-but-*bounded* work — a million-deep
+numeral, a long structural fold — completes rather than crashing (`fac 100000`
+returns its exact 456,574-digit value). What stays unpromised is *unbounded*
+cost: a total program can still run longer than you can wait, or exhaust memory.
 
 The categorical vision below — *programs are diagrams, computation is universal
 completion* — is realized in this type theory. The original `fill` calculus

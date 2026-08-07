@@ -124,7 +124,25 @@ let usage () =
   prerr_endline "  kan emit-c  <file.kan>            print the generated C";
   exit 1
 
+(* Parsing and checking recurse over the input's structure; a large Nat literal
+   is a unary tower `suc (suc … zero)` as deep as its value, so `100000` needs a
+   ~100k-deep traversal — more than the default 8 MB stack. Re-exec ourselves
+   once under a raised stack limit so deep-but-bounded work doesn't overflow.
+   (Kan is total, so this only ever accommodates finite, input-bounded depth.) *)
+let ensure_big_stack () =
+  if Sys.getenv_opt "KAN_STACK_RAISED" = None then begin
+    let self = Filename.quote Sys.executable_name in
+    let args = Array.to_list Sys.argv |> List.tl |> List.map Filename.quote |> String.concat " " in
+    let script =
+      Printf.sprintf
+        "export KAN_STACK_RAISED=1; ulimit -s unlimited 2>/dev/null || ulimit -s \"$(ulimit -Hs)\" 2>/dev/null; exec %s %s"
+        self args
+    in
+    exit (Sys.command ("/bin/sh -c " ^ Filename.quote script))
+  end
+
 let () =
+  ensure_big_stack ();
   match Array.to_list Sys.argv with
   | _ :: "check" :: [ file ] -> do_check file
   | _ :: "run" :: [ file ] -> do_run file
