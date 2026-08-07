@@ -189,6 +189,56 @@ inductions and stay as they are.
 
 ---
 
+## ADR-013 — A verified integer tower for exact `Rational` (inductive `Int`)
+**Decision.** A *type-enforced* `Rational` — one whose "denominator ≠ 0" and
+coprimality invariants are **proof fields**, not merely maintained by a smart
+constructor (the T1 `std/rational.kan`, ADR-unlisted, shipped alongside `idiv`/
+`igcd`) — requires an *equational theory for integers*. The primitive `Integer`
+(ADR-006) is an opaque bignum with **no induction principle**, so nothing about
+`iadd`/`imul`/`idiv`/`igcd` is provable. Therefore: give integers an inductive
+definition, `std/int.kan`'s `data Int { pos : Nat -> Int, negsuc : Nat -> Int }`
+(unique representations ⇒ structural `Id`), with arithmetic by structural
+recursion and its laws proved by induction — reducing facts about `Int` to facts
+about `Nat`, which *are* provable. The primitive `Integer` and the T1
+`std/rational.kan` stay **untouched** as the computational layer; the verified
+tower grows underneath and will eventually *supply* the proofs a T2 `Rational`
+needs. **No postulated axioms** at any point — for exactness, an axiom is the
+most temporary thing there is dressed as permanent.
+
+**Why nothing smaller is real.** Every escape route from "prove things about
+integers" closes: (a) enforcing only `den ≠ 0` (via a `Not (Id Integer d 0z)`
+witness, constructible for literals) dies at `mulQ`/`addQ`, whose output
+denominator is `imul d1 d2` — "product of nonzeros is nonzero" is a lemma about
+the primitive; (b) a **quotient** `Rational` doesn't dodge it — the
+respect-the-relation proofs are semiring algebra over `iadd`/`imul`, the same
+wall (quotient types *presuppose* this foundation, so they become a later ADR
+that also depends on it); (c) a structurally-positive denominator (`den = suc k`)
+makes zero unrepresentable but has no `toNat` and O(value) cost — a 10¹²
+denominator is dead on arrival. Root cause in one line: **no induction over
+`Integer` ⇒ no integer lemmas ⇒ no type-level rational invariant.**
+
+**Precedent.** This is exactly the `Nat` architecture Kan already runs: `NUM 5`
+is a `Suc` tower (inductive truth), stored as a machine int, `natElim` loops
+(accelerated representation). ADR-006 deliberately kept `Integer` separate to
+preserve that; ADR-013 adds the inductive *twin* for proofs, not a replacement —
+milestone 3 will represent `Int`'s closed values by the existing bignum so the
+primitives become fast paths of the *defined* functions.
+
+**Status (this change).** `std/int.kan` lands: `Int`, `negI`/`diff`/`addI`/`subI`
+/`mulI`, a `toInteger` bridge, and the first proofs — `natAbs_pos` and
+`addI_zero`, the latter reducing an `Int` identity to `std/nat.kan`'s
+`add_n_zero` through `ap`. Gate 37/0. **Next unlock:** even `negI` involution
+needs a *nested* dependent motive (`match e return (motive)`, the ADR-012 "next
+step") — the nested `match` can't currently refine the goal per sub-case — and so
+will the gcd/div correctness proofs; that elaborator feature is milestone 1's
+critical path. **Milestones:** (1) ring lemmas for `Int` (needs `add_comm` &c. in
+`std/nat.kan`); (2) verified fuel-Euclid gcd/div on `Nat` with fuel-sufficiency
+proved by induction — the load-bearing formalization; (3) kernel acceleration
+(closed `Int` ↔ bignum); (4) the proof-carrying `Rational`. Milestones 2–3 are
+multi-session; this ADR locks the direction, not a delivery date.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

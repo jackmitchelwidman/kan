@@ -1,0 +1,80 @@
+-- ============================================================================
+-- std/int — the INDUCTIVE integers: a verified tower under the primitive `Integer`.
+--
+-- Why this exists. A type-enforced `Rational` (den ≠ 0 and coprimality as PROOF
+-- fields, not merely maintained by a smart constructor) needs to *prove* facts
+-- about integer arithmetic and gcd. The primitive `Integer` (lib/bigint.ml) is an
+-- opaque bignum with no induction principle, so nothing about `iadd`/`imul`/`idiv`
+-- /`igcd` is provable. This file gives integers an inductive definition — hence
+-- structural recursion and induction — exactly as Kan already does for `Nat`.
+-- (Fast primitive `Integer` stays the computational layer; see ADR-013.)
+--
+-- Representation (unique, so Id-equality is structural):
+--     pos n     =  n        (0, 1, 2, …)
+--     negsuc n  =  -(n+1)    (-1, -2, -3, …)
+-- ============================================================================
+import "nat.kan"
+import "bool.kan"
+
+data Int { pos : Nat -> Int, negsuc : Nat -> Int }
+
+-- --- observers ---------------------------------------------------------------
+def natAbs : Int -> Nat  = lambda i: match i { | pos m => m | negsuc n => suc n }
+def isNeg  : Int -> Bool = lambda i: match i { | pos m => false | negsuc n => true }
+
+-- --- constants and injections ------------------------------------------------
+def zeroI    : Int          = pos zero
+def oneI     : Int          = pos (suc zero)
+def fromNatI : Nat -> Int   = lambda n: pos n
+
+-- --- negation ----------------------------------------------------------------
+def negI : Int -> Int
+  = lambda i: match i {
+      | pos m    => match m { | zero => pos zero | suc k => negsuc k }
+      | negsuc n => pos (suc n) }
+
+-- Nat difference as an Int:  diff m n = m - n.  Structural on m (n rides along).
+def diff : Nat -> Nat -> Int
+  = lambda m n: match m {
+      | zero  => match n { | zero => pos zero | suc k => negsuc k }
+      | suc j => match n { | zero => pos (suc j) | suc k => diff j k } }
+
+-- --- addition ----------------------------------------------------------------
+def addI : Int -> Int -> Int
+  = lambda i j: match i {
+      | pos m    => match j { | pos n => pos (add m n)          | negsuc n => diff m (suc n) }
+      | negsuc m => match j { | pos n => diff n (suc m)         | negsuc n => negsuc (add (suc m) n) } }
+
+def subI : Int -> Int -> Int = lambda i j: addI i (negI j)
+
+-- --- multiplication (sign · magnitude) --------------------------------------
+def intOfSignMag : Bool -> Nat -> Int
+  = lambda neg m: match neg {
+      | false => pos m
+      | true  => match m { | zero => pos zero | suc k => negsuc k } }
+
+def mulI : Int -> Int -> Int
+  = lambda i j: intOfSignMag (xor (isNeg i) (isNeg j)) (mul (natAbs i) (natAbs j))
+
+-- --- bridge to the fast primitive Integer (computational layer) --------------
+def toInteger : Int -> Integer
+  = lambda i: match i { | pos m => fromNat m | negsuc n => isub 0z (fromNat (suc n)) }
+
+-- ============================================================================
+-- First proofs — the tower in action. These lean on std/nat.kan's inductive
+-- lemmas, which is the whole point: facts about Int reduce to facts about Nat,
+-- which ARE provable by induction. (More — commutativity, associativity, the
+-- ring axioms, then verified gcd/div — build on these; see ADR-013.)
+-- ============================================================================
+
+-- natAbs of a `pos` is the identity (definitional).
+def natAbs_pos : (n : Nat) -> Id Nat (natAbs (pos n)) n
+  = lambda n: refl
+
+-- adding zero on the right is the identity — the `pos` case reduces to Nat's
+-- `add_n_zero` (transported through the `pos` constructor by `ap`); the `negsuc`
+-- case is definitional (diff 0 (suc n) = negsuc n).
+def addI_zero : (i : Int) -> Id Int (addI i (pos zero)) i
+  = lambda i: match i {
+      | pos m    => ap Nat Int (lambda x: pos x) (add m zero) m (add_n_zero m)
+      | negsuc n => refl }
