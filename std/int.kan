@@ -107,6 +107,27 @@ def addI_comm_negsucR : (j : Int) -> (m : Nat) -> Id Int (addI (negsuc m) j) (ad
 def addI_comm : (i : Int) -> (j : Int) -> Id Int (addI i j) (addI j i)
   = lambda i j: match i { | pos m => addI_comm_posR j m | negsuc m => addI_comm_negsucR j m }
 
+-- mulI is commutative. Case-split both signs (so `xor` and the sign/magnitude
+-- projections reduce definitionally in each arm) and appeal to Nat's mul_comm;
+-- the second-argument split is a top-level helper for its dependent motive.
+-- (A direct proof via `xor a b = xor b a` is blocked: Bool `match` lowers to a
+--  non-dependent `if`, so Bool properties can't yet be proved by case-refinement.)
+def mulI_comm_posR : (j : Int) -> (m : Nat) -> Id Int (mulI (pos m) j) (mulI j (pos m))
+  = lambda j m: match j {
+      | pos n    => ap Nat Int (lambda x: pos x) (mul m n) (mul n m) (mul_comm m n)
+      | negsuc n => ap Nat Int (lambda z: intOfSignMag true z)
+                       (mul m (suc n)) (mul (suc n) m) (mul_comm m (suc n)) }
+
+def mulI_comm_negsucR : (j : Int) -> (m : Nat) -> Id Int (mulI (negsuc m) j) (mulI j (negsuc m))
+  = lambda j m: match j {
+      | pos n    => ap Nat Int (lambda z: intOfSignMag true z)
+                       (mul (suc m) n) (mul n (suc m)) (mul_comm (suc m) n)
+      | negsuc n => ap Nat Int (lambda x: pos x)
+                       (mul (suc m) (suc n)) (mul (suc n) (suc m)) (mul_comm (suc m) (suc n)) }
+
+def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
+  = lambda i j: match i { | pos m => mulI_comm_posR j m | negsuc m => mulI_comm_negsucR j m }
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
@@ -117,13 +138,18 @@ def addI_comm : (i : Int) -> (j : Int) -> Id Int (addI i j) (addI j i)
 -- ordinary formalization work, not a missing feature.
 --
 -- Proved here: natAbs_pos, addI_zero (via Nat's add_n_zero), negI_negI (via a
--- helper), addI_comm (via Nat's add_comm; the cross-sign cases collapse
--- definitionally). std/nat.kan now also proves add_suc and add_comm.
+-- helper), addI_comm and mulI_comm (via Nat's add_comm / mul_comm; cross-sign
+-- cases collapse definitionally). std/nat.kan now proves add_suc, add_comm,
+-- add_swap, mul_n_zero, mul_suc, mul_comm.
+--
+-- A kernel gap found along the way: Bool `match` lowers to a NON-dependent `if`,
+-- so a Bool property (e.g. `xor a b = xor b a`) can't be proved by casing on the
+-- Bool. A dependent Bool eliminator (or `if … return`) would fix it; meanwhile we
+-- route around it (mulI_comm case-splits the *integers*, so `xor` reduces).
 --
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • remaining ring axioms: addI assoc, mulI comm/assoc, mul-by-zero/one,
---    distributivity — each reduces to a Nat lemma (mul_comm, mul_n_zero, …), some
---    of which must be proved in std/nat.kan first.
+--  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
+--  • verified gcd/div (milestone 2) for a *normalized* proof-carrying Rational.
 --  • gcd / division on Int and their correctness (gcd divides both; dividing by
 --    the gcd yields coprime; Euclid terminates) — via a verified fuel-Euclid on
 --    Nat (fuel-sufficiency proved by induction), milestone 2. These are the
