@@ -1,0 +1,72 @@
+-- examples/various.kan — four small programs exploring Kan's features and defaults.
+-- Run:  kan run examples/various.kan
+import "../std/nat.kan"        -- add
+import "../std/option.kan"     -- Option, none, some (for the dictionary lookup)
+
+-- ============================================================================
+-- 1. A DEPENDENT type: User indexed by a MINIMUM age.
+-- ----------------------------------------------------------------------------
+-- `User n` is the type of users who are at least n years old. A value stores the
+-- name and how many years the user is OVER the minimum, so the actual age is
+-- (n + over) — which is >= n by construction. You cannot build a `User 18` whose
+-- age is below 18: the type's index enforces the invariant.
+def User    : Nat -> U                        = \n. String * Nat   -- (name, years above n)
+def mkUser  : (n : Nat) -> String -> Nat -> User n = \n name over. (name, over)
+def userName : (n : Nat) -> User n -> String  = \n u. fst u
+def userAge  : (n : Nat) -> User n -> Nat     = \n u. add n (snd u)   -- actual age = n + over
+
+def alice : User 18 = mkUser 18 "alice" 7      -- at least 18; actually 25
+eval userName 18 alice                          -- "alice"
+eval userAge 18 alice                           -- 25
+
+-- ============================================================================
+-- 2. A GENERIC "class" Money, parameterized by the numeric type of its amount.
+-- ----------------------------------------------------------------------------
+-- `Money A` holds a currency and an amount of numeric type A. The parameter A is
+-- the "generic type of the value" — instantiate it with Nat, Integer, ...
+data Money (A : U) { money : String -> A -> Money A }
+def currency : (A : U) -> Money A -> String = \A m. match (m : Money A) { | money c a => c }
+def amount   : (A : U) -> Money A -> A       = \A m. match (m : Money A) { | money c a => a }
+
+def wallet : Money Integer = money Integer "USD" 100z    -- amount is an Integer
+def points : Money Nat     = money Nat "PTS" 42          -- amount is a Nat
+eval currency Integer wallet                             -- "USD"
+eval amount Integer wallet                               -- 100
+eval amount Nat points                                   -- 42
+
+-- ============================================================================
+-- 3. A Car "record" with make and model — and the DEFAULT print format.
+-- ----------------------------------------------------------------------------
+-- Kan is pure: there is no in-place mutation, so "setting" a field returns a NEW
+-- car. `eval` prints a constructed value in the default format
+--     (constructor arg1 arg2 ...)
+data Car { car : String -> String -> Car }        -- car <make> <model>
+def make     : Car -> String         = \c. match c { | car mk md => mk }
+def model    : Car -> String         = \c. match c { | car mk md => md }
+def setMake  : Car -> String -> Car  = \c x. match c { | car mk md => car x md }
+def setModel : Car -> String -> Car  = \c x. match c { | car mk md => car mk x }
+
+def c0 : Car = car "Toyota" "Corolla"
+def c1 : Car = setModel (setMake c0 "Honda") "Civic"
+eval c0                                            -- (car "Toyota" "Corolla")   <- the default format
+eval c1                                            -- (car "Honda" "Civic")
+eval make c1                                       -- "Honda"
+
+-- ============================================================================
+-- 4. A hash table? Kan has no mutable hash table — it is pure and total, and its
+--    String type is opaque (no character access, so keys cannot be hashed). The
+--    idiomatic pure equivalent is a persistent DICTIONARY as an association list:
+--    `insert` prepends an entry, `lookup` scans and returns an Option.
+-- ----------------------------------------------------------------------------
+data Dict (V : U) { empty : Dict V, entry : String -> V -> Dict V -> Dict V }
+def insert : (V : U) -> String -> V -> Dict V -> Dict V = \V k v d. entry V k v d
+def lookup : (V : U) -> String -> Dict V -> Option V
+  = \V k d. match (d : Dict V) {
+      | empty => none V
+    | entry k2 v rest => if (streq k k2) (some V v) (lookup V k rest)
+    }
+
+def phone : Dict Nat
+  = insert Nat "alice" 111 (insert Nat "bob" 222 (insert Nat "carol" 333 (empty Nat)))
+eval lookup Nat "bob" phone                        -- (some _ 222)   (found; the _ is the erased type arg)
+eval lookup Nat "dave" phone                       -- (none _)       (absent)
