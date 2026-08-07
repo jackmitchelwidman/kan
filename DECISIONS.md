@@ -251,7 +251,12 @@ type-enforced — is gated on **milestone 3 (kernel acceleration of closed `Int`
 values via the bignum)**, which is deliberately left for supervised work: it
 touches the evaluator in all three runtimes and a subtle error there is
 language-wide. Tower proofs advanced meanwhile (no axioms): `std/nat.kan`
-`add_suc`/`add_comm`; `std/int.kan` `negI_negI` (i.e. `-(-i)=i`) and `addI_comm`.
+`add_suc`/`add_comm`/`mul_comm`; `std/int.kan` `negI_negI` (i.e. `-(-i)=i`),
+`addI_comm`, `mulI_comm`. And milestone 3 now has an **executable spec** to be
+graded against: `examples/accel_spec.kan` pins the arithmetic results the fast
+path must reproduce (tri-runtime), and `std/accel_defeq.kan` pins the definitional
+reductions the conversion checker must preserve (all by `refl`). The fast path is
+correct iff both stay green after the kernel change.
 
 ---
 

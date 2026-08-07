@@ -1,0 +1,38 @@
+-- ============================================================================
+-- std/accel_defeq — the DEFINITIONAL-EQUALITY spec for ADR-013 milestone 3
+-- (kernel acceleration of inductive Nat/Int arithmetic).
+--
+-- These are the reduction rules the conversion checker relies on. Each is proved
+-- by `refl`, so it holds ONLY because the two sides reduce to the same normal
+-- form DEFINITIONALLY (not via a lemma). When we later make closed numerals
+-- compute via bignum fast paths, the fast path must be observationally identical
+-- to the inductive unfolding — i.e. every `refl` below must still check. If any
+-- fails after a kernel change, acceleration has perturbed definitional equality
+-- (a soundness-relevant regression), and the gate says so immediately.
+--
+-- NOTE what is deliberately ABSENT: `add m zero = m`, `mul m zero = 0`,
+-- `negI (negI i) = i` are TRUE but NOT definitional (they need induction) — they
+-- live as proofs in std/nat.kan and std/int.kan, and must STAY proofs, not become
+-- refl. Acceleration must not collapse a neutral (variable) term either.
+-- ============================================================================
+import "int.kan"
+
+-- Nat: the two computation rules of `add` and `mul` (recursion on the 1st arg)
+def add_zero_l : (n : Nat) -> Id Nat (add zero n) n                         = lambda n: refl
+def add_suc_l  : (m : Nat) -> (n : Nat) -> Id Nat (add (suc m) n) (suc (add m n)) = lambda m n: refl
+def mul_zero_l : (n : Nat) -> Id Nat (mul zero n) zero                       = lambda n: refl
+def mul_suc_l  : (m : Nat) -> (n : Nat) -> Id Nat (mul (suc m) n) (add n (mul m n)) = lambda m n: refl
+
+-- Int negation reductions
+def negI_pos_suc : (k : Nat) -> Id Int (negI (pos (suc k))) (negsuc k)       = lambda k: refl
+def negI_negsuc  : (n : Nat) -> Id Int (negI (negsuc n)) (pos (suc n))       = lambda n: refl
+
+-- Int addition: all four sign combinations reduce as defined
+def addI_pospos : (m : Nat) -> (n : Nat) -> Id Int (addI (pos m) (pos n)) (pos (add m n))              = lambda m n: refl
+def addI_posneg : (m : Nat) -> (n : Nat) -> Id Int (addI (pos m) (negsuc n)) (diff m (suc n))          = lambda m n: refl
+def addI_negpos : (m : Nat) -> (n : Nat) -> Id Int (addI (negsuc m) (pos n)) (diff n (suc m))          = lambda m n: refl
+def addI_negneg : (m : Nat) -> (n : Nat) -> Id Int (addI (negsuc m) (negsuc n)) (negsuc (add (suc m) n)) = lambda m n: refl
+
+-- Int multiplication: same-sign reduces to a `pos` of the Nat product
+def mulI_pospos : (m : Nat) -> (n : Nat) -> Id Int (mulI (pos m) (pos n)) (pos (mul m n))              = lambda m n: refl
+def mulI_negneg : (m : Nat) -> (n : Nat) -> Id Int (mulI (negsuc m) (negsuc n)) (pos (mul (suc m) (suc n))) = lambda m n: refl

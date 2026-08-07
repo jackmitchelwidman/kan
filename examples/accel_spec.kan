@@ -1,0 +1,37 @@
+-- examples/accel_spec — the RESULT spec for ADR-013 milestone 3 (kernel
+-- acceleration of inductive Nat/Int arithmetic). Every value below is what the
+-- future bignum fast path MUST reproduce, byte-for-byte, and all three runtimes
+-- (kan run / OCaml / C) must already agree today. Values are kept modest so the
+-- current unary evaluator runs the gate quickly; acceleration's job is to make
+-- these same results cheap at large scale, without changing a single output.
+--   kan run examples/accel_spec.kan
+import "../std/int.kan"
+
+-- Nat arithmetic (eval prints the numeral)
+eval add 200 300              -- 500
+eval add 99 0                 -- 99
+eval mul 12 12                -- 144
+eval mul 0 99                 -- 0
+eval mul 7 8                  -- 56
+
+-- Int arithmetic via the toInteger bridge
+eval toInteger (addI (pos 100) (pos 50))       -- 150
+eval toInteger (addI (pos 5) (negsuc 2))       -- 2     (5 + (-3))
+eval toInteger (addI (negsuc 4) (negsuc 5))    -- -11   ((-5) + (-6))
+eval toInteger (addI (negsuc 2) (pos 10))      -- 7     ((-3) + 10)
+eval toInteger (addI (pos 3) (negsuc 2))       -- 0     (3 + (-3), exact cancellation)
+eval toInteger (subI (pos 3) (pos 8))          -- -5
+eval toInteger (negI (pos 7))                  -- -7
+eval toInteger (negI (pos 0))                  -- 0     (negate zero stays zero)
+eval toInteger (negI (negsuc 3))               -- 4
+eval toInteger (mulI (pos 6) (pos 7))          -- 42
+eval toInteger (mulI (negsuc 2) (pos 4))       -- -12
+eval toInteger (mulI (negsuc 1) (negsuc 2))    -- 6
+eval toInteger (mulI (pos 5) (negsuc 0))       -- -5
+eval toInteger (mulI (pos 0) (negsuc 9))       -- 0
+
+-- diff (Nat subtraction into Int): the tricky signed boundary
+eval toInteger (diff 5 5)     -- 0
+eval toInteger (diff 8 3)     -- 5
+eval toInteger (diff 3 8)     -- -5
+eval toInteger (diff 0 4)     -- -4
