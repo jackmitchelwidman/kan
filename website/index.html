@@ -168,15 +168,23 @@
   </section>
 
   <section id="try">
-    <h2>A type is a theorem — and it compiles to native code</h2>
-    <p>Kan is dependently typed: you write a program, state its property as a type, and the checker
-    proves it. Here, addition — and a proof <em>by induction</em> that <code>add n 0 = n</code> for
-    every <code>n</code>. The proof is simply that it type-checks:</p>
-<pre><span class="c">-- nat.kan</span>
-<span class="k">def</span> add : Nat -> Nat -> Nat
-        = \m n. natElim (\_. Nat) n (\k ih. suc ih) m
+    <h2>Pattern matching, total by construction</h2>
+    <p>You write functions with <code>match</code> and structural recursion. A function is accepted
+    only when the recursion is on a smaller piece of its input — so <b>if it compiles, it
+    terminates.</b> Totality isn't a promise here, it's enforced; non-structural or accumulator-style
+    recursion is rejected.</p>
+<pre><span class="c">-- addition, by pattern matching and structural recursion</span>
+<span class="k">def</span> add : Nat -> Nat -> Nat = \m n. <span class="k">match</span> m { | zero => n | suc k => suc (add k n) }
 
-<span class="c">-- for ALL n, add n zero = n  —  proved by induction</span>
+<span class="c">-- a generic map over lists</span>
+<span class="k">def</span> map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
+  = \A B f xs. <span class="k">match</span> (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (map A B f ys) }</pre>
+
+    <h2 style="margin-top:40px">A type is a theorem — and it compiles to native code</h2>
+    <p>Kan is dependently typed: you state a program's property as a type, and the checker proves it.
+    Here, a proof <em>by induction</em> that <code>add n 0 = n</code> for every <code>n</code> — the
+    proof is simply that it type-checks:</p>
+<pre><span class="c">-- for ALL n, add n zero = n  —  a theorem, proved by induction</span>
 <span class="k">def</span> add_n_zero : (n : Nat) -> Id Nat (add n zero) n
   = \n. natElim (\m. Id Nat (add m zero) m)
                 refl
@@ -196,7 +204,7 @@
     and instant — and identical from <code>kan run</code>, the OCaml backend, and the C backend.</p>
 <pre><span class="c">-- a 65-digit factorial, by native big-integer multiplication</span>
 <span class="k">def</span> fac : Nat -> Integer
-        = \n. natElim (\_. Integer) 1z (\k ih. imul (fromNat (suc k)) ih) n
+  = \n. <span class="k">match</span> n { | zero => 1z | suc k => imul (fromNat (suc k)) (fac k) }
 
 eval fac 50</pre>
 <pre><span class="c">$ kan run integer.kan</span>
@@ -226,11 +234,12 @@ eval fac 50</pre>
     early research language — real and running, with the categorical layer now inside it.</p>
     <ul class="plain">
       <li><span class="tick">✓</span> <b>Dependent types</b> — Π, Σ, identity types, a universe hierarchy</li>
+      <li><span class="tick">✓</span> <b>Pattern matching &amp; structural recursion</b> — total by construction (compiles ⇒ terminates)</li>
       <li><span class="tick">✓</span> <b>User inductive types</b> (with parameters, e.g. <code>List A</code>) and induction — real proofs</li>
       <li><span class="tick">✓</span> <b>Unbounded <code>Integer</code></b> — arbitrary precision, exact <code>fac 50</code></li>
       <li><span class="tick">✓</span> <b>Two native backends</b> — OCaml and C, verified to agree</li>
       <li><span class="tick">✓</span> <b>Category theory, lawful</b> — <code>Category</code>, <code>Functor</code>, <code>NatTrans</code>, and Kan extensions, laws checked</li>
-      <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), record syntax, <code>fill</code> as a typed operation</li>
+      <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), dependent-motive <code>match</code>, record syntax, implicit arguments</li>
     </ul>
   </section>
 
@@ -240,13 +249,15 @@ eval fac 50</pre>
 git clone https://github.com/jackmitchelwidman/kan
 cd kan &amp;&amp; dune build
 
+kan run   examples/tutorial.kan          <span class="c"># a runnable tour of the language, start here</span>
 kan run   examples/integer.kan           <span class="c"># unbounded arithmetic — exact fac 50</span>
 kan check examples/categories.kan        <span class="c"># category theory, lawful</span>
-kan build examples/nat.kan -o nat &amp;&amp; ./nat   <span class="c"># compile to native (add -c for the C backend)</span></pre>
-    <p style="margin-bottom:0">Every file in <code>examples/</code> is a <code>.kan</code> program.
-      Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
-      the type system and unification story are in
-      <a href="https://github.com/jackmitchelwidman/kan/tree/main/docs">/docs</a>.</p>
+kan build examples/tutorial.kan -o tut &amp;&amp; ./tut   <span class="c"># compile to native (add -c for the C backend)</span></pre>
+    <p style="margin-bottom:0">Every file in <code>examples/</code> is a <code>.kan</code> program; the
+      <a href="https://github.com/jackmitchelwidman/kan/blob/main/examples/tutorial.kan">tutorial</a> is the
+      place to begin. Design doc: <a href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">README</a> ·
+      a hands-on <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/tour.md">tour</a> and the
+      type-system notes are in <a href="https://github.com/jackmitchelwidman/kan/tree/main/docs">/docs</a>.</p>
   </section>
 
   <footer>
