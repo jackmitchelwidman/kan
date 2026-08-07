@@ -60,6 +60,35 @@ let rec nat_int = function
   | Suc t -> (match nat_int t with Some k -> Some (k + 1) | None -> None)
   | _ -> None
 
+(* weaken a term: shift free de Bruijn indices >= cutoff by d. Used by the
+   surface elaborator to build a motive [\_. R] from a result type R. *)
+let rec lift d cutoff t =
+  let l = lift d cutoff and lb = lift d (cutoff + 1) in
+  match t with
+  | Var i -> if i >= cutoff then Var (i + d) else Var i
+  | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _ | IntT | IntLit _ -> t
+  | Pi (x, a, b) -> Pi (x, l a, lb b)
+  | Sig (x, a, b) -> Sig (x, l a, lb b)
+  | Lam (x, b) -> Lam (x, lb b)
+  | App (f, a) -> App (l f, l a)
+  | Pair (a, b) -> Pair (l a, l b)
+  | Fst a -> Fst (l a)
+  | Snd a -> Snd (l a)
+  | Suc a -> Suc (l a)
+  | If (a, b, c) -> If (l a, l b, l c)
+  | Id (a, b, c) -> Id (l a, l b, l c)
+  | NatElim (a, b, c, e) -> NatElim (l a, l b, l c, l e)
+  | Transp (a, b, c, e, f, g) -> Transp (l a, l b, l c, l e, l f, l g)
+  | StrApp (a, b) -> StrApp (l a, l b)
+  | StrEq (a, b) -> StrEq (l a, l b)
+  | IntAdd (a, b) -> IntAdd (l a, l b)
+  | IntSub (a, b) -> IntSub (l a, l b)
+  | IntMul (a, b) -> IntMul (l a, l b)
+  | IntEq (a, b) -> IntEq (l a, l b)
+  | IntLt (a, b) -> IntLt (l a, l b)
+  | IntFromNat a -> IntFromNat (l a)
+  | Ann (a, b) -> Ann (l a, l b)
+
 (* ---- registry of user-declared (parameterized) datatypes ----
    A constructor argument is symbolic: a parameter, a recursive occurrence of the
    datatype (applied to the params), or a closed type. *)

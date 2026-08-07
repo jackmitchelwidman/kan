@@ -1,0 +1,37 @@
+-- Pattern-matching recursive functions in Kan.
+--
+-- Each `def` below is written with `match`, and the compiler elaborates it to the
+-- datatype's eliminator. Recursion is allowed only when it is STRUCTURAL — the
+-- recursive call is on a sub-part of the matched value — so every function here
+-- is total by construction: if it compiles, it terminates. (Try changing a
+-- recursive call to loop on the whole value, or to change another argument, and
+-- the compiler rejects it.)
+--
+-- Run:  kan run examples/patterns.kan   (identical from the OCaml and C backends)
+
+def not : Bool -> Bool = \b. match b { | true => false | false => true }
+
+def pred : Nat -> Nat = \n. match n { | zero => zero | suc k => k }
+
+def add : Nat -> Nat -> Nat = \m n. match m { | zero => n     | suc k => suc (add k n) }
+def mul : Nat -> Nat -> Nat = \m n. match m { | zero => zero  | suc k => add n (mul k n) }
+
+data List (A : U) { nil : List A, cons : A -> List A -> List A }
+
+def length : (A : U) -> List A -> Nat
+  = \A xs. match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
+
+def append : (A : U) -> List A -> List A -> List A
+  = \A xs ys. match (xs : List A) { | nil => ys | cons z zs => cons A z (append A zs ys) }
+
+def map : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
+  = \A B g xs. match (xs : List A) { | nil => nil B | cons y ys => cons B (g y) (map A B g ys) }
+
+def xs : List Nat = cons Nat 1 (cons Nat 2 (cons Nat 3 (nil Nat)))
+
+eval not true                              -- false
+eval add 7 8                               -- 15
+eval mul 6 7                               -- 42
+eval length Nat xs                         -- 3
+eval length Nat (append Nat xs xs)         -- 6
+eval map Nat Nat (mul 10) xs               -- [10, 20, 30]

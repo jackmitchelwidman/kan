@@ -40,6 +40,24 @@ for f in $files; do
   fi
 done
 
+# 3) rejection tests: programs that MUST be refused (unsound / non-total).
+#    Each heredoc is a one-line .kan the checker should reject.
+reject() {
+  local desc="$1" src="$2"
+  printf '%s\n' "$src" > "$TMP/reject.kan"
+  if "$KAN" check "$TMP/reject.kan" >/dev/null 2>&1; then
+    red "SHOULD HAVE BEEN REJECTED: $desc"; fail=$((fail+1))
+  else
+    green "OK (correctly rejected): $desc"; pass=$((pass+1))
+  fi
+}
+reject "accumulator-style recursion" \
+  'def f : Nat -> Nat -> Nat = \n acc. match n { | zero => acc | suc k => f k (suc acc) }'
+reject "non-structural recursion (loops on the whole value)" \
+  'def f : Nat -> Nat = \n. match n { | zero => zero | suc k => f n }'
+reject "non-exhaustive match (missing case)" \
+  'def f : Nat -> Nat = \n. match n { | zero => zero }'
+
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | LBRACE | RBRACE | ID of string | NUM of int | INTLIT of string | STR of string | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | FATARROW | BAR | LBRACE | RBRACE | ID of string | NUM of int | INTLIT of string | STR of string | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -47,6 +47,8 @@ let tokenize (s : string) : tok array =
     else if c = '\\' then (push LAM; incr i)
     else if c = '{' then (push LBRACE; incr i)
     else if c = '}' then (push RBRACE; incr i)
+    else if c = '|' then (push BAR; incr i)
+    else if c = '=' && !i + 1 < n && s.[!i + 1] = '>' then (push FATARROW; i := !i + 2)
     else if c = '=' then (push EQ; incr i)
     else if c = '"' then begin
       let j = ref (!i + 1) in
@@ -83,7 +85,7 @@ let tokenize (s : string) : tok array =
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
                       "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
-let decl_kw = [ "def"; "check"; "eval"; "data"; "import" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -101,9 +103,15 @@ type decl =
    files (via `import`), a file can use datatypes declared in files parsed before it.
    `reset_tables` clears them at the start of loading a program. *)
 let datatypes : (string, unit) Hashtbl.t = Hashtbl.create 16
-let ctors : (string, int) Hashtbl.t = Hashtbl.create 32           (* ctor -> arity *)
+let ctors : (string, int) Hashtbl.t = Hashtbl.create 32           (* ctor -> arity (params + args) *)
 let elims : (string, string * int) Hashtbl.t = Hashtbl.create 16  (* elim -> (datatype, #methods) *)
-let reset_tables () = Hashtbl.reset datatypes; Hashtbl.reset ctors; Hashtbl.reset elims
+(* for `match` elaboration: datatype -> (#params, [ctor, arg classifications in order]).
+   Populated at parse time (before run_decls), which is the only source available then. *)
+let data_info : (string, int * (string * arg_ty list) list) Hashtbl.t = Hashtbl.create 16
+let ctor_owner : (string, string) Hashtbl.t = Hashtbl.create 32   (* ctor -> its datatype *)
+let reset_tables () =
+  Hashtbl.reset datatypes; Hashtbl.reset ctors; Hashtbl.reset elims;
+  Hashtbl.reset data_info; Hashtbl.reset ctor_owner
 
 (* `ns0` seeds the name scope with globals from files parsed earlier (imports),
    so a file can reference definitions imported before it. *)
@@ -117,15 +125,25 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   let eat t m = if peek () = t then adv () else fail ("expected " ^ m) in
   let ident () = match peek () with ID x -> adv (); x | _ -> fail "expected a name" in
   let starts_atom = function LP | NUM _ | INTLIT _ | STR _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
-  let rec term ns =
+  (* recursion state for `match`-defined functions: while parsing the body of a
+     recursive def, `rec_fname` is its name, `rec_binders` its lambda-binder names
+     (in order), `rec_decarg` the matched (decreasing) binder, and `rec_ihmap` maps
+     the current arm's recursive-position pattern binders to their induction
+     hypotheses. A recursive call [f b.. r ..b] elaborates to the hypothesis for r. *)
+  let rec_fname = ref None and rec_binders = ref [] and rec_decarg = ref "" and rec_ihmap = ref [] in
+  let rec term ?(expected = None) ns =
     match peek () with
     | LAM ->
         adv ();
         let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | DOT -> adv (); List.rev acc | _ -> fail "expected lambda binders then '.'" in
         let bs = names [] in
         let ns' = List.fold_left (fun a x -> x :: a) ns bs in
-        let body = term ns' in
+        (* peel one Pi of the expected type per binder, so a `match` in the body
+           can recover its result type (the motive) from the def's annotation *)
+        let rec peel n exp = if n <= 0 then exp else (match exp with Some (Pi (_, _, b)) -> peel (n - 1) (Some b) | _ -> None) in
+        let body = term ~expected:(peel (List.length bs) expected) ns' in
         List.fold_right (fun x b -> Lam (x, b)) bs body
+    | ID "match" -> parse_match ns expected
     | LP when (match peek2 () with ID _ -> true | _ -> false) && peek3 () = COLON ->
         adv (); let x = ident () in eat COLON ":"; let a = term ns in eat RP ")";
         let ns' = x :: ns in
@@ -144,6 +162,28 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     let take_atoms k = let rec go i = if i <= 0 then [] else let a = atom ns in a :: go (i - 1) in go k in
     let base =
       match peek () with
+      | ID x when !rec_fname = Some x && !rec_decarg <> "" ->
+          (* a recursive call: verify it decreases structurally and passes the
+             other arguments unchanged, then replace it with the hypothesis *)
+          adv ();
+          let bnds = !rec_binders in
+          let args = take_atoms (List.length bnds) in
+          let dpos = (let rec idx i = function [] -> -1 | y :: _ when y = !rec_decarg -> i | _ :: t -> idx (i + 1) t in idx 0 bnds) in
+          let name_of = function Var i -> List.nth_opt ns i | _ -> None in
+          List.iteri (fun j a ->
+            if j <> dpos then
+              match name_of a with
+              | Some nm when nm = List.nth bnds j -> ()
+              | _ -> fail (Printf.sprintf "recursive call to '%s': argument %d must be passed unchanged (accumulator-style recursion is not supported yet)" x (j + 1)))
+            args;
+          let ih =
+            match name_of (List.nth args dpos) with
+            | Some nm -> (match List.assoc_opt nm !rec_ihmap with
+                          | Some ih -> ih
+                          | None -> fail (Printf.sprintf "recursive call to '%s' must decrease on a structurally-smaller argument, but '%s' is not one" x nm))
+            | None -> fail (Printf.sprintf "recursive call to '%s': the decreasing argument must be a pattern variable" x)
+          in
+          (match index_of ih ns with Some i -> Var i | None -> fail "internal error: induction hypothesis not in scope")
       | ID "Id" -> adv (); let a = atom ns in let b = atom ns in let c = atom ns in Id (a, b, c)
       | ID "transp" ->
           adv (); let a = atom ns in let p = atom ns in let x = atom ns in
@@ -202,13 +242,124 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         let t = term ns in
         (match peek () with COMMA -> adv (); let u = term ns in eat RP ")"; Pair (t, u) | _ -> eat RP ")"; t)
     | _ -> fail "expected a term"
+  (* Elaborate `match scrut { | C x.. => e | ... }` to the datatype's eliminator.
+     The result type R (the motive) comes from `return T` or the threaded
+     annotation; parameterized scrutinees are written `match (x : D a..) { .. }`.
+     Recursive constructor arguments get a (Stage-1-unused) induction-hypothesis
+     binder in scope, so the elaboration is already the eliminator's method. *)
+  and parse_match ns expected =
+    adv ();  (* 'match' *)
+    let scrut, scrut_ty =
+      if peek () = LP then begin
+        adv ();
+        let e = term ns in
+        (match peek () with
+         | COLON -> adv (); let t = term ns in eat RP ")"; (e, Some t)
+         | RP -> adv (); (e, None)
+         | _ -> fail "match scrutinee: expected ')' or ' : type'")
+      end else (atom ns, None)
+    in
+    let rty = if peek () = ID "return" then (adv (); Some (term ns)) else expected in
+    (* enable recursion in the arms iff we are in a recursive def and the
+       scrutinee is one of its binders (the decreasing argument) *)
+    let saved_decarg = !rec_decarg and saved_ihmap = !rec_ihmap in
+    (match !rec_fname, scrut with
+     | Some _, Var i -> (match List.nth_opt ns i with Some nm when List.mem nm !rec_binders -> rec_decarg := nm | _ -> rec_decarg := "")
+     | _ -> rec_decarg := "");
+    eat LBRACE "{";
+    let arms = ref [] in
+    while peek () = BAR do
+      adv ();
+      let cname = ident () in
+      let rec pbs acc = match peek () with ID x -> adv (); pbs (x :: acc) | FATARROW -> adv (); List.rev acc | _ -> fail "expected pattern binders then '=>'" in
+      let bs = pbs [] in
+      (* nargs, the induction-hypothesis binder names, and the map from each
+         recursive-position pattern binder to its hypothesis *)
+      let nargs, ih_names, rec_pairs =
+        match cname with
+        | "zero" | "true" | "false" -> (0, [], [])
+        | "suc" -> (1, [ "#ih" ], (match bs with [ k ] -> [ (k, "#ih") ] | _ -> []))
+        | _ ->
+            (match Hashtbl.find_opt ctor_owner cname with
+             | None -> fail ("match: '" ^ cname ^ "' is not a constructor")
+             | Some d ->
+                 let _, cs = Hashtbl.find data_info d in
+                 let argtys = List.assoc cname cs in
+                 if List.length bs <> List.length argtys then
+                   fail (Printf.sprintf "match: pattern '%s' expects %d argument(s), got %d" cname (List.length argtys) (List.length bs));
+                 let ctr = ref 0 in
+                 let pairs = List.filter_map (fun (b, aty) -> match aty with ARec -> let ih = "#ih" ^ string_of_int !ctr in incr ctr; Some (b, ih) | _ -> None) (List.combine bs argtys) in
+                 (List.length argtys, List.map snd pairs, pairs))
+      in
+      if List.length bs <> nargs then
+        fail (Printf.sprintf "match: pattern '%s' expects %d argument(s), got %d" cname nargs (List.length bs));
+      let ns_body = List.rev (bs @ ih_names) @ ns in
+      rec_ihmap := rec_pairs;
+      let body = term ~expected:rty ns_body in
+      let meth = List.fold_right (fun x b -> Lam (x, b)) (bs @ ih_names) body in
+      arms := (cname, meth) :: !arms
+    done;
+    eat RBRACE "}";
+    rec_decarg := saved_decarg; rec_ihmap := saved_ihmap;
+    let arms = List.rev !arms in
+    if arms = [] then fail "match: needs at least one arm ( | Ctor .. => body )";
+    let names_of = List.map fst arms in
+    let find c = try List.assoc c arms with Not_found -> fail ("match: missing case for '" ^ c ^ "'") in
+    let motive () = match rty with
+      | Some r -> Lam ("_", lift 1 0 r)
+      | None -> fail "match needs a result type: use a typed `def`, or write `match e return T { .. }`"
+    in
+    if List.mem "zero" names_of || List.mem "suc" names_of then
+      NatElim (motive (), find "zero", find "suc", scrut)
+    else if List.mem "true" names_of || List.mem "false" names_of then
+      If (scrut, find "true", find "false")
+    else begin
+      match Hashtbl.find_opt ctor_owner (List.hd names_of) with
+      | None -> fail ("match: unknown constructor '" ^ List.hd names_of ^ "'")
+      | Some d ->
+          let k, cs = Hashtbl.find data_info d in
+          let ctor_set = List.map fst cs in
+          List.iter (fun c -> if not (List.mem c ctor_set) then fail ("match: '" ^ c ^ "' is not a constructor of " ^ d)) names_of;
+          let params =
+            if k = 0 then []
+            else match scrut_ty with
+              | None -> fail (Printf.sprintf "match on %s needs the scrutinee's type: write `match (x : %s ..) { .. }`" d d)
+              | Some t ->
+                  let rec sp acc = function App (f, a) -> sp (a :: acc) f | h -> (h, acc) in
+                  (match sp [] t with
+                   | Data d', args when d' = d ->
+                       if List.length args <> k then fail (Printf.sprintf "match: %s takes %d type parameter(s)" d k) else args
+                   | _ -> fail ("match: scrutinee type must be " ^ d ^ " applied to its parameters"))
+          in
+          let methods = List.map (fun (cn, _) -> find cn) cs in
+          let head = List.fold_left (fun acc p -> App (acc, p)) (Elim (d ^ "_elim")) params in
+          let head = App (head, motive ()) in
+          let head = List.fold_left (fun acc m -> App (acc, m)) head methods in
+          App (head, scrut)
+    end
   in
   let decl ns =
     match peek () with
     | ID "def" ->
         adv (); let name = ident () in
         let ty = (match peek () with COLON -> adv (); Some (term ns) | _ -> None) in
-        eat EQ "="; let body = term ns in Def (name, ty, body)
+        eat EQ "=";
+        (* capture the leading lambda binders, so the body may recurse structurally
+           on one of them (elaborated to that type's eliminator) *)
+        let lead =
+          if peek () = LAM then begin
+            adv ();
+            let rec names acc = match peek () with ID x -> adv (); names (x :: acc) | DOT -> adv (); List.rev acc | _ -> fail "expected lambda binders then '.'" in
+            names []
+          end else []
+        in
+        let ns' = List.rev lead @ ns in
+        let rec peel n exp = if n <= 0 then exp else (match exp with Some (Pi (_, _, b)) -> peel (n - 1) (Some b) | _ -> None) in
+        rec_fname := Some name; rec_binders := lead; rec_decarg := ""; rec_ihmap := [];
+        let inner = term ~expected:(peel (List.length lead) ty) ns' in
+        rec_fname := None; rec_binders := []; rec_decarg := ""; rec_ihmap := [];
+        let body = List.fold_right (fun x b -> Lam (x, b)) lead inner in
+        Def (name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
     | ID "import" -> adv (); (match peek () with STR p -> adv (); Import p | _ -> fail "expected a \"path\" after import")
@@ -274,6 +425,8 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         let cs = (match peek () with RBRACE -> [] | _ -> many []) in
         eat RBRACE "}";
         Hashtbl.replace elims (name ^ "_elim") (name, k + 1 + List.length cs + 1);
+        Hashtbl.replace data_info name (k, cs);
+        List.iter (fun (cn, _) -> Hashtbl.replace ctor_owner cn name) cs;
         Data_decl (name, ps, cs)
     | _ -> fail "expected a declaration (import / def / check / eval / data)"
   in
