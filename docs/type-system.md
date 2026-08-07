@@ -1,4 +1,13 @@
-# The Kan Type System — Phase 2 (in progress)
+# The Kan Type System
+
+> **Status update.** This began as a "Phase 2, in progress" design note; the type
+> theory it describes is now the whole language. It is connected to `.kan` (Kan
+> *is* the type theory), it compiles to native code, and it has grown identity
+> types, a universe hierarchy, parameterized inductives, pattern matching with
+> structural/accumulator recursion and dependent-motive proofs, an unbounded
+> `Integer`, and a category-theory library. The "Where this is going" list at the
+> end is kept as a historical record — most of it is done; see README §13 for the
+> current roadmap.
 
 The type layer is what lets a Kan program *state and verify* the properties that
 `fill` is meant to satisfy: that a diagram commutes, that a construction is
@@ -49,19 +58,19 @@ this layer can now express and check.
 
 ## Milestone 3 — a surface you can write (done)
 
-`lib/tt.ml` is a readable syntax for the core, run with `kan check file.ktt`.
+`lib/tt.ml` is a readable syntax for the core, run with `kan check file.kan`.
 It has named binders (elaborated to de Bruijn), `\x. t` lambdas, `(x:A) -> B`
 and `A -> B`, Σ as `(x:A) * B`, `Id A a b`, `refl`, `transp`, `fst`/`snd`, and
 top-level `def` / `check` / `eval` declarations.
 
-`examples/proofs.ktt` — the proofs from milestone 2, now written in source:
+`examples/proofs.kan` — the proofs from milestone 2, now written in source:
 
 ```
 def sym : (A : U) -> (a : A) -> (b : A) -> Id A a b -> Id A b a
   = \A a b p. transp A (\z. Id A z a) a b p refl
 ```
 
-`kan check examples/proofs.ktt` elaborates and type-checks `id`, `sym`, `ap`,
+`kan check examples/proofs.kan` elaborates and type-checks `id`, `sym`, `ap`,
 `trans`, prints their (verified) types, and shows `sym U U U refl` normalizing
 to `refl`. This is a self-contained dependently typed checker you can write
 programs for — not yet connected to the `fill` kernel (that is the next step).
@@ -74,7 +83,7 @@ components' levels; `U : U` is now correctly *rejected*. A base type **`Bool`**
 (`true`, `false`, `if`) gives closed values to compute with, so equality proofs
 run on real data: `sym Bool true true refl` normalizes to `refl`.
 `test/core_test.exe` is a positive+negative suite (nonzero exit if any
-ill-typed term is wrongly accepted), and `examples/prelude.ktt` is a small
+ill-typed term is wrongly accepted), and `examples/prelude.kan` is a small
 checked standard library (combinators, boolean ops, equality as an equivalence,
 congruence on `Bool`). The hierarchy is non-cumulative for now — an ergonomic
 refinement, not a soundness one.
@@ -88,7 +97,7 @@ Numeric literals (`3`) are sugar for `suc (suc (suc zero))`.
 
 This is the machinery — a motive `P`, a base, a step, and reduction — that
 arbitrary inductive types generalize. It already lets Kan do real **proofs by
-induction**. In `examples/nat.ktt`, `add` is defined by `natElim`, and
+induction**. In `examples/nat.kan`, `add` is defined by `natElim`, and
 
 ```
 def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
@@ -103,7 +112,7 @@ families — the common case.
 
 ## Phase 3, milestone 2 — user-declared inductive types (done)
 
-`data` declarations in `.ktt`: you define your own inductive types and the
+`data` declarations in `.kan`: you define your own inductive types and the
 **dependent eliminator is generated automatically**. Declaring
 
 ```
@@ -112,7 +121,7 @@ data N { z : N, s : N -> N }
 
 introduces `N`, its constructors `z`/`s`, and
 `N_elim : (P : N -> U) -> P z -> ((k:N) -> P k -> P (s k)) -> (n:N) -> P n`,
-which iota-reduces. In `examples/data.ktt`, `add` is defined by `N_elim`, and
+which iota-reduces. In `examples/data.kan`, `add` is defined by `N_elim`, and
 
 ```
 def add_n_z : (n : N) -> Id N (add n z) n = \n. N_elim … 
@@ -127,7 +136,7 @@ induction hypothesis for each recursive argument.
 ## Phase 3, milestone 3 — parameterized inductives (done)
 
 Datatypes may now take **parameters**, so polymorphic containers are one
-definition. `examples/list.ktt`:
+definition. `examples/list.kan`:
 
 ```
 data List (A : U) { nil : List A, cons : A -> List A -> List A }

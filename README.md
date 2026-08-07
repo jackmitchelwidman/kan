@@ -413,7 +413,20 @@ As of now the namesake is not only the philosophy but a definition you can check
 
 # 11. Examples of Kan Programs
 
-*(Placeholder — to grow as the surface syntax settles. Seeds so far, from §4.9: composition-as-horn-filling, and the two-agent adapter gap. Candidates to add: a product as a universal cone, a fold as a Kan extension along a shape functor, an interface completed into an implementation.)*
+Every file in [`examples/`](examples/) is a runnable `.kan` program (`kan run`, or `kan build` for a native binary):
+
+- [`tutorial.kan`](examples/tutorial.kan) — a guided tour of the whole language in one runnable file (start here).
+- [`patterns.kan`](examples/patterns.kan) — functions by pattern matching and structural recursion.
+- [`accumulators.kan`](examples/accumulators.kan) — accumulator-style recursion (`eqNat`, `leq`, tail-recursive sums).
+- [`integer.kan`](examples/integer.kan) — unbounded arithmetic; an exact `fac 50`.
+- [`categories.kan`](examples/categories.kan) — category theory via the standard library; the opposite category, functors, natural transformations.
+- [`monoid_category.kan`](examples/monoid_category.kan) — the natural numbers as a one-object category (composition is `+`).
+- [`category.kan`](examples/category.kan) — universal properties (product, identity, associativity) stated and proved as types.
+- [`various.kan`](examples/various.kan) — a value-indexed type, a generic record, a dependent pair, a dictionary.
+- [`nat.kan`](examples/nat.kan) — a proof by induction that `add n 0 = n`.
+- Plus [`list.kan`](examples/list.kan), [`data.kan`](examples/data.kan), [`person.kan`](examples/person.kan), [`prelude.kan`](examples/prelude.kan), [`proofs.kan`](examples/proofs.kan), [`using_std.kan`](examples/using_std.kan).
+
+`bash tests/run_all.sh` type-checks every example and standard-library file, and verifies that every runnable one produces identical output from all three runtimes (`kan run`, the OCaml backend, and the C backend).
 
 ---
 
@@ -435,12 +448,17 @@ As of now the namesake is not only the philosophy but a definition you can check
 
 Deliberately after the philosophy, never before it.
 
-1. **Pin the core.** Formalize cells/faces/fill and prove composition, identities, products, and folds are derivable.
-2. **Define the forced core.** Identify the total, effective fragment and its reduction rules.
-3. **A minimal typechecker** for the thin dependent substrate that states diagrams.
-4. **A first elaborator** for the simplest search fills (adapters between fixed interfaces).
-5. **Categorical IR → core → machine code** for the forced fragment only.
-6. **Agent-orchestration front end** built entirely as fills.
+**Done.**
+
+1. **The `fill` core**, as a FinSet reference model — composition as horn-filling; products, limits, colimits, and folds as universal fills ([`docs/core-calculus.md`](docs/core-calculus.md)).
+2. **A dependent type theory** — Π, Σ, identity types, a predicative universe hierarchy, user-declared parameterized inductive types with induction; normalization by evaluation and bidirectional checking ([`lib/core.ml`](lib/core.ml)).
+3. **One language.** The typed surface *is* Kan; files are `.kan` (ADR-005). The `fill` calculus lives on as the internal reference model.
+4. **Compilation to native code**, from one erased IR to two backends — OCaml and C — verified to agree.
+5. **Pattern matching and structural recursion**, elaborated to eliminators — total by construction, now including accumulator-style recursion and dependent-motive proofs by induction.
+6. **An unbounded `Integer`** (arbitrary precision) alongside the inductive `Nat`, plus a primitive `String`.
+7. **Category theory in the library** — `Category`/`Functor`/`NatTrans` with their laws as fields, and the Kan-extension universal property, all checked ([`std/`](std/)).
+
+**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); an explicit `match … return (motive)` for dependent elimination anywhere; `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
 
 ---
 

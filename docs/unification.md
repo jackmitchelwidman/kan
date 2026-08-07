@@ -1,14 +1,21 @@
 # Unifying the Two Languages
 
-Kan currently has two halves:
+> **Status: done (historical record).** Kan is now *one* dependently typed
+> language; its files are `.kan` (ADR-005), it type-checks *and* compiles to
+> native code, and the original `fill` calculus survives only as an internal
+> FinSet reference model. This document records how that unification happened;
+> the `.ktt` extension and the `kan exec` command it mentions no longer exist
+> (it is all `.kan`, and `kan run`).
 
-- **`.kan`** — the fill/compute language: builds categorical constructions
-  concretely (in FinSet) and **compiles** to native code.
+Kan *used to have* two halves:
+
+- **`.kan`** — the fill/compute language: built categorical constructions
+  concretely (in FinSet) and **compiled** to native code.
 - **`.ktt`** — the dependent **type theory**: Π, Σ, identity types, universes,
-  and user-declared (parameterized) inductives; it **checks and proves**, but
-  does not compile.
+  and user-declared (parameterized) inductives; it **checked and proved**, but
+  did not compile.
 
-The goal is one language: `.kan` programs that are **dependently typed** and
+The goal was one language: `.kan` programs that are **dependently typed** and
 compile. The type theory supplies the *meaning* of what `fill` computes — a
 product is not merely "the set `fill limit` enumerates" but "the object with the
 universal property," and that universal property is a proposition the checker
