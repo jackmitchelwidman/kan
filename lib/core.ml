@@ -249,10 +249,14 @@ and vsnd v = match v with VPair (_, b) -> b | _ -> VSnd v
 and vtransp a p x y pe d = match pe with VRefl -> d | _ -> VTransp (a, p, x, y, pe, d)
 and vif c t e = match c with VTrue -> t | VFalse -> e | _ -> VIf (c, t, e)
 and vnatelim p z s n =
-  match n with
-  | VZero -> z
-  | VSuc m -> vapp (vapp s m) (vnatelim p z s m)
-  | _ -> VNatElim (p, z, s, n)
+  (* Peel the concrete VSuc layers first (collecting each predecessor), then
+     fold bottom-up. A naive [vnatelim p z s m] recurses to depth n, blowing
+     the stack for large closed nats; this keeps depth O(1). Neutral targets
+     keep their VNatElim form, with any concrete sucs above them rebuilt. *)
+  let rec peel n acc = match n with VSuc m -> peel m (m :: acc) | _ -> (n, acc) in
+  let base, preds = peel n [] in
+  let start = match base with VZero -> z | _ -> VNatElim (p, z, s, base) in
+  List.fold_left (fun acc m -> vapp (vapp s m) acc) start preds
 and vstrapp a b = match a, b with VStr x, VStr y -> VStr (x ^ y) | _ -> VStrApp (a, b)
 and vstreq a b = match a, b with VStr x, VStr y -> if x = y then VTrue else VFalse | _ -> VStrEq (a, b)
 and inst c v = eval (v :: c.env) c.body

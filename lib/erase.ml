@@ -111,8 +111,11 @@ and ieval env t =
       (match ieval env n with
        | VNatV k ->
            let sv = ieval env s and zv = ieval env z in
-           let rec go k = if k <= 0 then zv else iapp (iapp sv (VNatV (k - 1))) (go (k - 1)) in
-           go k
+           (* fold bottom-up so recursion depth is O(1), not O(k): a naive
+              [go (k-1)] blows the stack once k reaches ~10^6 (e.g. fac 10). *)
+           let acc = ref zv in
+           for i = 0 to k - 1 do acc := iapp (iapp sv (VNatV i)) !acc done;
+           !acc
        | _ -> failwith "natElim on a non-numeral")
   | IStr s -> VStrV s
   | IStrApp (a, b) -> (match ieval env a, ieval env b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat")

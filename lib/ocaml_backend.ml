@@ -61,9 +61,9 @@ and ielim e sp =
         let ihs = List.filter_map (fun (r, a) -> if r then Some (ielim e (sublist 0 (np + 1 + nc) sp @ [ a ])) else None) (List.combine (ctor_recs c) own) in
         List.fold_left iapp m (own @ ihs)
     | _ -> VElimV (e, sp)
-let rec inatelim z s n =
+let inatelim z s n =
   match n with
-  | VNatV k -> let rec go k = if k <= 0 then z else iapp (iapp s (VNatV (k - 1))) (go (k - 1)) in go k
+  | VNatV k -> let acc = ref z in for i = 0 to k - 1 do acc := iapp (iapp s (VNatV i)) !acc done; !acc
   | _ -> failwith "natElim"
 |ml}
 
