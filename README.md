@@ -485,6 +485,9 @@ dune exec bin/kan.exe -- check examples/categories.kan
 bash tests/run_all.sh
 ```
 
+New here? Start with the **[hands-on tour](docs/tour.md)** — functions, dependent
+types, proofs, unbounded integers, and category theory in five short steps.
+
 Every program in [`examples/`](examples/) is a `.kan` file: `nat.kan` (induction),
 `list.kan` (polymorphic `List`), `data.kan` (user inductive types),
 `integer.kan` (unbounded arithmetic), `categories.kan` (category theory via the
