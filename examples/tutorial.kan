@@ -1,0 +1,152 @@
+-- ============================================================================
+--   A TUTORIAL IN KAN
+--
+--   Read it top to bottom, then:
+--       kan run   examples/tutorial.kan            -- prints every `eval` below
+--       kan build examples/tutorial.kan -o tut && ./tut     -- or compile & run
+--       kan check examples/tutorial.kan            -- also shows every type
+--
+--   It is self-contained (no imports) and every lesson builds on the last.
+--   `def` binds a name; `eval` prints the value of an expression; `--` is a
+--   comment. Definitions must appear before they are used.
+-- ============================================================================
+
+
+-- ---- Lesson 1 : values, and `eval` ----------------------------------------
+-- `eval` prints a value. Strings are written in double quotes.
+eval "hello, Kan"
+eval 42
+
+
+-- ---- Lesson 2 : the booleans ----------------------------------------------
+-- `Bool` has two values, `true` and `false`. `match` inspects them.
+def not : Bool -> Bool         = \b.   match b { | true => false | false => true }
+def and : Bool -> Bool -> Bool = \a b. match a { | true => b     | false => false }
+eval not true              -- false
+eval and true true         -- true
+
+
+-- ---- Lesson 3 : functions --------------------------------------------------
+-- `\x. body` is a function; apply it by writing it next to its argument.
+-- Functions of several arguments are just nested: `\a b. ...`.
+def const_true : Bool -> Bool = \x. true
+eval const_true false      -- true
+
+
+-- ---- Lesson 4 : numbers, pattern matching, and recursion ------------------
+-- `Nat` is the natural numbers, built from `zero` and `suc` (successor).
+-- We define addition and multiplication by structural recursion with `match`.
+def add : Nat -> Nat -> Nat = \m n. match m { | zero => n    | suc k => suc (add k n) }
+def mul : Nat -> Nat -> Nat = \m n. match m { | zero => zero | suc k => add n (mul k n) }
+def double : Nat -> Nat = \n. add n n
+eval add 2 3               -- 5
+eval mul 6 7               -- 42
+eval double 21             -- 42
+
+
+-- ---- Lesson 5 : polymorphism — `(A : U)` means "for any type A" ------------
+-- `U` is the type of types (Nat : U, Bool : U). A function can take a TYPE as
+-- an argument, which is how Kan writes generics. You pass the type explicitly.
+def id    : (A : U) -> A -> A           = \A x. x
+def apply : (A : U) -> (B : U) -> (A -> B) -> A -> B = \A B f x. f x
+eval id Nat 7              -- 7
+eval id Bool true          -- true
+eval apply Nat Nat double 5   -- 10
+
+
+-- ---- Lesson 6 : pairs (product types) -------------------------------------
+-- `A * B` is the type of pairs; `(a, b)` builds one; `fst` and `snd` project.
+def swap : (A : U) -> (B : U) -> (A * B) -> (B * A) = \A B p. (snd p, fst p)
+def p : Nat * Bool = (5, true)
+eval fst p                 -- 5
+eval snd p                 -- true
+eval swap Nat Bool p       -- (true, 5)
+
+
+-- ---- Lesson 7 : DEPENDENT pairs — a type that depends on a value ----------
+-- The type of the second component can depend on the VALUE of the first.
+-- Here `if b Nat String` is a *type* that is `Nat` when b is true and `String`
+-- when b is false. So a `Tagged` pairs a tag with a payload whose type the tag
+-- decides. This is what "dependent types" means — types computed from values.
+def Tagged : U = (b : Bool) * (if b Nat String)
+def num : Tagged = (true, 99)          -- payload must be a Nat
+def str : Tagged = (false, "ninety-nine")  -- payload must be a String
+eval snd num               -- 99
+eval snd str               -- "ninety-nine"
+
+
+-- ---- Lesson 8 : strings ----------------------------------------------------
+-- `String` is a built-in type. `strcat` concatenates; `streq` compares.
+def greet : String -> String = \who. strcat "hello, " who
+eval greet "world"         -- "hello, world"
+eval streq "kan" "kan"     -- true
+
+
+-- ---- Lesson 9 : unbounded integers ----------------------------------------
+-- `Integer` is arbitrary precision (like Python's int). Integer literals wear a
+-- trailing `z`. `Nat` is for induction/proofs; `Integer` is for big computation.
+-- Factorial: a Nat counter drives an Integer accumulator.
+def factorial : Nat -> Integer
+  = \n. match n { | zero => 1z | suc k => imul (fromNat (suc k)) (factorial k) }
+eval factorial 10          -- 3628800
+eval factorial 30          -- a 33-digit number, computed exactly
+
+
+-- ---- Lesson 10 : your own datatypes ---------------------------------------
+-- `data` declares a new type by listing its constructors. A simple enum:
+data Color { red : Color, green : Color, blue : Color }
+def isGreen : Color -> Bool = \c. match c { | red => false | green => true | blue => false }
+eval isGreen green         -- true
+eval isGreen blue          -- false
+
+
+-- ---- Lesson 11 : recursive datatypes, and generic functions over them -----
+-- `List A` is a generic type: `nil` is empty, `cons` adds an element. Functions
+-- over it recurse structurally — total by construction (if it compiles, it stops).
+data List (A : U) { nil : List A, cons : A -> List A -> List A }
+def length : (A : U) -> List A -> Nat
+  = \A xs. match (xs : List A) { | nil => zero | cons y ys => suc (length A ys) }
+def sum : List Nat -> Nat
+  = \xs. match (xs : List Nat) { | nil => zero | cons y ys => add y (sum ys) }
+def mapL : (A : U) -> (B : U) -> (A -> B) -> List A -> List B
+  = \A B f xs. match (xs : List A) { | nil => nil B | cons y ys => cons B (f y) (mapL A B f ys) }
+def xs : List Nat = cons Nat 1 (cons Nat 2 (cons Nat 3 (nil Nat)))
+eval length Nat xs         -- 3
+eval sum xs                -- 6
+eval mapL Nat Nat double xs   -- (cons _ 2 (cons _ 4 (cons _ 6 (nil _))))
+
+
+-- ---- Lesson 12 : equality is a type, and proofs are programs --------------
+-- `Id A x y` is the type of PROOFS that x equals y. `refl` proves `x = x`, and
+-- it also proves any equality that holds by computation. If the `def` below
+-- type-checks, the equation is true — the proof is that it compiled.
+def two_squared : Id Nat (mul 2 2) 4 = refl        -- mul 2 2 computes to 4
+def strings_eq  : Id String (strcat "ab" "c") "abc" = refl
+-- (These produce no runtime output — a proof is checked, not printed. Run
+--  `kan check` to see their types. The point is that they are accepted.)
+
+
+-- ---- Lesson 13 : proof by INDUCTION ---------------------------------------
+-- Some equalities are NOT true by computation. `add n zero` does not reduce
+-- (add recurses on its first argument, and n is a variable), so `add n zero = n`
+-- needs induction. `natElim` is the induction principle for Nat; `ap` lifts an
+-- equality through a function. The theorem is proved by the program below.
+def ap : (A : U) -> (B : U) -> (f : A -> B) -> (a : A) -> (b : A) -> Id A a b -> Id B (f a) (f b)
+       = \A B f a b p. transp A (\z. Id B (f a) (f z)) a b p refl
+def add_n_zero : (n : Nat) -> Id Nat (add n zero) n
+  = \n. natElim (\m. Id Nat (add m zero) m)
+                refl                                               -- base: add 0 0 = 0
+                (\k ih. ap Nat Nat (\x. suc x) (add k zero) k ih)  -- step
+                n
+-- add_n_zero is a THEOREM: for every n, add n 0 = n, proved for all n at once.
+
+
+-- ---- Where to go next ------------------------------------------------------
+-- You have now met: functions, Bool, Nat, recursion, generics (U), products,
+-- dependent pairs, strings, unbounded Integer, your own (recursive) datatypes,
+-- the identity type, and proof by induction.
+--   • examples/patterns.kan     — more pattern-matching functions
+--   • examples/various.kan      — a dependent record, generics, a dictionary
+--   • std/category.kan          — category theory, with the laws as proofs
+--   • std/kan.kan               — Kan extensions, the language's namesake
+eval "end of tutorial"
