@@ -1,0 +1,180 @@
+<!doctype html>
+<!-- DRAFT — staged for Jack's approval, NOT yet deployed and NOT yet linked from
+     index.html. Deploy step (when approved): upload to s3://kan-lang.org/rationals.html,
+     add a hero/section link in index.html, invalidate CloudFront. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exact rationals, in Kan</title>
+<meta name="description" content="Numbers in Kan can be exact rationals in lowest terms — and dividing by zero is a type error, not a runtime crash. The invariants are proof fields the checker verifies.">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+      --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+    --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 22px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre,.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
+
+  header.hero{padding:40px 0 34px; border-bottom:1px solid var(--line)}
+  .back{font-size:14px; color:var(--muted)}
+  .eyebrow{letter-spacing:.16em; text-transform:uppercase; font-size:12px; color:var(--accent); font-weight:700}
+  h1{font-size:clamp(30px,5vw,46px); line-height:1.06; margin:.24em 0 .18em; letter-spacing:-.02em}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--muted); margin:0}
+  blockquote.thesis{
+    margin:26px 0 6px; padding:18px 22px; border-left:3px solid var(--accent);
+    background:var(--card); border-radius:0 10px 10px 0; font-size:18px; color:var(--fg);
+  }
+  blockquote.thesis .who{display:block; margin-top:8px; font-size:14px; color:var(--muted)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:15px;
+    background:var(--accent); color:#fff; border:1px solid transparent;
+  }
+  .btn:hover{text-decoration:none; filter:brightness(1.06)}
+  .btn.ghost{background:transparent; color:var(--fg); border-color:var(--line)}
+
+  section{padding:40px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 16px; font-weight:700}
+  h2 .n{color:var(--accent); margin-right:8px}
+  h3{font-size:19px; margin:0 0 6px; letter-spacing:-.01em}
+  p{margin:0 0 16px}
+  .lead{font-size:18px}
+
+  figure.diagram{margin:20px 0 6px; text-align:center}
+  figure.diagram svg{max-width:100%; height:auto; color:var(--fg)}
+  figcaption{color:var(--muted); font-size:13.5px; margin-top:10px}
+
+  pre{
+    background:var(--code-bg); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.6; margin:0 0 14px;
+  }
+  pre .c{color:var(--muted)}
+  pre .k{color:var(--accent); font-weight:600}
+  .out{color:var(--muted); font-size:13.5px; margin:-4px 0 14px}
+  .pill{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em;
+        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card)}
+
+  footer{padding:40px 0 70px; color:var(--muted); font-size:14px}
+  footer a{color:var(--muted); text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="back"><a href="/">← Kan</a></p>
+    <p class="eyebrow">Numbers, done right</p>
+    <h1>Exact rationals.<br>Divide-by-zero is a type error.</h1>
+    <p class="sub">No floats, no rounding, no <code>NaN</code> — and no way to divide by zero. The
+    invariants are <strong>proof fields the checker verifies</strong>, not conventions a library hopes to keep.</p>
+    <blockquote class="thesis">A rational you can’t misuse: the denominator is provably nonzero, the fraction is
+      provably in lowest terms, and the compiler checked both before your program ran.</blockquote>
+    <div class="cta">
+      <a class="btn" href="https://github.com/jackmitchelwidman/kan/blob/main/std/rational_reduced.kan">std/rational_reduced.kan</a>
+      <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/std/gcd.kan">the verified gcd</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>The type carries its own guarantees</h2>
+    <p class="lead">A <code>Reduced</code> is a numerator and denominator bundled with two <em>proofs</em>:
+    that the denominator is positive, and that numerator and denominator are coprime (the fraction is
+    in lowest terms).</p>
+<pre><span class="c">-- std/rational_reduced.kan — invariants as PROOF fields</span>
+<span class="k">def</span> Reduced : U
+  = (num : Int)                          <span class="c">-- the sign lives in the numerator</span>
+  * (den : Nat)
+  * (Lt zero den)                        <span class="c">-- den &gt; 0        — a proof, not a comment</span>
+  * (Coprime (natAbs num) den)           <span class="c">-- lowest terms   — a proof</span></pre>
+    <p>Because those fields are <em>proofs</em>, a value of type <code>Reduced</code> is one the checker
+    has verified is well-formed. There is no raw back door that builds a <code>3/0</code>; the smart
+    constructor <code>reduce</code> divides out <code>gcd(|num|, den)</code> and discharges all four
+    obligations for you.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">✕</span> You cannot divide by zero</h2>
+    <p>Building a rational <em>requires</em> a proof that the denominator is positive — you literally
+    cannot write one with denominator zero, because there is no proof of <code>Lt zero zero</code> to hand
+    over. And reciprocal/division return an <code>Option</code>: <code>none</code> exactly when the input
+    is the zero rational. It is honest arithmetic, not a runtime guard bolted on afterward.</p>
+<pre><span class="k">def</span> reduce : (n : Int) -&gt; (d : Nat) -&gt; Lt zero d -&gt; Reduced   <span class="c">-- needs a proof d &gt; 0</span>
+
+<span class="k">def</span> recipR : Reduced -&gt; Option Reduced          <span class="c">-- none  ⇔  the zero rational</span>
+<span class="k">def</span> divR   : Reduced -&gt; Reduced -&gt; Option Reduced <span class="c">-- none  ⇔  dividing by zero</span></pre>
+    <p class="out">Contrast a language where <code>1.0/0.0</code> silently yields <code>inf</code>, or an
+    integer <code>1/0</code> crashes at runtime. Here the possibility is closed off in the type.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">=</span> Exact arithmetic, always in lowest terms</h2>
+    <p>Every operation is exact and returns a result that is <em>again</em> provably in lowest terms
+    (each recomputes and re-reduces). And because the form is canonical, structural equality
+    <em>is</em> mathematical equality — <code>eqR</code> needs no cross-multiplication.</p>
+<pre><span class="k">def</span> addR : Reduced -&gt; Reduced -&gt; Reduced      <span class="c">-- +   (exact, re-reduced)</span>
+<span class="k">def</span> mulR : Reduced -&gt; Reduced -&gt; Reduced      <span class="c">-- ×</span>
+<span class="k">def</span> subR : Reduced -&gt; Reduced -&gt; Reduced      <span class="c">-- −</span>
+<span class="k">def</span> eqR  : Reduced -&gt; Reduced -&gt; Bool         <span class="c">-- decidable equality on ℚ</span>
+
+<span class="c">-- 1/2 + 1/3 — building it type-checks, so every obligation was discharged</span>
+<span class="k">def</span> demo_sum : Reduced = addR (reduce (pos 1) 2 p) (reduce (pos 1) 3 q)</pre>
+  </section>
+
+  <section>
+    <h2>Built on a verified gcd — no axioms</h2>
+    <p>“Lowest terms” is not asserted; it is <em>proven</em>. Underneath sits a full verified Euclidean
+    tower, entirely axiom-free: verified division (<code>a = q·b + r ∧ r &lt; b</code>), a verified
+    <code>gcd</code> that provably divides both arguments <em>and</em> is maximal, and the theorem that
+    dividing by the gcd yields a coprime pair. The rational’s coprimality field is exactly that theorem,
+    applied.</p>
+<pre><span class="c">-- std/gcd.kan</span>
+<span class="k">def</span> gcd_dvd      : (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)      <span class="c">-- divides both</span>
+<span class="k">def</span> gcd_greatest : Dvd c a -&gt; Dvd c b -&gt; Dvd c (gcdI a b)       <span class="c">-- maximal</span>
+<span class="k">def</span> reduce_coprime : Lt zero (gcdI a b) -&gt; Coprime (a/g) (b/g)  <span class="c">-- lowest terms, proven</span></pre>
+    <p class="out">What’s next: promoting the field <em>laws</em> (associativity, distributivity of the
+    rational operations) from “they compute correctly” to “proven as theorems.” The safety guarantees
+    above already hold today.</p>
+  </section>
+
+  <section>
+    <h2>Check it yourself</h2>
+    <p>Every snippet is real code from the repository.</p>
+<pre><span class="c">$ kan check std/rational_reduced.kan</span>
+<span class="c"># ...every definition type-checks — so divide-by-zero really is impossible here.</span></pre>
+    <p><span class="pill">exact · lowest terms, proven · divide-by-zero is a type error</span></p>
+  </section>
+
+  <footer>
+    <a href="/">kan-lang.org</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/std/rational_reduced.kan">std/rational_reduced.kan</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/DECISIONS.md">design notes (ADR-013 / ADR-016)</a>
+  </footer>
+
+</div>
+</body>
+</html>
