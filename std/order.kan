@@ -128,3 +128,40 @@ def fuel_dec : (f : Nat) -> (a : Nat) -> (b : Nat) -> Lt zero b -> Le b a -> Le 
   = lambda f a b bp ba enough:
       le_suc_cancel (sub a b) f
         (le_trans (suc (sub a b)) a (suc f) (sub_lt b a bp ba) enough)
+
+-- ---- divisibility algebra (gcd tower, stage 4) ------------------------------
+-- Everything divides 0.
+def dvd_zero : (d : Nat) -> Dvd d zero = lambda d: (zero, refl)   -- mul 0 d = 0
+
+-- d | x  and  d | y  ⟹  d | (x + y).   witness kx + ky, via right-distributivity.
+def dvd_add : (d : Nat) -> (x : Nat) -> (y : Nat) -> Dvd d x -> Dvd d y -> Dvd d (add x y)
+  = lambda d x y dx dy:
+      ( add (fst dx) (fst dy)
+      , trans Nat (mul (add (fst dx) (fst dy)) d) (add (mul (fst dx) d) (mul (fst dy) d)) (add x y)
+          (mul_add_distrib_r (fst dx) (fst dy) d)
+          (trans Nat (add (mul (fst dx) d) (mul (fst dy) d)) (add x (mul (fst dy) d)) (add x y)
+             (ap Nat Nat (lambda z: add z (mul (fst dy) d)) (mul (fst dx) d) x (snd dx))
+             (ap Nat Nat (lambda z: add x z) (mul (fst dy) d) y (snd dy))) )
+
+-- d | b  ⟹  d | (q · b).   witness q · kb, via associativity.
+def dvd_mul_l : (d : Nat) -> (q : Nat) -> (b : Nat) -> Dvd d b -> Dvd d (mul q b)
+  = lambda d q b db:
+      ( mul q (fst db)
+      , trans Nat (mul (mul q (fst db)) d) (mul q (mul (fst db) d)) (mul q b)
+          (mul_assoc q (fst db) d)
+          (ap Nat Nat (lambda z: mul q z) (mul (fst db) d) b (snd db)) )
+
+-- the forward Euclid step, on the divisor side:  d | b ⟹ d | r ⟹ d | (q·b + r).
+def dvd_lin : (d : Nat) -> (q : Nat) -> (b : Nat) -> (r : Nat)
+  -> Dvd d b -> Dvd d r -> Dvd d (add (mul q b) r)
+  = lambda d q b r db dr: dvd_add d (mul q b) r (dvd_mul_l d q b db) dr
+
+-- d | x  and  d | y  ⟹  d | (x - y).   witness kx - ky, via sub-distributivity.
+def dvd_sub : (d : Nat) -> (x : Nat) -> (y : Nat) -> Dvd d x -> Dvd d y -> Dvd d (sub x y)
+  = lambda d x y dx dy:
+      ( sub (fst dx) (fst dy)
+      , trans Nat (mul (sub (fst dx) (fst dy)) d) (sub (mul (fst dx) d) (mul (fst dy) d)) (sub x y)
+          (mul_sub_distrib_r (fst dx) (fst dy) d)
+          (trans Nat (sub (mul (fst dx) d) (mul (fst dy) d)) (sub x (mul (fst dy) d)) (sub x y)
+             (ap Nat Nat (lambda z: sub z (mul (fst dy) d)) (mul (fst dx) d) x (snd dx))
+             (ap Nat Nat (lambda z: sub x z) (mul (fst dy) d) y (snd dy))) )

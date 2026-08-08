@@ -153,9 +153,17 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 -- (Known: reducing divmodI numerically is exponential — undiagnosed evaluator
 -- sharing issue; the compute path is the `ndiv` primitive, see divmod.kan.)
 --
+-- DONE since (milestone 2, stage 4): the divisibility algebra + the Euclid step.
+-- std/nat.kan now proves mul associativity + right-distributivity over add and
+-- monus (mul_assoc, mul_add_distrib_r, mul_sub_distrib_r, sub_add_cancel_l);
+-- std/order.kan proves dvd_zero/dvd_add/dvd_mul_l/dvd_lin/dvd_sub; and
+-- std/divmod.kan proves dvd_mod_fwd/dvd_mod_bwd — i.e. d|b ∧ d|(a mod b) ⟺ d|a
+-- ∧ d|b, the fact that makes gcd(a,b) = gcd(b, a mod b) preserve the divisor set.
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
 --  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
---  • gcd on Nat via fuel-Euclid ON TOP OF divmodI (stages 4–6): dvd_sub/dvd_mod,
---    gcdI + gcd-divides-both, coprime-after-division — the load-bearing lemmas a
---    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
+--  • gcd on Nat via fuel-Euclid ON TOP OF divmodI (stages 5–6): gcdI +
+--    gcd-divides-both (uses dvd_mod_fwd), then coprime-after-division (uses
+--    dvd_mod_bwd) — the load-bearing lemmas a type-ENFORCED `Rational` (den ≠ 0
+--    and coprimality as PROOF fields) needs.
 -- ============================================================================

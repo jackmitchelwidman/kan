@@ -106,3 +106,45 @@ def add_sub : (m : Nat) -> (n : Nat) -> Id Nat (sub (add m n) n) m
   = lambda m n: trans Nat (sub (add m n) n) (sub (add n m) n) m
       (ap Nat Nat (lambda z: sub z n) (add m n) (add n m) (add_comm m n))
       (sub_add n m)
+
+-- ---- multiplication distributes / associates; sub-cancellation (for divisibility) ----
+
+-- (c + x) - (c + y) = x - y  — cancel a common left addend. Induction on c.
+def sub_add_cancel_l : (c : Nat) -> (x : Nat) -> (y : Nat) -> Id Nat (sub (add c x) (add c y)) (sub x y)
+  = lambda c x y: match c { | zero => refl | suc k => sub_add_cancel_l k x y }
+
+-- RIGHT distributivity: (a + b)·c = a·c + b·c.  Induction on a (mul recurses left).
+def mul_add_distrib_r : (a : Nat) -> (b : Nat) -> (c : Nat)
+  -> Id Nat (mul (add a b) c) (add (mul a c) (mul b c))
+  = lambda a b c: match a {
+      | zero  => refl
+      | suc k => trans Nat (add c (mul (add k b) c)) (add c (add (mul k c) (mul b c)))
+                           (add (add c (mul k c)) (mul b c))
+                   (ap Nat Nat (lambda z: add c z) (mul (add k b) c) (add (mul k c) (mul b c))
+                       (mul_add_distrib_r k b c))
+                   (sym Nat (add (add c (mul k c)) (mul b c)) (add c (add (mul k c) (mul b c)))
+                       (add_assoc c (mul k c) (mul b c))) }
+
+-- associativity: (a·b)·c = a·(b·c).  Induction on a; the step uses right-distrib.
+def mul_assoc : (a : Nat) -> (b : Nat) -> (c : Nat) -> Id Nat (mul (mul a b) c) (mul a (mul b c))
+  = lambda a b c: match a {
+      | zero  => refl
+      | suc k => trans Nat (mul (add b (mul k b)) c) (add (mul b c) (mul (mul k b) c))
+                           (add (mul b c) (mul k (mul b c)))
+                   (mul_add_distrib_r b (mul k b) c)
+                   (ap Nat Nat (lambda z: add (mul b c) z) (mul (mul k b) c) (mul k (mul b c))
+                       (mul_assoc k b c)) }
+
+-- RIGHT distributivity over monus: (a - b)·c = a·c - b·c.  Double case-split on
+-- a then b; the suc/suc step cancels the common `c` via sub_add_cancel_l.
+def mul_sub_distrib_r : (a : Nat) -> (b : Nat) -> (c : Nat)
+  -> Id Nat (mul (sub a b) c) (sub (mul a c) (mul b c))
+  = lambda a b c: match a {
+      | zero  => refl
+      | suc k => match b as bb return (Id Nat (mul (sub (suc k) bb) c) (sub (mul (suc k) c) (mul bb c))) {
+          | zero  => sym Nat (sub (mul (suc k) c) zero) (mul (suc k) c) (sub_zero (mul (suc k) c))
+          | suc j => trans Nat (mul (sub k j) c) (sub (mul k c) (mul j c))
+                               (sub (add c (mul k c)) (add c (mul j c)))
+                       (mul_sub_distrib_r k j c)
+                       (sym Nat (sub (add c (mul k c)) (add c (mul j c))) (sub (mul k c) (mul j c))
+                          (sub_add_cancel_l c (mul k c) (mul j c))) } }

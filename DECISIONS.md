@@ -412,6 +412,18 @@ compute path remains the accelerated `ndiv` primitive (ADR-013). Fixing the
 sharing is a separate kernel/evaluator task; **stage-5 gcd tests must keep inputs
 tiny** until it is fixed. Gate green at 45/0.
 
+**Stage 4 — divisibility algebra + the Euclid step (done).** The Nat ring gained
+the missing algebra (`std/nat.kan`): `mul_assoc`, right-distributivity over add
+(`mul_add_distrib_r`) and over monus (`mul_sub_distrib_r`), and `sub_add_cancel_l`
+— all ordinary structural inductions (the sub-distributivity needed an ADR-015
+explicit motive on its inner case-split). On top, `std/order.kan` proves the
+divisibility algebra as Σ-witnesses (`dvd_zero`, `dvd_add`, `dvd_mul_l`, `dvd_lin`,
+`dvd_sub`), and `std/divmod.kan` proves the **Euclid step** `dvd_mod_fwd` /
+`dvd_mod_bwd`: `d | b ∧ d | (a mod b)  ⟺  d | a ∧ d | b`. This is precisely the
+invariant that makes `gcd(a,b) = gcd(b, a mod b)` preserve the common-divisor set
+— `dvd_mod_fwd` feeds stage 5 (gcd divides both), `dvd_mod_bwd` feeds stage 6
+(maximality ⟹ coprime after division). No axioms. Gate green at 45/0.
+
 ---
 
 ## Phase plan (tracks README §13)

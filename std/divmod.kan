@@ -63,6 +63,34 @@ def divmod_quot : (a : Nat) -> (b : Nat) -> (bp : Lt zero b)
 def divmod_rem : (a : Nat) -> (b : Nat) -> (bp : Lt zero b) -> Lt (modI a b bp) b
   = lambda a b bp: snd (snd (snd (divmodI a b bp)))
 
+-- ---- the Euclid step: common divisors of (a,b) = common divisors of (b, a mod b)
+-- This is what makes gcd(a,b) = gcd(b, a mod b) preserve the divisor set, so the
+-- gcd (stage 5) divides both and is maximal (stage 6).
+
+-- FORWARD:  d | b  and  d | (a mod b)  ⟹  d | a.   (a = q·b + r, dvd_lin.)
+def dvd_mod_fwd : (d : Nat) -> (a : Nat) -> (b : Nat) -> (bp : Lt zero b)
+  -> Dvd d b -> Dvd d (modI a b bp) -> Dvd d a
+  = lambda d a b bp db dr:
+      transp Nat (lambda z: Dvd d z)
+        (add (mul (divI a b bp) b) (modI a b bp)) a
+        (divmod_quot a b bp)
+        (dvd_lin d (divI a b bp) b (modI a b bp) db dr)
+
+-- BACKWARD:  d | a  and  d | b  ⟹  d | (a mod b).   (r = a − q·b, dvd_sub.)
+def dvd_mod_bwd : (d : Nat) -> (a : Nat) -> (b : Nat) -> (bp : Lt zero b)
+  -> Dvd d a -> Dvd d b -> Dvd d (modI a b bp)
+  = lambda d a b bp da db:
+      transp Nat (lambda z: Dvd d z)
+        (sub a (mul (divI a b bp) b)) (modI a b bp)
+        (trans Nat (sub a (mul (divI a b bp) b))
+                   (sub (add (mul (divI a b bp) b) (modI a b bp)) (mul (divI a b bp) b))
+                   (modI a b bp)
+           (ap Nat Nat (lambda z: sub z (mul (divI a b bp) b))
+               a (add (mul (divI a b bp) b) (modI a b bp))
+               (sym Nat (add (mul (divI a b bp) b) (modI a b bp)) a (divmod_quot a b bp)))
+           (sub_add (mul (divI a b bp) b) (modI a b bp)))
+        (dvd_sub d a (mul (divI a b bp) b) da (dvd_mul_l d (divI a b bp) b db))
+
 -- ---- computation sanity (definitional; kept small on purpose) ----------------
 -- divmodI COMPUTES the right answer — these reduce to refl (verified on many
 -- inputs: 3/2, 5/2, 17/5, 20/4, 5/8, 12/3, 28/7, …).
