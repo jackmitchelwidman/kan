@@ -424,6 +424,18 @@ invariant that makes `gcd(a,b) = gcd(b, a mod b)` preserve the common-divisor se
 — `dvd_mod_fwd` feeds stage 5 (gcd divides both), `dvd_mod_bwd` feeds stage 6
 (maximality ⟹ coprime after division). No axioms. Gate green at 45/0.
 
+**Stage 5 — verified gcd (done).** `std/gcd.kan` gives the fuel-Euclid `gcdF`
+(recursion on `fuel`, bounded by the second argument via `Le b fuel`; each step
+replaces `b` by `a mod b < b`) and the wrapper `gcdI a b = gcdF b a b (le_refl b)`.
+It computes (`gcd 6 4 = 2`, `gcd 7 5 = 1`, …) and, crucially, is proven correct:
+`gcd_dvd : (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)` — the gcd divides BOTH
+arguments. The proof `gcdF_dvd` mirrors `gcdF`'s fuel recursion exactly (the
+fuel-decrease is factored into a shared `gcd_en` so `gcdF (suc f) a (suc b2) en`
+reduces to the very term the induction hypothesis is about); the recursive step
+is discharged by the Euclid lemma `dvd_mod_fwd`. The `b`-match carries an ADR-015
+explicit motive so both `enough` and the `gcdF …` subject refine with `b`. No
+axioms. Gate green at 46/0. Remaining: stage 6 (maximality ⟹ coprime-after-div).
+
 ---
 
 ## Phase plan (tracks README §13)

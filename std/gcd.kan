@@ -1,0 +1,67 @@
+-- ============================================================================
+-- std/gcd — verified gcd by Euclid's algorithm (ADR-013 milestone 2, stage 5).
+--   gcd(a, 0) = a ;   gcd(a, b) = gcd(b, a mod b)   for b > 0.
+-- Structural-only, so it is a fuel-Euclid: recursion is on `fuel`, bounded by the
+-- second argument via `Le b fuel` (each step replaces b by a mod b, which is < b,
+-- so the bound shrinks). `gcd_dvd` proves the gcd divides BOTH arguments — the
+-- stage-5 correctness result, built on the Euclid step `dvd_mod_fwd`.
+-- ============================================================================
+import "divmod.kan"
+
+-- the fuel-decrease, factored out so gcdF and its proof use the IDENTICAL term
+-- (this is what makes the correctness proof line up definitionally with gcdF):
+-- a mod (suc b2) < suc b2 ≤ suc f  ⟹  a mod (suc b2) ≤ f.
+def gcd_en : (f : Nat) -> (a : Nat) -> (b2 : Nat) -> Le (suc b2) (suc f)
+  -> Le (modI a (suc b2) (lt_zero_suc b2)) f
+  = lambda f a b2 enough:
+      le_trans (modI a (suc b2) (lt_zero_suc b2)) b2 f
+        (le_suc_cancel (modI a (suc b2) (lt_zero_suc b2)) b2 (divmod_rem a (suc b2) (lt_zero_suc b2)))
+        (le_suc_cancel b2 f enough)
+
+def gcdF : (fuel : Nat) -> (a : Nat) -> (b : Nat) -> Le b fuel -> Nat
+  = lambda fuel: match fuel {
+      | zero => lambda a b enough: a            -- b ≤ 0 ⟹ b = 0 ⟹ gcd = a
+      | suc f => lambda a b: match b as bb return (Le bb (suc f) -> Nat) {
+          | zero  => lambda enough: a
+          | suc b2 => lambda enough:            -- gcd(a, b) = gcd(b, a mod b)
+              gcdF f (suc b2) (modI a (suc b2) (lt_zero_suc b2)) (gcd_en f a b2 enough) } }
+
+-- the wrapper: fuel = b (bounds the second argument; le_refl discharges it).
+def gcdI : (a : Nat) -> (b : Nat) -> Nat = lambda a b: gcdF b a b (le_refl b)
+
+-- computation sanity (kept tiny — reducing gcd forces modI, see divmod.kan).
+def g_6_4 : Id Nat (gcdI 6 4) 2 = refl
+def g_6_3 : Id Nat (gcdI 6 3) 3 = refl
+def g_7_5 : Id Nat (gcdI 7 5) 1 = refl
+def g_8_0 : Id Nat (gcdI 8 0) 8 = refl
+
+-- ---- CORRECTNESS: the gcd divides both arguments ----------------------------
+-- the recursive step's fold (non-recursive): from the IH for (b, a mod b) — g
+-- divides b and a mod b — conclude g divides a (Euclid step) and b.
+def gcd_step_dvd : (g : Nat) -> (a : Nat) -> (b2 : Nat)
+  -> ((Dvd g (suc b2)) * (Dvd g (modI a (suc b2) (lt_zero_suc b2))))
+  -> ((Dvd g a) * (Dvd g (suc b2)))
+  = lambda g a b2 ih:
+      ( dvd_mod_fwd g a (suc b2) (lt_zero_suc b2) (fst ih) (snd ih) , fst ih )
+
+-- gcdF divides both a and b. Mirrors gcdF exactly (same fuel recursion, same
+-- gcd_en), so gcdF (suc f) a (suc b2) enough reduces to the very term the IH is
+-- about. The b-match carries an explicit motive so `enough` and the `gcdF …`
+-- subject both refine with b.
+def gcdF_dvd : (fuel : Nat) -> (a : Nat) -> (b : Nat) -> (enough : Le b fuel)
+  -> (Dvd (gcdF fuel a b enough) a) * (Dvd (gcdF fuel a b enough) b)
+  = lambda fuel: match fuel {
+      | zero => lambda a b enough:
+          ( dvd_refl a
+          , transp Nat (lambda z: Dvd a z) zero b (sym Nat b zero (le_zero_eq b enough)) (dvd_zero a) )
+      | suc f => lambda a b: match b as bb return
+          ( (en : Le bb (suc f))
+            -> (Dvd (gcdF (suc f) a bb en) a) * (Dvd (gcdF (suc f) a bb en) bb) ) {
+          | zero  => lambda en: ( dvd_refl a , dvd_zero a )
+          | suc b2 => lambda en:
+              gcd_step_dvd
+                (gcdF f (suc b2) (modI a (suc b2) (lt_zero_suc b2)) (gcd_en f a b2 en)) a b2
+                (gcdF_dvd f (suc b2) (modI a (suc b2) (lt_zero_suc b2)) (gcd_en f a b2 en)) } }
+
+def gcd_dvd : (a : Nat) -> (b : Nat) -> (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)
+  = lambda a b: gcdF_dvd b a b (le_refl b)
