@@ -281,6 +281,70 @@ verified-gcd work (milestone 2). No axioms were added.
 
 ---
 
+## ADR-014 — Indexed inductive families (`Vec`, `Fin`, indexed diagrams)
+**Decision.** Add indexed inductive families — the marquee dependent-type feature
+and, for a category-theory language, a necessity (length-indexed data, `Fin`,
+`Hom`-families, diagrams indexed by shape, proof-relevant indexing). Today's
+datatype mechanism is **parameter-only**: `arg_ty = AParam | ARec | AClosed`,
+former `(params) -> U0`, eliminator motive `P : D params -> U0`, and `ARec`
+hardcodes recursive occurrences at the *same* params (`lib/core.ml declare_data`).
+Indexed families generalise all of these.
+
+**Staging — eliminator first, `match`-on-indices later (mirrors ADR-010).**
+- **Stage 1 (the capability):** the indexed **eliminator**. Motive ranges over
+  the index telescope *and* the target (`Vec_elim : (A:U) -> (P:(n:Nat)->Vec A
+  n->U0) -> P zero (vnil A) -> ((n:Nat)->(x:A)->(xs:Vec A n)->P n xs->P (suc n)
+  (vcons A n x xs)) -> (n:Nat)->(v:Vec A n)->P n v`). This is **sound and
+  complete** — `head` (total, nonempty by type), `append : Vec m -> Vec n -> Vec
+  (add m n)`, and indexed proofs are all expressible via the eliminator. Clunkier
+  than `match`, but the full capability.
+- **Stage 2 (ergonomics, separate/ later):** dependent `match` on indices, which
+  *refines* the index per branch (matching `vnil` forces the length to `zero`).
+  This needs an **index-unification engine** (constructor injectivity,
+  no-confusion, occurs-check) that Kan's current `match` — whose motive is read
+  from the def annotation and cannot refine indices — does not have. Explicitly
+  deferred. Prerequisite skill: the `match e return (motive)` feature (already
+  identified as the verified-gcd unblock, ADR-013) is the smaller warm-up for the
+  same elaborator muscle — build it first.
+
+**Representation — replace, don't extend, `arg_ty`.** Bolting index expressions
+onto `AParam|ARec|AClosed` would break its four load-bearing sites (declare_data,
+the parser's arg classification, `velim`'s iota rule, erase/backend recursion
+detection) each differently. Instead store a constructor as a **dependent
+telescope ending in `Data name <params> <index-exprs>`**, and *derive* recursive-
+argument positions by inspecting for `Data name` heads. Parameters stay uniform
+(checked at declaration); indices are arbitrary terms in the return type. This
+subsumes the current mechanism as the zero-index case.
+
+**Soundness core (where the risk lives).** (1) The **iota rule with indices**:
+when `velim` fires on `vcons A n x xs`, the motive is applied at the
+*constructor's* index instantiation, recovered from its arguments — and the IH is
+`P <recursive occurrence's indices> arg`. Declaration-time well-formedness:
+recursive occurrences must be `Data name <params> <index-exprs>` (same `D`;
+indices may vary). (2) **Conversion with indexed neutrals** — fortunately the
+`VData`/`VCon`/`VElim` spine representation already compares full argument spines
+structurally, so index arguments are compared *for free*; to be verified with a
+defeq canary, not assumed.
+
+**K / univalence.** Indexed families force a choice about whether Streicher's K
+holds (it makes `match`-on-indices simpler but is incompatible with univalence).
+For a category-theory language K is fine; the ADR records this as a *deliberate*
+choice, revisitable if HoTT/univalent ambitions arise later.
+
+**Erasure.** Indexed eliminators erase like the current ones — motives/indices
+drop (`erase.ml` already discards the `NatElim` motive); the runtime recursion is
+unchanged.
+
+**Status.** Landed now: the acceptance spec (`docs/indexed-families-spec.kan` —
+`Vec`/`Fin`, the eliminator types, `head`/`append` with `append`'s length-adding
+type written out, and the iota defeq canaries) and this ADR. Nothing else — the
+kernel work (representation -> checking -> iota -> the three runtimes) is
+multi-session, and per the acceleration precedent the spec is written *first* so
+every design question surfaces cheaply. When stage 1 checks the spec, it moves to
+`examples/` and joins the gate.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

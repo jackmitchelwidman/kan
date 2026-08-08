@@ -1,0 +1,70 @@
+-- ============================================================================
+-- ACCEPTANCE SPEC for indexed inductive families (ADR-014). This file does NOT
+-- check today — it is the target. Stage 1 (the indexed ELIMINATOR) is done when
+-- everything here type-checks; at that point this file moves to examples/ and
+-- joins the gate. (Spec-first, exactly as accel_spec.kan preceded the kernel-
+-- acceleration work.) It lives in docs/ so the current gate does not scan it.
+--
+-- SURFACE SYNTAX (new): parameters before the colon, the INDEX telescope after.
+--     data Name (params) : <index telescope> -> U { con : <full type>, ... }
+-- A constructor's type is an arbitrary dependent telescope ending in
+--     Name <params> <index expressions>
+-- so different constructors may land at different indices — that is the whole
+-- point. Parameters stay uniform (checked at declaration); indices vary.
+-- ============================================================================
+import "nat.kan"
+
+-- length-indexed vectors: the canonical indexed family
+data Vec (A : U) : Nat -> U {
+  vnil  : Vec A zero,
+  vcons : (n : Nat) -> A -> Vec A n -> Vec A (suc n)
+}
+
+-- finite sets: Fin n has exactly n elements
+data Fin : Nat -> U {
+  fzero : (n : Nat) -> Fin (suc n),
+  fsuc  : (n : Nat) -> Fin n -> Fin (suc n)
+}
+
+-- ----------------------------------------------------------------------------
+-- The generated eliminator (stage 1 delivers exactly this). The motive ranges
+-- over the INDEX and the target; each method returns the motive at the
+-- constructor's own index instantiation; recursive IHs are at the recursive
+-- occurrence's indices. This is the entry price — sound and complete — with no
+-- pattern-matching-on-indices required.
+--
+-- Vec_elim
+--   : (A : U)
+--   -> (P : (n : Nat) -> Vec A n -> U)
+--   -> P zero (vnil A)
+--   -> ((n : Nat) -> (x : A) -> (xs : Vec A n) -> P n xs -> P (suc n) (vcons A n x xs))
+--   -> (n : Nat) -> (v : Vec A n) -> P n v
+-- ----------------------------------------------------------------------------
+
+-- head is TOTAL here: its type demands a nonempty vector (index suc n), so the
+-- vnil case is impossible — the payoff of indexing.
+def head : (A : U) -> (n : Nat) -> Vec A (suc n) -> A
+  = lambda A n v:
+      Vec_elim A (lambda k _: match k { | zero => Nat | suc _ => A })   -- motive sketch
+        zero                                                            -- (vnil case unreachable at suc n)
+        (lambda k x xs ih: x)
+        (suc n) v
+
+-- append, with the length ADDING in the type — the theorem-carrying operation
+def append : (A : U) -> (m : Nat) -> (n : Nat) -> Vec A m -> Vec A n -> Vec A (add m n)
+  = lambda A m n xs ys:
+      Vec_elim A (lambda k _: Vec A (add k n))
+        ys
+        (lambda k x xs ih: vcons A (add k n) x ih)
+        m xs
+
+-- ----------------------------------------------------------------------------
+-- DEFEQ CANARIES: the iota rule at an indexed constructor must apply the method
+-- at the constructor's index instantiation. These must hold by `refl` once the
+-- eliminator lands (and are how we verify conversion treats indexed neutrals
+-- correctly — the VCon/VElim spine already compares index arguments).
+-- ----------------------------------------------------------------------------
+-- Vec_elim on vcons reduces to the cons-method applied at index (suc n):
+--   Vec_elim A P z s (suc n) (vcons A n x xs)  ≡  s n x xs (Vec_elim A P z s n xs)
+-- Vec_elim on vnil reduces to the base method:
+--   Vec_elim A P z s zero (vnil A)  ≡  z
