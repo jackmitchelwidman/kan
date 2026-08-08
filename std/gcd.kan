@@ -122,3 +122,9 @@ def reduce_coprime : (a : Nat) -> (b : Nat) -> Lt zero (gcdI a b)
   = lambda a b gpos:
       coprime_cofactors a b (fst (fst (gcd_dvd a b))) (fst (snd (gcd_dvd a b))) gpos
         (snd (fst (gcd_dvd a b))) (snd (snd (gcd_dvd a b)))
+
+-- canary: the Lt 0 (gcdI …) hypothesis IS dischargeable on literals (gcd 6 4 = 2)
+-- — exactly the shape a Rational smart constructor will use to feed reduce_coprime.
+-- (Applying reduce_coprime here type-checks too, but forces the full coprimality
+-- reduction — kept out of the gate for cost; see divmod.kan's known-cost note.)
+def gcd64_pos : Lt zero (gcdI 6 4) = lt_zero_suc 1

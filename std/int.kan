@@ -171,6 +171,9 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 --
 -- Still to prove (true; in progress; NO axioms will paper over them):
 --  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
---  • assemble the type-ENFORCED `Rational` record on top of reduce_coprime (the
---    proof obligations are now all discharged; this is construction, not new math).
+--  • assemble the type-ENFORCED `Rational` record on top of reduce_coprime. Mostly
+--    construction, but a few small lemmas remain: gcd_pos (Lt 0 b -> Lt 0 (gcdI a b))
+--    to discharge reduce_coprime's hypothesis, cofactor positivity for the den≠0
+--    field, and Int/sign plumbing (the tower is on Nat; numerators are Int). Make
+--    the coprimality field the `Coprime` predicate (what reduce_coprime yields).
 -- ============================================================================

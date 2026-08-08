@@ -449,12 +449,30 @@ defined as "every common divisor divides 1". No axioms. Gate green at 46/0.
 
 **Milestone 2 (ADR-013) is now complete**: the inductive integer tower has verified
 Euclidean division, verified gcd (divides-both *and* maximal), and proof-carrying
-reduction to lowest terms — everything a type-ENFORCED `Rational` (den ≠ 0 and
-coprimality as PROOF fields) needs. What remains is *assembling that record* on top
-of `reduce_coprime` (construction, not new mathematics) and the residual ring
-axioms. The one open wart is the divmod/gcd reduction-cost blow-up (ADR-016 known
-issue) — a separate evaluator task; the fast compute path stays the `ndiv`/`ngcd`
-primitives.
+reduction to lowest terms — the load-bearing mathematics a type-ENFORCED `Rational`
+(den ≠ 0 and coprimality as PROOF fields) needs.
+
+Assembling that record is *mostly* construction, but not quite zero new lemmas —
+the honest checklist for next session:
+ • `gcd_pos : Lt 0 b -> Lt 0 (gcdI a b)` — discharges `reduce_coprime`'s positivity
+   hypothesis for variable inputs (derive from `gcd_dvd`: g ∣ b, b>0, g=0 ⟹ b=0
+   via `suc_ne_zero`). Small, but real.
+ • cofactor positivity — the reduced denominator `den/g` must be provably > 0 for
+   the den≠0 field (same shape: `cb = 0 ⟹ den = 0`).
+ • make the record's coprimality field the `Coprime` predicate (what `reduce_coprime`
+   hands you), NOT `Id Nat (gcdI …) 1` (that needs an extra unit lemma
+   `Dvd d 1 -> Id d 1`).
+ • Int/sign bridging — the tower is on `Nat`; the numerator is `Int`, so `natAbs`
+   + sign plumbing is genuine assembly.
+Plus the residual ring axioms (assoc/distrib for `addI`/`mulI`).
+
+The one open wart is the divmod/gcd reduction-cost blow-up (ADR-016 known issue),
+and it is NOT quarantined from the summit: type-checking a `Rational` smart
+constructor on *concrete* literals forces `gcdI`/`divI` reduction (to discharge
+`Lt 0 (gcdI num den)` and normalize cofactors), so Rational examples must stay
+tiny until the evaluator-sharing fix lands. The fast compute path stays the
+`ndiv`/`ngcd` primitives. (Canary `gcd64_pos` in `std/gcd.kan` confirms the
+positivity hypothesis is dischargeable on literals — the exact constructor shape.)
 
 ---
 
