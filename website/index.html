@@ -101,6 +101,7 @@
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
     <div class="cta">
       <a class="btn" href="https://github.com/jackmitchelwidman/kan">View on GitHub</a>
+      <a class="btn ghost" href="kan-extensions.html">Why “Kan”? →</a>
       <a class="btn ghost" href="#try">Try it</a>
       <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">Read the design</a>
     </div>
@@ -226,6 +227,9 @@ eval fac 50</pre>
     * (unit : NatTrans A D F (compFunctor A B D p L))
     * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G) -> NatTrans B D L G)</pre>
     <p class="out">The extension along the identity is constructed — so the statement is inhabited, not empty.</p>
+    <p style="margin-top:18px"><a class="btn" href="kan-extensions.html">Kan extensions, in Kan — the worked examples →</a></p>
+    <p class="out">A short, checked tour: extending along the identity (both variances), the universal
+    property <em>computing</em>, and Mac Lane’s “all concepts are Kan extensions” stated in the language.</p>
   </section>
 
   <section>

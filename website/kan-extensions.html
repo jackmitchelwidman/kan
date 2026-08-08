@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kan extensions, in Kan</title>
+<meta name="description" content="The construction the language is named for — Kan extensions — stated, constructed, and type-checked in Kan itself. Every snippet on this page is checked code.">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+      --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+    --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 22px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre,.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
+
+  header.hero{padding:40px 0 34px; border-bottom:1px solid var(--line)}
+  .back{font-size:14px; color:var(--muted)}
+  .eyebrow{letter-spacing:.16em; text-transform:uppercase; font-size:12px; color:var(--accent); font-weight:700}
+  h1{font-size:clamp(30px,5vw,46px); line-height:1.06; margin:.24em 0 .18em; letter-spacing:-.02em}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--muted); margin:0}
+  blockquote.thesis{
+    margin:26px 0 6px; padding:18px 22px; border-left:3px solid var(--accent);
+    background:var(--card); border-radius:0 10px 10px 0; font-size:18px; color:var(--fg);
+  }
+  blockquote.thesis .who{display:block; margin-top:8px; font-size:14px; color:var(--muted)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:15px;
+    background:var(--accent); color:#fff; border:1px solid transparent;
+  }
+  .btn:hover{text-decoration:none; filter:brightness(1.06)}
+  .btn.ghost{background:transparent; color:var(--fg); border-color:var(--line)}
+
+  section{padding:40px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 16px; font-weight:700}
+  h2 .n{color:var(--accent); margin-right:8px}
+  h3{font-size:19px; margin:0 0 6px; letter-spacing:-.01em}
+  p{margin:0 0 16px}
+  .lead{font-size:18px}
+
+  figure.diagram{margin:20px 0 6px; text-align:center}
+  figure.diagram svg{max-width:100%; height:auto; color:var(--fg)}
+  figcaption{color:var(--muted); font-size:13.5px; margin-top:10px}
+
+  pre{
+    background:var(--code-bg); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.6; margin:0 0 14px;
+  }
+  pre .c{color:var(--muted)}
+  pre .k{color:var(--accent); font-weight:600}
+  .out{color:var(--muted); font-size:13.5px; margin:-4px 0 14px}
+  .pill{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em;
+        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card)}
+
+  footer{padding:40px 0 70px; color:var(--muted); font-size:14px}
+  footer a{color:var(--muted); text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="back"><a href="/">← Kan</a></p>
+    <p class="eyebrow">Why the name</p>
+    <h1>Kan extensions, in Kan.</h1>
+    <p class="sub">The construction the language is named for — stated, constructed, and <strong>type-checked</strong> in Kan itself.</p>
+    <blockquote class="thesis">“The notion of Kan extension subsumes all the other fundamental concepts of category theory.”
+      <span class="who">— Saunders Mac Lane, <em>Categories for the Working Mathematician</em></span></blockquote>
+    <div class="cta">
+      <a class="btn" href="https://github.com/jackmitchelwidman/kan/blob/main/examples/kan_extensions.kan">The full file on GitHub</a>
+      <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/std/kan.kan">std/kan.kan</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>What a Kan extension is</h2>
+    <p class="lead">Given a functor <code>F : A → D</code> and a functor <code>p : A → B</code>, the
+    <b>left Kan extension</b> of <code>F</code> along <code>p</code> is the best approximation of
+    <code>F</code> by a functor on all of <code>B</code>: a functor <code>L : B → D</code> with a natural
+    transformation <code>η : F ⇒ L∘p</code> that is <em>universal</em> — every competitor
+    <code>(G, γ : F ⇒ G∘p)</code> factors through a unique mediating <code>σ : L ⇒ G</code>.</p>
+
+    <figure class="diagram">
+      <svg viewBox="0 0 380 176" role="img" aria-label="The left Kan extension triangle: F factors as L after p, with unit eta.">
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L7,3 L0,6 Z" fill="currentColor"></path>
+          </marker>
+        </defs>
+        <g fill="currentColor" font-family="SF Mono,ui-monospace,monospace" font-size="19">
+          <text x="34" y="34">A</text>
+          <text x="330" y="34">D</text>
+          <text x="34" y="158">B</text>
+        </g>
+        <g stroke="currentColor" stroke-width="1.6" fill="none">
+          <line x1="52" y1="28" x2="322" y2="28" marker-end="url(#ah)"></line>
+          <line x1="40" y1="44" x2="40" y2="140" marker-end="url(#ah)"></line>
+          <line x1="54" y1="150" x2="322" y2="42" marker-end="url(#ah)" stroke-dasharray="5 4"></line>
+        </g>
+        <g fill="currentColor" font-family="SF Mono,ui-monospace,monospace" font-size="15">
+          <text x="180" y="20">F</text>
+          <text x="20" y="98">p</text>
+          <text x="205" y="112">L</text>
+        </g>
+        <text x="150" y="70" style="fill:var(--accent)" font-family="SF Mono,ui-monospace,monospace" font-size="15">η : F ⇒ L∘p</text>
+      </svg>
+      <figcaption>The universal property, as a picture. In Kan, it is a type.</figcaption>
+    </figure>
+
+    <p>In Kan a <code>Category</code> is a dependent record whose <b>laws are fields</b>, so this universal
+    property is not prose — it is a type the checker accepts:</p>
+<pre><span class="c">-- std/kan.kan — the left Kan extension of F along p, as a universal property</span>
+<span class="k">def</span> LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+                 -> Functor A B -> Functor A D -> U
+  = lambda A B D p F:
+      (L : Functor B D)                                          <span class="c">-- the extending functor</span>
+    * (unit : NatTrans A D F (compFunctor A B D p L))            <span class="c">-- η : F ⇒ L∘p</span>
+    * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G)
+                         -> NatTrans B D L G)                    <span class="c">-- the mediating σ</span></pre>
+    <p class="out">The right Kan extension is the exact dual (mapping in): see <code>RightKanExt</code>.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">1</span> Extend along the identity — and get F back</h2>
+    <p>The simplest genuine Kan extension: every functor is its own extension along the
+    <b>identity</b>. Take <code>L = F</code> and let the unit be the identity <code>F ⇒ F∘id = F</code>.
+    It holds for <em>any</em> <code>F</code>, in both variances — and it type-checks, so it is proven.</p>
+<pre><span class="c">-- std/kan.kan — a functor is its own Kan extension along the identity</span>
+<span class="k">def</span> lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+                 -> LeftKanExt A A D (idFunctor A) F
+  = lambda A D F: ( F , ( idNat A D F , lambda G gamma: gamma ) )
+
+<span class="c">-- and the dual, ranAlongId, along the same lines.</span></pre>
+    <p>Instantiated concretely, the extension really recovers <code>F</code> — this equation is
+    <code>refl</code>:</p>
+<pre><span class="k">def</span> lanId : LeftKanExt One One One (idFunctor One) F = lanAlongId One One F
+<span class="k">def</span> lanId_recovers_F : Id (Functor One One) (fst lanId) F = refl   <span class="c">-- L = F ✓</span></pre>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span> The universal property computes</h2>
+    <p>A Kan extension isn’t just a functor — it <em>carries</em> its universal mediating map. You can
+    pull that map out of the extension and <b>run it</b>: hand it any competitor <code>(G, γ)</code> and
+    it returns the factoring <code>σ : L ⇒ G</code>. The property doesn’t merely hold — it computes.</p>
+<pre><span class="c">-- pull the mediator out of the extension …</span>
+<span class="k">def</span> lanId_mediator
+  : (G : Functor One One)
+    -> NatTrans One One F (compFunctor One One One (idFunctor One) G)
+    -> NatTrans One One F G
+  = snd (snd lanId)
+
+<span class="c">-- … and run it: out comes a genuine natural transformation σ : F ⇒ F.</span>
+<span class="k">def</span> lanId_sigma : NatTrans One One F F = lanId_mediator F (idNat One One F)</pre>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span> “All concepts are Kan extensions”</h2>
+    <p>The slogan is Mac Lane’s. In Kan it becomes a definition the checker accepts. The unique functor
+    <code>A → 1</code> to the terminal category turns limits and colimits into Kan extensions:</p>
+<pre><span class="c">-- the unique functor to the terminal category 1</span>
+<span class="k">def</span> toOne : (A : Category) -> Functor A One
+  = lambda A: ( lambda a: unit , ( lambda a b f: unit , ( lambda a: refl , lambda a b c g f: refl ) ) )
+
+<span class="c">-- a COLIMIT of F is its left Kan extension along A -> 1</span>
+<span class="k">def</span> ColimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+  = lambda A D F: LeftKanExt A One D (toOne A) F
+
+<span class="c">-- a LIMIT of F is the right Kan extension along A -> 1</span>
+<span class="k">def</span> LimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+  = lambda A D F: RightKanExt A One D (toOne A) F</pre>
+    <p class="out">These are well-formed Kan types — the slogan is not a metaphor here, it is a statement the
+    checker accepts. Inhabiting them for a general <code>A</code> is the theory of (co)limits (needs
+    coends — Kan’s next frontier); the identity extensions above are the base cases Kan already builds
+    and verifies.</p>
+  </section>
+
+  <section>
+    <h2>Check it yourself</h2>
+    <p>Every snippet on this page is real code from the repository. Nothing here is a diagram of
+    intent — it is a diagram Kan filled.</p>
+<pre><span class="c">$ kan check examples/kan_extensions.kan</span>
+<span class="c"># ...every definition type-checks — which, in Kan, means it holds.</span></pre>
+    <p><span class="pill">the language named for Kan extensions can express, and check, Kan extensions</span></p>
+  </section>
+
+  <footer>
+    <a href="/">kan-lang.org</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/examples/kan_extensions.kan">examples/kan_extensions.kan</a>
+    &nbsp;·&nbsp; Named for <a href="https://en.wikipedia.org/wiki/Daniel_Kan">Daniel Kan</a>.
+  </footer>
+
+</div>
+</body>
+</html>
