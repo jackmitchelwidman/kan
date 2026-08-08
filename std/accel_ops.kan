@@ -34,3 +34,11 @@ def t_mul_sk   : (k : Nat) -> (n : Nat) -> Id Nat (nmul (suc k) n) (nadd n (nmul
 -- broader agreement guarantee.
 def t_agree_add : (n : Nat) -> Id Nat (nadd 2 n) (add 2 n) = lambda n: refl
 def t_agree_mul : (n : Nat) -> Id Nat (nmul 2 n) (mul 2 n) = lambda n: refl
+
+-- the fast OPAQUE normalization primitives (literal-only): ngcd / ndiv / npred
+def t_gcd   : Id Nat (ngcd 12 18) 6   = refl
+def t_gcd_c : Id Nat (ngcd 17 5) 1    = refl
+def t_div   : Id Nat (ndiv 100 7) 14  = refl
+def t_div0  : Id Nat (ndiv 5 0) 0     = refl
+def t_pred  : Id Nat (npred 5) 4      = refl
+def t_pred0 : Id Nat (npred 0) 0      = refl

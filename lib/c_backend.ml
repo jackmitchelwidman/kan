@@ -172,6 +172,9 @@ static Value *int_lt(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big
 static Value *int_fromnat(Value *n) { return mk_int(n->big); }
 static Value *nat_add(Value *a, Value *b) { return mk_nat(big_add(a->big, b->big)); }
 static Value *nat_mul(Value *a, Value *b) { return mk_nat(big_mul(a->big, b->big)); }
+static Value *nat_gcd(Value *a, Value *b) { return mk_nat(big_gcd(a->big, b->big)); }
+static Value *nat_div(Value *a, Value *b) { return mk_nat(big_div(a->big, b->big)); }
+static Value *nat_pred(Value *a) { return mk_nat(a->big->sign == 0 ? big_from_int(0) : big_sub(a->big, big_from_int(1))); }
 static int as_bool(Value *v) { return v->i; }
 static Value *fst_v(Value *v) { return v->tag == VPAIR ? v->a : UNIT; }
 static Value *snd_v(Value *v) { return v->tag == VPAIR ? v->b : UNIT; }
@@ -292,6 +295,9 @@ let compile (decls : Tt.decl list) : string =
     | ISuc e -> Printf.sprintf "suc_v(%s)" (cexpr nloc envv e)
     | INatAdd (a, b) -> Printf.sprintf "nat_add(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | INatMul (a, b) -> Printf.sprintf "nat_mul(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | INatGcd (a, b) -> Printf.sprintf "nat_gcd(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | INatDiv (a, b) -> Printf.sprintf "nat_div(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | INatPred a -> Printf.sprintf "nat_pred(%s)" (cexpr nloc envv a)
     | INatElim (z, s, n) -> Printf.sprintf "inatelim(%s, %s, %s)" (cexpr nloc envv z) (cexpr nloc envv s) (cexpr nloc envv n)
     | IStr s -> Printf.sprintf "mk_str(%s)" (quote s)
     | IStrApp (a, b) -> Printf.sprintf "str_app(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)

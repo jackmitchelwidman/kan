@@ -34,6 +34,9 @@ let iif c t e = match c with VBoolV true -> t () | VBoolV false -> e () | _ -> f
 let isuc = function VNatV k -> VNatV (Bi.add k Bi.one) | _ -> failwith "suc"
 let iintnatadd a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.add x y) | _ -> failwith "nadd"
 let iintnatmul a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.mul x y) | _ -> failwith "nmul"
+let iintnatgcd a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.gcd x y) | _ -> failwith "ngcd"
+let iintnatdiv a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.div x y) | _ -> failwith "ndiv"
+let iintnatpred a = match a with VNatV k -> VNatV (if Bi.compare k Bi.zero <= 0 then Bi.zero else Bi.sub k Bi.one) | _ -> failwith "npred"
 let istrapp a b = match a, b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat"
 let istreq a b = match a, b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq"
 let iintadd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.add x y) | _ -> failwith "iadd"
@@ -102,6 +105,9 @@ let rec cexpr globals locals (e : iexpr) : string =
   | ISuc e -> Printf.sprintf "(isuc %s)" (go e)
   | INatAdd (a, b) -> Printf.sprintf "(iintnatadd %s %s)" (go a) (go b)
   | INatMul (a, b) -> Printf.sprintf "(iintnatmul %s %s)" (go a) (go b)
+  | INatGcd (a, b) -> Printf.sprintf "(iintnatgcd %s %s)" (go a) (go b)
+  | INatDiv (a, b) -> Printf.sprintf "(iintnatdiv %s %s)" (go a) (go b)
+  | INatPred a -> Printf.sprintf "(iintnatpred %s)" (go a)
   | INatElim (z, s, n) -> Printf.sprintf "(inatelim %s %s %s)" (go z) (go s) (go n)
   | IStr s -> Printf.sprintf "(VStrV %S)" s
   | IStrApp (a, b) -> Printf.sprintf "(istrapp %s %s)" (go a) (go b)

@@ -26,6 +26,9 @@ type iexpr =
   | ISuc of iexpr
   | INatAdd of iexpr * iexpr
   | INatMul of iexpr * iexpr
+  | INatGcd of iexpr * iexpr
+  | INatDiv of iexpr * iexpr
+  | INatPred of iexpr
   | INatElim of iexpr * iexpr * iexpr
   | IStr of string
   | IStrApp of iexpr * iexpr
@@ -56,6 +59,9 @@ let rec erase (t : tm) : iexpr =
   | NatLit b -> INat b
   | NatAdd (a, b) -> INatAdd (erase a, erase b)
   | NatMul (a, b) -> INatMul (erase a, erase b)
+  | NatGcd (a, b) -> INatGcd (erase a, erase b)
+  | NatDiv (a, b) -> INatDiv (erase a, erase b)
+  | NatPred a -> INatPred (erase a)
   | Suc n -> (match erase n with INat k -> INat (Bigint.add k Bigint.one) | e -> ISuc e)
   | NatElim (_, z, s, n) -> INatElim (erase z, erase s, erase n)   (* motive erased *)
   | Con c -> IConH c
@@ -133,6 +139,9 @@ and ieval env t =
   | ISuc e -> (match ieval env e with VNatV k -> VNatV (Bigint.add k Bigint.one) | _ -> failwith "suc")
   | INatAdd (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.add x y) | _ -> failwith "nadd")
   | INatMul (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.mul x y) | _ -> failwith "nmul")
+  | INatGcd (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.gcd x y) | _ -> failwith "ngcd")
+  | INatDiv (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.div x y) | _ -> failwith "ndiv")
+  | INatPred a -> (match ieval env a with VNatV k -> VNatV (if Bigint.compare k Bigint.zero <= 0 then Bigint.zero else Bigint.sub k Bigint.one) | _ -> failwith "npred")
   | INatElim (z, s, n) ->
       (match ieval env n with
        | VNatV k ->

@@ -81,3 +81,13 @@ def divF : Frac -> Frac -> Option Frac
   = lambda x y: match (recipF y : Option Frac) {
       | none   => none Frac
       | some r => some Frac (mulF x r) }
+
+-- reduce to lowest terms, using the fast (opaque) normalization primitives
+-- ngcd/ndiv/npred (ADR-013). The denominator suc denPred is ≥ 1, so g = gcd(|num|,
+-- den) ≥ 1 and divides both exactly; den/g ≥ 1 so npred(den/g) is its predecessor.
+-- (This is computation; the coprimality PROOF field awaits the verified gcd layer.)
+def reduceF : Frac -> Frac
+  = lambda x:
+      frac (intOfSignMag (isNeg (fnum x))
+                         (ndiv (natAbs (fnum x)) (ngcd (natAbs (fnum x)) (suc (fdenPred x)))))
+           (npred (ndiv (suc (fdenPred x)) (ngcd (natAbs (fnum x)) (suc (fdenPred x)))))
