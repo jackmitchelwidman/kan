@@ -1,0 +1,36 @@
+-- ============================================================================
+-- std/order — order (≤, <) and divisibility (|) as Σ-WITNESSES, the foundation
+-- for the verified gcd tower (ADR-013 milestone 2, Level 2, stage 1).
+--
+-- Encoding these as witnesses rather than Bools or inductive families is
+-- deliberate: it needs neither dependent Bool elimination nor motive-refinement
+-- (both current kernel gaps). A proof of `Le m n` is literally the difference
+-- `n - m` packaged with the equation that adds it back; a proof of `Dvd d n` is
+-- the quotient packaged with the equation that multiplies it back. The `add`/`mul`
+-- lemmas in std/nat.kan are exactly what discharge these.
+-- ============================================================================
+import "nat.kan"
+
+-- m ≤ n : there is a k with k + m = n
+def Le : Nat -> Nat -> U = lambda m n: (k : Nat) * Id Nat (add k m) n
+-- m < n : suc m ≤ n
+def Lt : Nat -> Nat -> U = lambda m n: Le (suc m) n
+-- d | n : there is a k with k · d = n
+def Dvd : Nat -> Nat -> U = lambda d n: (k : Nat) * Id Nat (mul k d) n
+
+-- ≤ is a preorder (reflexive, transitive), and 0 is the least element.
+def le_refl : (n : Nat) -> Le n n = lambda n: (zero, refl)          -- add 0 n = n
+def le_zero : (n : Nat) -> Le zero n = lambda n: (n, add_n_zero n)  -- add n 0 = n
+
+def le_trans : (a : Nat) -> (b : Nat) -> (c : Nat) -> Le a b -> Le b c -> Le a c
+  = lambda a b c p q:
+      ( add (fst q) (fst p)                                          -- (k2 + k1) + a = c
+      , trans Nat (add (add (fst q) (fst p)) a) (add (fst q) b) c
+          (trans Nat (add (add (fst q) (fst p)) a) (add (fst q) (add (fst p) a)) (add (fst q) b)
+             (add_assoc (fst q) (fst p) a)
+             (ap Nat Nat (lambda z: add (fst q) z) (add (fst p) a) b (snd p)))
+          (snd q) )
+
+-- divisibility: 1 divides everything, and every n divides itself.
+def dvd_one  : (n : Nat) -> Dvd 1 n = lambda n: (n, mul_n_one n)    -- n · 1 = n
+def dvd_refl : (n : Nat) -> Dvd n n = lambda n: (1, add_n_zero n)   -- 1 · n = n  (mul 1 n ≡ add n 0)

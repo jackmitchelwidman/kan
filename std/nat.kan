@@ -76,3 +76,11 @@ def mul_comm : (m : Nat) -> (n : Nat) -> Id Nat (mul m n) (mul n m)
       | suc k => trans Nat (add n (mul k n)) (add n (mul n k)) (mul n (suc k))
                    (ap Nat Nat (lambda z: add n z) (mul k n) (mul n k) (mul_comm k n))
                    (sym Nat (mul n (suc k)) (add n (mul n k)) (mul_suc n k)) }
+
+-- n · 1 = n (via mul_suc, mul_n_zero, add_n_zero) — needed for divisibility (Dvd 1).
+def mul_n_one : (n : Nat) -> Id Nat (mul n 1) n
+  = lambda n: trans Nat (mul n 1) (add n (mul n zero)) n
+      (mul_suc n zero)
+      (trans Nat (add n (mul n zero)) (add n zero) n
+         (ap Nat Nat (lambda z: add n z) (mul n zero) zero (mul_n_zero n))
+         (add_n_zero n))
