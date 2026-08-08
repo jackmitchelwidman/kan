@@ -36,3 +36,15 @@ def addI_negneg : (m : Nat) -> (n : Nat) -> Id Int (addI (negsuc m) (negsuc n)) 
 -- Int multiplication: same-sign reduces to a `pos` of the Nat product
 def mulI_pospos : (m : Nat) -> (n : Nat) -> Id Int (mulI (pos m) (pos n)) (pos (mul m n))              = lambda m n: refl
 def mulI_negneg : (m : Nat) -> (n : Nat) -> Id Int (mulI (negsuc m) (negsuc n)) (pos (mul (suc m) (suc n))) = lambda m n: refl
+
+-- ============================================================================
+-- CANARIES for the kernel-acceleration change (ADR-013 milestone 3). All hold
+-- definitionally TODAY; each pins a seam the bignum fast path must preserve, so a
+-- regression becomes a RED GATE instead of silent unsoundness.
+-- ============================================================================
+-- canonicalization: suc of a literal must fold to the next literal
+def canary_canon : Id Nat (suc 2) 3 = refl
+-- literal ⊕ neutral: `add (lit>0) n` must still fully unfold (add's suc-rule)
+def canary_lit_neutral : (n : Nat) -> Id Nat (add 2 n) (suc (suc n)) = lambda n: refl
+-- mul seam + orientation: mul's suc-rule emits `add n (mul k n)`
+def canary_mul_seam : (n : Nat) -> Id Nat (mul 1 n) (add n zero) = lambda n: refl
