@@ -11,6 +11,8 @@
 -- ============================================================================
 import "nat.kan"
 import "either.kan"
+import "void.kan"
+import "unit.kan"
 
 -- m ≤ n : there is a k with k + m = n
 def Le : Nat -> Nat -> U = lambda m n: (k : Nat) * Id Nat (add k m) n
@@ -31,6 +33,23 @@ def le_trans : (a : Nat) -> (b : Nat) -> (c : Nat) -> Le a b -> Le b c -> Le a c
              (add_assoc (fst q) (fst p) a)
              (ap Nat Nat (lambda z: add (fst q) z) (add (fst p) a) b (snd p)))
           (snd q) )
+
+-- suc k is never zero — transport a type-level family (Void at 0, Unit at suc).
+def suc_ne_zero : (k : Nat) -> Id Nat (suc k) zero -> Void
+  = lambda k p: transp Nat (lambda n: match (eqNat n zero) { | true => Void | false => Unit }) (suc k) zero p unit
+
+-- a ≤ 0  implies  a = 0. Case-split a with an explicit motive generalised over
+-- the ≤-witness (convoy), so the suc case can refute it via suc_ne_zero.
+def le_zero_eq : (a : Nat) -> Le a zero -> Id Nat a zero
+  = lambda a le:
+      (match a as aa return (Le aa zero -> Id Nat aa zero) {
+        | zero   => lambda _: refl
+        | suc a2 => lambda le2:
+            absurd (Id Nat (suc a2) zero)
+              (suc_ne_zero (add a2 (fst le2))
+                 (trans Nat (suc (add a2 (fst le2))) (add (fst le2) (suc a2)) zero
+                    (add_comm (suc a2) (fst le2))
+                    (snd le2))) }) le
 
 -- divisibility: 1 divides everything, and every n divides itself.
 def dvd_one  : (n : Nat) -> Dvd 1 n = lambda n: (n, mul_n_one n)    -- n · 1 = n
