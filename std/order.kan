@@ -219,3 +219,18 @@ def dvd_pos_divisor : (g : Nat) -> (b : Nat) -> Dvd g b -> Lt zero b -> Lt zero 
                  (mul_n_zero (fst dv)))
               bp
         | suc k => lambda dv bp: lt_zero_suc k }) dvd bpos
+
+-- b > 0  ⟹  b + x > 0  (b is a successor, so add b x is a successor). 
+def lt_zero_add_l : (b : Nat) -> (x : Nat) -> Lt zero b -> Lt zero (add b x)
+  = lambda b x bpos:
+      transp Nat (lambda z: Lt zero (add z x)) (suc (fst bpos)) b
+        (sym Nat b (suc (fst bpos)) (pos_suc b bpos))
+        (lt_zero_suc (add (fst bpos) x))
+
+-- product of positives is positive:  a > 0, b > 0  ⟹  a·b > 0.  (For the product
+-- denominator when multiplying/adding canonical rationals.) Convoy on a.
+def mul_pos : (a : Nat) -> (b : Nat) -> Lt zero a -> Lt zero b -> Lt zero (mul a b)
+  = lambda a b apos bpos:
+      (match a as aa return (Lt zero aa -> Lt zero (mul aa b)) {
+        | zero  => lambda ap: ap                                  -- vacuous (Lt 0 0)
+        | suc a2 => lambda ap: lt_zero_add_l b (mul a2 b) bpos }) apos

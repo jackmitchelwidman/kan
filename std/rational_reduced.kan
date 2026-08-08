@@ -24,6 +24,7 @@
 -- ============================================================================
 import "gcd.kan"
 import "int.kan"
+import "option.kan"
 
 -- the type: a rational in lowest terms, invariants as proof fields.
 def Reduced : U
@@ -74,3 +75,53 @@ def fromIntR : Int -> Reduced  = lambda n: reduce n (suc zero) (lt_zero_suc zero
 -- all four proof obligations were discharged. (We do NOT assert the numerals 3/2
 -- by refl here — that forces the gcd reduction; see the cost note above.)
 def demo_6_4 : Reduced = reduce (pos 6) 4 (lt_zero_suc 3)
+
+-- ---- arithmetic on Reduced: exact, and always back in lowest terms ----------
+-- The denominator proof-field, projected for reuse.
+def dposR : (q : Reduced) -> Lt zero (denR q) = lambda q: fst (snd (snd q))
+
+-- Every operation computes a raw numerator/denominator and re-canonicalizes with
+-- `reduce` — so the RESULT is again provably in lowest terms with a positive
+-- denominator. The product denominator is positive by mul_pos.
+
+-- a/b · c/d = (a·c)/(b·d)
+def mulR : Reduced -> Reduced -> Reduced
+  = lambda x y:
+      reduce (mulI (numR x) (numR y)) (mul (denR x) (denR y))
+        (mul_pos (denR x) (denR y) (dposR x) (dposR y))
+
+-- a/b + c/d = (a·d + c·b)/(b·d)
+def addR : Reduced -> Reduced -> Reduced
+  = lambda x y:
+      reduce (addI (mulI (numR x) (fromNatI (denR y))) (mulI (numR y) (fromNatI (denR x))))
+             (mul (denR x) (denR y))
+             (mul_pos (denR x) (denR y) (dposR x) (dposR y))
+
+-- negation and subtraction (total).
+def negR : Reduced -> Reduced
+  = lambda x: reduce (negI (numR x)) (denR x) (dposR x)
+def subR : Reduced -> Reduced -> Reduced
+  = lambda x y: addR x (negR y)
+
+-- reciprocal: the zero rational has NO inverse, so this is honest — `none` exactly
+-- when the numerator is 0. The new denominator is |num| = suc k (positive), so
+-- lt_zero_suc discharges it; the sign of num moves onto the new numerator.
+def recipR : Reduced -> Option Reduced
+  = lambda x: match (numR x) {
+      | pos m => match m {
+          | zero  => none Reduced
+          | suc k => some Reduced (reduce (pos (denR x)) (suc k) (lt_zero_suc k)) }
+      | negsuc k => some Reduced (reduce (intOfSignMag true (denR x)) (suc k) (lt_zero_suc k)) }
+
+-- division: a / b = a · b⁻¹.  `none` exactly when b is the zero rational — there
+-- is NO way to divide by zero in this type.
+def divR : Reduced -> Reduced -> Option Reduced
+  = lambda x y: match (recipR y : Option Reduced) {
+      | none   => none Reduced
+      | some r => some Reduced (mulR x r) }
+
+-- cheap demos (constructions only — no numeral is forced via refl): building them
+-- type-checks, so every proof obligation along the way was discharged.
+def demo_sum  : Reduced = addR (reduce (pos 1) 2 (lt_zero_suc 1)) (reduce (pos 1) 3 (lt_zero_suc 2))  -- 1/2 + 1/3
+def demo_prod : Reduced = mulR (reduce (pos 2) 3 (lt_zero_suc 2)) (reduce (pos 3) 4 (lt_zero_suc 3))  -- 2/3 · 3/4
+def demo_div  : Option Reduced = divR (reduce (pos 1) 2 (lt_zero_suc 1)) (reduce (pos 3) 4 (lt_zero_suc 3))  -- (1/2)/(3/4)

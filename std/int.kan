@@ -187,10 +187,17 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 -- sign via a pos/negsuc split that dodges the Bool-elim gap, with natAbs_negOfMag).
 -- Divide-by-zero is now a TYPE error, and every value is provably in lowest terms.
 --
+-- DONE: arithmetic ON `Reduced` (std/rational_reduced.kan) — addR/mulR/subR/negR
+-- (total) and recipR/divR (Option: `none` exactly on the zero rational, so there
+-- is NO way to divide by zero). Each op computes a raw num/den and re-runs `reduce`,
+-- so every RESULT is again provably lowest-terms with a positive denominator
+-- (product denominator positive by mul_pos). This is now genuinely "provably exact
+-- rational arithmetic, divide-by-zero impossible by construction, lowest terms
+-- proven."
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • arithmetic ON `Reduced`: addR/mulR/... via cross-multiply + `reduce` (needs
---    one more lemma, mul_pos : Lt 0 a -> Lt 0 b -> Lt 0 (mul a b), for the product
---    denominator). Until those land, "provably exact rational ARITHMETIC" would
---    overstate; the record + reduction to lowest terms is what's proven.
---  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
+--  • remaining ring axioms on Int itself: addI/mulI assoc, mul-by-zero/one,
+--    distributivity (Reduced arithmetic already works; these would let us prove
+--    the FIELD LAWS of ℚ — e.g. addR/mulR assoc & distrib — as theorems).
+--  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
 -- ============================================================================
