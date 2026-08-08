@@ -37,6 +37,8 @@ type tm =
   | Zero
   | Suc of tm
   | NatLit of Bigint.t                (* a canonical Nat literal (bignum-backed) *)
+  | NatAdd of tm * tm                 (* accelerated Nat addition (matches add's equations) *)
+  | NatMul of tm * tm                 (* accelerated Nat multiplication (matches mul's equations) *)
   | NatElim of tm * tm * tm * tm      (* dependent induction: natElim P z s n : P n *)
   | Data of string                    (* a datatype/type-former head; applied to params via App *)
   | Con of string                     (* a constructor head; applied to params & args via App *)
@@ -78,6 +80,8 @@ let rec lift d cutoff t =
   | Fst a -> Fst (l a)
   | Snd a -> Snd (l a)
   | Suc a -> Suc (l a)
+  | NatAdd (a, b) -> NatAdd (l a, l b)
+  | NatMul (a, b) -> NatMul (l a, l b)
   | If (a, b, c) -> If (l a, l b, l c)
   | Id (a, b, c) -> Id (l a, l b, l c)
   | NatElim (a, b, c, e) -> NatElim (l a, l b, l c, l e)
@@ -206,6 +210,8 @@ type value =
   | VIf of value * value * value      (* neutral scrutinee *)
   | VNat
   | VNatLit of Bigint.t                (* a canonical closed Nat (bignum); a VSuc only ever wraps a neutral *)
+  | VNatAdd of value * value           (* stuck Nat add (first operand neutral) *)
+  | VNatMul of value * value           (* stuck Nat mul (first operand neutral) *)
   | VSuc of value
   | VNatElim of value * value * value * value   (* neutral target *)
   | VData of string * value list       (* type former applied to a spine of arguments *)
@@ -252,6 +258,8 @@ let rec eval (env : value list) (t : tm) : value =
   | Nat -> VNat
   | Zero -> VNatLit Bigint.zero
   | NatLit b -> VNatLit b
+  | NatAdd (a, b) -> vnadd (eval env a) (eval env b)
+  | NatMul (a, b) -> vnmul (eval env a) (eval env b)
   | Suc n -> vsuc (eval env n)
   | NatElim (p, z, s, n) -> vnatelim (eval env p) (eval env z) (eval env s) (eval env n)
   | Data d -> VData (d, [])
@@ -316,6 +324,36 @@ and vif c t e = match c with VTrue -> t | VFalse -> e | _ -> VIf (c, t, e)
    (VNatLit vs VSuc is always distinct: a VSuc chain bottoms out in a neutral). *)
 and vsuc v = match v with VNatLit n -> VNatLit (Bigint.add n Bigint.one) | _ -> VSuc v
 
+(* Accelerated Nat addition. Recurses on the FIRST argument, exactly like the
+   inductive `add` (add 0 n = n; add (suc k) n = suc (add k n)) — so it is
+   definitionally equal to the inductive def and every existing proof still
+   checks — but with an O(1) bignum fast path when both operands are literals.
+   Rules: (1) lit+lit -> lit; (2) 0+n -> n; (3) suc(neutral)+n -> suc(...);
+   (4) lit a>0 + neutral n -> suc^a(n) (full unfold); else stuck. *)
+and vnadd a b = match a with
+  | VNatLit x ->
+      (match b with
+       | VNatLit y -> VNatLit (Bigint.add x y)                       (* rule 1 *)
+       | _ ->                                                        (* rules 2 & 4 *)
+           let r = ref b and i = ref Bigint.zero in
+           while Bigint.compare !i x < 0 do r := vsuc !r; i := Bigint.add !i Bigint.one done;
+           !r)
+  | VSuc m -> vsuc (vnadd m b)                                       (* rule 3 *)
+  | _ -> VNatAdd (a, b)                                              (* first operand neutral: stuck *)
+
+(* Accelerated Nat multiplication. Recurses on the first argument like inductive
+   `mul` (mul 0 n = 0; mul (suc k) n = add n (mul k n)); O(1) fast path on lits. *)
+and vnmul a b = match a with
+  | VNatLit x ->
+      (match b with
+       | VNatLit y -> VNatLit (Bigint.mul x y)                       (* rule 1 *)
+       | _ ->                                                        (* rules 2 & 4: b added x times *)
+           let r = ref (VNatLit Bigint.zero) and i = ref Bigint.zero in
+           while Bigint.compare !i x < 0 do r := vnadd b !r; i := Bigint.add !i Bigint.one done;
+           !r)
+  | VSuc m -> vnadd b (vnmul m b)                                    (* rule 3: add n (mul k n) *)
+  | _ -> VNatMul (a, b)                                              (* first operand neutral: stuck *)
+
 and vnatelim p z s n =
   match n with
   | VNatLit k ->
@@ -367,6 +405,8 @@ let rec quote (l : int) (v : value) : tm =
   | VIf (c, t, e) -> If (quote l c, quote l t, quote l e)
   | VNat -> Nat
   | VNatLit b -> NatLit b
+  | VNatAdd (a, b) -> NatAdd (quote l a, quote l b)
+  | VNatMul (a, b) -> NatMul (quote l a, quote l b)
   | VSuc n -> Suc (quote l n)
   | VNatElim (p, z, s, n) -> NatElim (quote l p, quote l z, quote l s, quote l n)
   | VData (d, sp) -> List.fold_left (fun acc v -> App (acc, quote l v)) (Data d) sp
@@ -412,6 +452,8 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VIf (c, t, e), VIf (c', t', e') -> conv l c c' && conv l t t' && conv l e e'
   | VNat, VNat -> true
   | VNatLit a, VNatLit b -> Bigint.equal a b
+  | VNatAdd (a, b), VNatAdd (a', b') -> conv l a a' && conv l b b'
+  | VNatMul (a, b), VNatMul (a', b') -> conv l a a' && conv l b b'
   | VSuc a, VSuc b -> conv l a b
   | VNatElim (p, z, s, n), VNatElim (p', z', s', n') ->
       conv l p p' && conv l z z' && conv l s s' && conv l n n'
@@ -495,6 +537,8 @@ and infer (ctx : ctx) (t : tm) : value =
   | Nat -> VU 0
   | Zero -> VNat
   | NatLit _ -> VNat
+  | NatAdd (a, b) -> check ctx a VNat; check ctx b VNat; VNat
+  | NatMul (a, b) -> check ctx a VNat; check ctx b VNat; VNat
   | Suc n -> check ctx n VNat; VNat
   | NatElim (p, z, s, n) ->
       (* motive  P : Nat -> U 0  (level-0 families; the common case) *)
@@ -569,6 +613,8 @@ and show ?(ns = []) (t : tm) : string =
   | Nat -> "Nat"
   | Zero -> "0"
   | NatLit b -> Bigint.to_string b
+  | NatAdd (a, b) -> Printf.sprintf "nadd %s %s" (show ~ns a) (show ~ns b)
+  | NatMul (a, b) -> Printf.sprintf "nmul %s %s" (show ~ns a) (show ~ns b)
   | Suc t -> (match nat_int t with Some k -> string_of_int (k + 1) | None -> Printf.sprintf "suc %s" (show ~ns t))
   | NatElim (p, z, s, n) -> Printf.sprintf "natElim %s %s %s %s" (show ~ns p) (show ~ns z) (show ~ns s) (show ~ns n)
   | Data d -> d

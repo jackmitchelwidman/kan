@@ -1,0 +1,35 @@
+-- ============================================================================
+-- std/accel_ops — validates the KERNEL fast path for nadd/nmul (ADR-013
+-- increment 2a) entirely at check-time via `refl`. Each equation holds only
+-- because the kernel reduces the primitive to the right VNatLit. The LARGE
+-- cases would be infeasible via unary natElim — they check instantly here,
+-- which is the demonstration that kernel acceleration works.
+--
+-- These primitives are definitionally equal to the inductive add/mul (they obey
+-- the same recursion equations — see the neutral canaries below), so once
+-- std/nat.kan's add/mul delegate to them (increment 2c), every existing proof
+-- still checks. Check-only for now (runtime backing is increment 2b).
+-- ============================================================================
+import "nat.kan"
+
+-- fast path: literal + literal, literal * literal (O(1) bignum)
+def t_add_small : Id Nat (nadd 200 300) 500        = refl
+def t_mul_small : Id Nat (nmul 12 12) 144          = refl
+def t_add_zero  : Id Nat (nadd 0 7) 7              = refl
+def t_mul_zero  : Id Nat (nmul 0 99) 0            = refl
+
+-- LARGE: infeasible unary, instant as a bignum fast path
+def t_add_big : Id Nat (nadd 1000000000000 2000000000000) 3000000000000 = refl
+def t_mul_big : Id Nat (nmul 1000000 1000000) 1000000000000            = refl
+
+-- the primitives obey add/mul's recursion equations (so proofs are preserved):
+-- 0 + n = n ; (suc k) + n = suc (k + n) ; 0 * n = 0 ; (suc k) * n = n + k*n
+def t_add_0n   : (n : Nat) -> Id Nat (nadd 0 n) n                       = lambda n: refl
+def t_add_sk   : (k : Nat) -> (n : Nat) -> Id Nat (nadd (suc k) n) (suc (nadd k n)) = lambda k n: refl
+def t_mul_0n   : (n : Nat) -> Id Nat (nmul 0 n) 0                       = lambda n: refl
+def t_mul_sk   : (k : Nat) -> (n : Nat) -> Id Nat (nmul (suc k) n) (nadd n (nmul k n)) = lambda k n: refl
+
+-- NB: agreement with the inductive add/mul on neutrals holds once std/nat.kan's
+-- add/mul DELEGATE to these primitives (increment 2c) — at which point the whole
+-- proof gate re-checking green is the agreement guarantee. (Before delegation,
+-- `nmul 2 n` and the old `mul 2 n` have different neutral heads, as expected.)

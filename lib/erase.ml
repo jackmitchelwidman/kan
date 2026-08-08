@@ -52,6 +52,7 @@ let rec erase (t : tm) : iexpr =
   | If (c, t, e) -> IIf (erase c, erase t, erase e)
   | Zero -> INat 0
   | NatLit b -> INat (int_of_string (Bigint.to_string b))   (* source literals fit an int; bignum backing is a later increment *)
+  | NatAdd _ | NatMul _ -> failwith "nadd/nmul: kernel-only so far (ADR-013 increment 2a); runtime backing lands in 2b"
   | Suc n -> (match erase n with INat k -> INat (k + 1) | e -> ISuc e)
   | NatElim (_, z, s, n) -> INatElim (erase z, erase s, erase n)   (* motive erased *)
   | Con c -> IConH c
