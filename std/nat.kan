@@ -84,3 +84,21 @@ def mul_n_one : (n : Nat) -> Id Nat (mul n 1) n
       (trans Nat (add n (mul n zero)) (add n zero) n
          (ap Nat Nat (lambda z: add n z) (mul n zero) zero (mul_n_zero n))
          (add_n_zero n))
+
+-- truncated subtraction (monus): m - n, clamped at 0. Double-structural (like eqNat).
+def sub : Nat -> Nat -> Nat
+  = lambda m n: match m { | zero => zero | suc k => match n { | zero => suc k | suc j => sub k j } }
+
+-- m - 0 = m
+def sub_zero : (m : Nat) -> Id Nat (sub m zero) m
+  = lambda m: match m { | zero => refl | suc k => refl }
+
+-- (n + m) - n = m  — induction on n (m rides along)
+def sub_add : (n : Nat) -> (m : Nat) -> Id Nat (sub (add n m) n) m
+  = lambda n m: match n { | zero => sub_zero m | suc j => sub_add j m }
+
+-- (m + n) - n = m  — the other addend, via commutativity
+def add_sub : (m : Nat) -> (n : Nat) -> Id Nat (sub (add m n) n) m
+  = lambda m n: trans Nat (sub (add m n) n) (sub (add n m) n) m
+      (ap Nat Nat (lambda z: sub z n) (add m n) (add n m) (add_comm m n))
+      (sub_add n m)

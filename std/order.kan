@@ -34,3 +34,17 @@ def le_trans : (a : Nat) -> (b : Nat) -> (c : Nat) -> Le a b -> Le b c -> Le a c
 -- divisibility: 1 divides everything, and every n divides itself.
 def dvd_one  : (n : Nat) -> Dvd 1 n = lambda n: (n, mul_n_one n)    -- n · 1 = n
 def dvd_refl : (n : Nat) -> Dvd n n = lambda n: (1, add_n_zero n)   -- 1 · n = n  (mul 1 n ≡ add n 0)
+
+-- the cancellation the fuel divmod turns on:  m ≤ n  ⟹  m + (n − m) = n.
+-- (From the witness add k m = n, we get n − m = k, then m + k = n.)
+def le_add_sub : (m : Nat) -> (n : Nat) -> Le m n -> Id Nat (add m (sub n m)) n
+  = lambda m n le:
+      trans Nat (add m (sub n m)) (add m (fst le)) n
+        (ap Nat Nat (lambda z: add m z) (sub n m) (fst le)
+           (trans Nat (sub n m) (sub (add (fst le) m) m) (fst le)
+              (ap Nat Nat (lambda z: sub z m) n (add (fst le) m)
+                 (sym Nat (add (fst le) m) n (snd le)))
+              (add_sub (fst le) m)))
+        (trans Nat (add m (fst le)) (add (fst le) m) n
+           (add_comm m (fst le))
+           (snd le))
