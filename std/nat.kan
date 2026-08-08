@@ -85,6 +85,10 @@ def mul_n_one : (n : Nat) -> Id Nat (mul n 1) n
          (ap Nat Nat (lambda z: add n z) (mul n zero) zero (mul_n_zero n))
          (add_n_zero n))
 
+-- suc is injective — via ap of the predecessor primitive (npred (suc x) ≡ x).
+def suc_inj : (x : Nat) -> (y : Nat) -> Id Nat (suc x) (suc y) -> Id Nat x y
+  = lambda x y p: ap Nat Nat (lambda z: npred z) (suc x) (suc y) p
+
 -- truncated subtraction (monus): m - n, clamped at 0. Double-structural (like eqNat).
 def sub : Nat -> Nat -> Nat
   = lambda m n: match m { | zero => zero | suc k => match n { | zero => suc k | suc j => sub k j } }

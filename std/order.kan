@@ -35,6 +35,41 @@ def le_trans : (a : Nat) -> (b : Nat) -> (c : Nat) -> Le a b -> Le b c -> Le a c
 def dvd_one  : (n : Nat) -> Dvd 1 n = lambda n: (n, mul_n_one n)    -- n · 1 = n
 def dvd_refl : (n : Nat) -> Dvd n n = lambda n: (1, add_n_zero n)   -- 1 · n = n  (mul 1 n ≡ add n 0)
 
+-- ----------------------------------------------------------------------------
+-- STAGE 3 STATUS (ADR-013 milestone 2). The reusable ≤/< toolkit below is done
+-- and green. The next piece — a witness-producing comparison
+--   leDec : (b a : Nat) -> Either (Le b a) (Lt a b)
+-- — is BLOCKED on an elaborator gap, confirmed empirically: it must case-split
+-- both b and a with a result type depending on both, which needs either (i) a
+-- NESTED dependent motive (the inner match can't refine its scrutinee), or (ii)
+-- MUTUAL recursion (factoring the inner match into a top-level helper makes it
+-- and leDec mutually recursive, which Kan's one-def/one-eliminator, no-forward-
+-- reference elaboration can't express). Both are the same missing capability:
+-- an explicit dependent motive, `match e return (motive) { … }` (ADR-012's
+-- flagged next step). Landing that unblocks leDec -> divmodI -> the gcd theorem
+-- stack (stages 3–6), and retroactively removes the helper-def workarounds used
+-- elsewhere in the tower. That elaborator feature is the next investment.
+-- ----------------------------------------------------------------------------
+
+-- monotonicity toolkit for ≤ / < (used by the decision procedure and divmod).
+def le_suc_mono : (m : Nat) -> (n : Nat) -> Le m n -> Le (suc m) (suc n)
+  = lambda m n le:
+      ( fst le
+      , trans Nat (add (fst le) (suc m)) (suc (add (fst le) m)) (suc n)
+          (add_suc (fst le) m)
+          (ap Nat Nat (lambda z: suc z) (add (fst le) m) n (snd le)) )
+
+def lt_zero_suc : (n : Nat) -> Lt zero (suc n)
+  = lambda n: le_suc_mono zero n (le_zero n)
+
+def le_suc_cancel : (m : Nat) -> (n : Nat) -> Le (suc m) (suc n) -> Le m n
+  = lambda m n le:
+      ( fst le
+      , suc_inj (add (fst le) m) n
+          (trans Nat (suc (add (fst le) m)) (add (fst le) (suc m)) (suc n)
+             (sym Nat (add (fst le) (suc m)) (suc (add (fst le) m)) (add_suc (fst le) m))
+             (snd le)) )
+
 -- the cancellation the fuel divmod turns on:  m ≤ n  ⟹  m + (n − m) = n.
 -- (From the witness add k m = n, we get n − m = k, then m + k = n.)
 def le_add_sub : (m : Nat) -> (n : Nat) -> Le m n -> Id Nat (add m (sub n m)) n
