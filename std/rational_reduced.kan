@@ -125,3 +125,11 @@ def divR : Reduced -> Reduced -> Option Reduced
 def demo_sum  : Reduced = addR (reduce (pos 1) 2 (lt_zero_suc 1)) (reduce (pos 1) 3 (lt_zero_suc 2))  -- 1/2 + 1/3
 def demo_prod : Reduced = mulR (reduce (pos 2) 3 (lt_zero_suc 2)) (reduce (pos 3) 4 (lt_zero_suc 3))  -- 2/3 · 3/4
 def demo_div  : Option Reduced = divR (reduce (pos 1) 2 (lt_zero_suc 1)) (reduce (pos 3) 4 (lt_zero_suc 3))  -- (1/2)/(3/4)
+
+-- ---- decidable equality (canonical form ⟹ structural = value equality) -------
+-- Because every Reduced is in lowest terms with a positive denominator, two of
+-- them denote the SAME rational exactly when their num and den agree structurally
+-- (coprimality forces the representation to be unique). So this decidable check
+-- is genuine mathematical equality on ℚ — a direct payoff of the proof fields.
+def eqR : Reduced -> Reduced -> Bool
+  = lambda x y: and (eqInt (numR x) (numR y)) (eqNat (denR x) (denR y))

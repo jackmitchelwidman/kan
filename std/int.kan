@@ -22,6 +22,12 @@ data Int { pos : Nat -> Int, negsuc : Nat -> Int }
 def natAbs : Int -> Nat  = lambda i: match i { | pos m => m | negsuc n => suc n }
 def isNeg  : Int -> Bool = lambda i: match i { | pos m => false | negsuc n => true }
 
+-- structural equality on Int (unique representation, so this IS value equality).
+def eqInt : Int -> Int -> Bool
+  = lambda i j: match i {
+      | pos m    => match j { | pos n => eqNat m n | negsuc n => false }
+      | negsuc m => match j { | pos n => false     | negsuc n => eqNat m n } }
+
 -- --- constants and injections ------------------------------------------------
 def zeroI    : Int          = pos zero
 def oneI     : Int          = pos (suc zero)
