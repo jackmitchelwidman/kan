@@ -101,3 +101,30 @@ def leDec : (b : Nat) -> (a : Nat) -> Either (Le b a) (Lt a b)
                         return (Either (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2))) {
               | left le  => left  (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2)) (le_suc_mono b2 a2 le)
               | right lt => right (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2)) (le_suc_mono (suc a2) b2 lt) } } }
+
+-- ---- the fuel-decrease for divmod: b ≤ a and 0 < b force (a - b) to shrink ----
+
+-- 0 < b means b is a successor: b = suc (b-1).
+def pos_suc : (b : Nat) -> (bp : Lt zero b) -> Id Nat b (suc (fst bp))
+  = lambda b bp:
+      trans Nat b (add (fst bp) (suc zero)) (suc (fst bp))
+        (sym Nat (add (fst bp) (suc zero)) b (snd bp))
+        (trans Nat (add (fst bp) (suc zero)) (suc (add (fst bp) zero)) (suc (fst bp))
+           (add_suc (fst bp) zero)
+           (ap Nat Nat (lambda z: suc z) (add (fst bp) zero) (fst bp) (add_n_zero (fst bp))))
+
+-- 0 < b ≤ a  ⟹  a - b < a  (strict decrease), i.e. suc (a-b) ≤ a.
+def sub_lt : (b : Nat) -> (a : Nat) -> (bp : Lt zero b) -> (ba : Le b a) -> Le (suc (sub a b)) a
+  = lambda b a bp ba:
+      ( fst bp
+      , trans Nat (add (fst bp) (suc (sub a b))) (add b (sub a b)) a
+          (trans Nat (add (fst bp) (suc (sub a b))) (add (suc (fst bp)) (sub a b)) (add b (sub a b))
+             (add_suc (fst bp) (sub a b))
+             (ap Nat Nat (lambda z: add z (sub a b)) (suc (fst bp)) b (sym Nat b (suc (fst bp)) (pos_suc b bp))))
+          (le_add_sub b a ba) )
+
+-- the fuel-sufficiency step: from a ≤ suc f (and 0 < b ≤ a), (a - b) ≤ f.
+def fuel_dec : (f : Nat) -> (a : Nat) -> (b : Nat) -> Lt zero b -> Le b a -> Le a (suc f) -> Le (sub a b) f
+  = lambda f a b bp ba enough:
+      le_suc_cancel (sub a b) f
+        (le_trans (suc (sub a b)) a (suc f) (sub_lt b a bp ba) enough)

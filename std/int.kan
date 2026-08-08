@@ -145,12 +145,17 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 -- Bool. A dependent Bool eliminator (or `if … return`) would fix it; meanwhile we
 -- route around it (mulI_comm case-splits the *integers*, so `xor` reduces).
 --
+-- DONE since (milestone 2, stage 3): verified Euclidean division on Nat —
+-- std/divmod.kan proves  divmodI : (a b) -> 0<b -> Σq Σr. (q·b+r = a) × (r<b),
+-- via a fuel-Euclid whose fuel-sufficiency is proved by induction (Le a fuel,
+-- discharged by le_refl at the wrapper). The order/impossibility toolkit it
+-- needed (leDec, le_zero_eq, suc_ne_zero, sub_lt, fuel_dec) is in std/order.kan.
+-- (Known: reducing divmodI numerically is exponential — undiagnosed evaluator
+-- sharing issue; the compute path is the `ndiv` primitive, see divmod.kan.)
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
 --  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
---  • verified gcd/div (milestone 2) for a *normalized* proof-carrying Rational.
---  • gcd / division on Int and their correctness (gcd divides both; dividing by
---    the gcd yields coprime; Euclid terminates) — via a verified fuel-Euclid on
---    Nat (fuel-sufficiency proved by induction), milestone 2. These are the
---    load-bearing lemmas a type-ENFORCED `Rational` (den ≠ 0 and coprimality as
---    PROOF fields) needs.
+--  • gcd on Nat via fuel-Euclid ON TOP OF divmodI (stages 4–6): dvd_sub/dvd_mod,
+--    gcdI + gcd-divides-both, coprime-after-division — the load-bearing lemmas a
+--    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
 -- ============================================================================

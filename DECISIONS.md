@@ -375,6 +375,45 @@ already supplies that motive; only non-decreasing matches take an explicit one.
 
 ---
 
+## ADR-016 — verified Euclidean division (gcd milestone 2, stage 3)
+
+**Decision.** `std/divmod.kan` proves, with no axioms:
+`divmodI : (a b : Nat) -> Lt 0 b -> Σq Σr. (Id Nat (add (mul q b) r) a) × (Lt r b)`
+— Euclidean division carrying its own correctness. Because Kan is
+structural-recursion-only, it is a **fuel-Euclid**: `divmodF` recurses on `fuel`,
+and fuel-sufficiency is threaded as the hypothesis `Le a fuel` and discharged at
+the wrapper by `le_refl a` (fuel = a). The exposed API for the gcd stages is
+`divmod_quot` (q·b + r = a) and `divmod_rem` (r < b).
+
+**Toolkit built for it** (in `std/order.kan`, all via the ADR-015 explicit
+motive): `leDec` (the b≤a vs a<b decision with witness), `le_zero_eq`
+(a≤0 ⟹ a=0), `suc_ne_zero` (impossibility, via transport of a type-level
+Void/Unit family — no large elimination needed), `sub_lt` (0<b≤a ⟹ a−b < a) and
+`fuel_dec` (the decrease `Le a (suc f) ⟹ Le (a−b) f`).
+
+**Elaborator note.** The recursion binds *only* `fuel` before the `match`, so
+there are zero "moved" args; each arm binds `a b bpos enough` itself. An earlier
+version that bound `a b bpos` (or `a b bpos enough`) ahead of the match hit a
+de-Bruijn miscount in the moved-args motive lifting (it depends on the scrutinee
+`fuel` via `enough : Le a fuel`). Sidestepping it (zero moved args) is the fix;
+auto-handling scrutinee-dependent moved args is a possible future elaborator
+refinement.
+
+**KNOWN ISSUE (undiagnosed, recorded honestly).** Reducing `divmodI` to a
+*numeral* is **exponential** — measured ~b^depth under `kan check` conversion
+(14/7 depth-2 41ms; 28/7 depth-4 5.3s; 35/7 depth-5 >30s; but 30/1 depth-30
+15ms — flat in depth when b=1). The quotient is only the `fst` spine, so this is
+NOT inherent to the algorithm; suspected lost evaluation-sharing when reducing
+through the fuel eliminator (recursive result / nested `enough` proof
+re-evaluated per level). `kan run` on a `divI` main is worse (hangs >2min where
+check takes 40ms). This does **not** block the tower: the proof type-checks and
+is total, and stages 4–6 consume `divmod_quot`/`divmod_rem` *symbolically*. The
+compute path remains the accelerated `ndiv` primitive (ADR-013). Fixing the
+sharing is a separate kernel/evaluator task; **stage-5 gcd tests must keep inputs
+tiny** until it is fixed. Gate green at 45/0.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

@@ -1,0 +1,90 @@
+-- ============================================================================
+-- std/divmod — verified Euclidean division (ADR-013 milestone 2, stage 3).
+-- divmodI a b (0 < b) returns q, r with  a = q·b + r  and  r < b, PROVEN.
+-- Recursion is fuel-based (Kan is structural-only); fuel-sufficiency is threaded
+-- as the hypothesis `Le a fuel` and discharged at the wrapper by `le_refl`.
+-- ============================================================================
+import "order.kan"
+
+-- the specification, as a Σ carrying the quotient, remainder, and both proofs
+def DivMod : (a : Nat) -> (b : Nat) -> U
+  = lambda a b: (q : Nat) * (r : Nat) * ((Id Nat (add (mul q b) r) a) * (Lt r b))
+
+-- the recursive-case fold (non-recursive): given a DivMod for (a-b), build one
+-- for a. Uses  mul (suc q) b ≡ add b (mul q b)  (definitional) + add_assoc +
+-- le_add_sub (b + (a-b) = a).  q ↦ suc q, r unchanged.
+def divmod_step : (a : Nat) -> (b : Nat) -> Le b a -> DivMod (sub a b) b -> DivMod a b
+  = lambda a b blea rec:
+      ( suc (fst rec)
+      , ( fst (snd rec)
+        , ( trans Nat (add (mul (suc (fst rec)) b) (fst (snd rec)))
+                      (add b (add (mul (fst rec) b) (fst (snd rec)))) a
+              (add_assoc b (mul (fst rec) b) (fst (snd rec)))
+              (trans Nat (add b (add (mul (fst rec) b) (fst (snd rec)))) (add b (sub a b)) a
+                 (ap Nat Nat (lambda z: add b z)
+                     (add (mul (fst rec) b) (fst (snd rec))) (sub a b) (fst (snd (snd rec))))
+                 (le_add_sub b a blea))
+          , snd (snd (snd rec)) ) ) )
+
+-- fuel-driven division. fuel decreases structurally; `Le a fuel` guarantees the
+-- fuel never runs out before a < b.
+-- Match `fuel` with NOTHING bound after it, so there are zero "moved" args and
+-- each arm binds a, b, bpos, enough itself. The motive is then simply the def's
+-- return type as a function of fuel — `\fuel. (a)(b)(Lt 0 b)(Le a fuel) ->
+-- DivMod a b` — which is exactly what the annotation gives, no lifting needed.
+def divmodF : (fuel : Nat) -> (a : Nat) -> (b : Nat) -> Lt zero b -> Le a fuel -> DivMod a b
+  = lambda fuel: match fuel {
+      | zero => lambda a b bpos enough:
+          -- Le a zero forces a = 0, so q=0, r=a=0<b.
+          ( zero
+          , ( a
+            , ( refl
+              , transp Nat (lambda z: Le (suc z) b) zero a
+                  (sym Nat a zero (le_zero_eq a enough)) bpos ) ) )
+      | suc f => lambda a b bpos enough: match (leDec b a : Either (Le b a) (Lt a b)) {
+          | right altb => ( zero , ( a , ( refl , altb ) ) )          -- a < b: q=0, r=a
+          | left blea  =>                                             -- b ≤ a: recurse on a-b
+              divmod_step a b blea
+                (divmodF f (sub a b) b bpos (fuel_dec f a b bpos blea enough)) } }
+
+-- the wrapper: fuel = a (always enough, via le_refl).
+def divmodI : (a : Nat) -> (b : Nat) -> Lt zero b -> DivMod a b
+  = lambda a b bpos: divmodF a a b bpos (le_refl a)
+
+-- convenient projections
+def divI : (a : Nat) -> (b : Nat) -> Lt zero b -> Nat = lambda a b bp: fst (divmodI a b bp)
+def modI : (a : Nat) -> (b : Nat) -> Lt zero b -> Nat = lambda a b bp: fst (snd (divmodI a b bp))
+
+-- The proven correctness projections, ready for the gcd tower (stage 4+):
+--   divmod_quot : q·b + r = a     divmod_rem : r < b
+def divmod_quot : (a : Nat) -> (b : Nat) -> (bp : Lt zero b)
+  -> Id Nat (add (mul (divI a b bp) b) (modI a b bp)) a
+  = lambda a b bp: fst (snd (snd (divmodI a b bp)))
+def divmod_rem : (a : Nat) -> (b : Nat) -> (bp : Lt zero b) -> Lt (modI a b bp) b
+  = lambda a b bp: snd (snd (snd (divmodI a b bp)))
+
+-- ---- computation sanity (definitional; kept small on purpose) ----------------
+-- divmodI COMPUTES the right answer — these reduce to refl (verified on many
+-- inputs: 3/2, 5/2, 17/5, 20/4, 5/8, 12/3, 28/7, …).
+--
+-- KNOWN ISSUE — reduction is EXPONENTIAL, not merely "proof-carrying-slow".
+-- Measured under `kan check` (conversion): cost is flat in recursion depth when
+-- b = 1 (30/1, depth 30: 15ms) but explodes as b grows — empirically ~b^depth:
+--   14/7 (depth 2)  41ms      28/7 (depth 4)  5.3s      35/7 (depth 5)  >30s
+-- The quotient is only the `fst` spine, so this blow-up is NOT expected from the
+-- algorithm; the suspected cause is lost evaluation-sharing when reducing through
+-- the fuel eliminator (the recursive result / the nested `enough` proof getting
+-- re-evaluated per level). UNDIAGNOSED — a kernel/evaluator investigation, not a
+-- divmod bug (the proof is correct and total). `kan run` on a `divI` main is
+-- worse still (17/5 hung >2min under run vs 40ms under check) — same root cause.
+-- The intended fast compute path is the accelerated `ndiv` primitive (ADR-013);
+-- this tower's job is to PROVE that path correct, and gcd stages 4+ consume the
+-- `divmod_quot`/`divmod_rem` proofs SYMBOLICALLY, not a reduced numeral. Keep
+-- these tests tiny so the gate stays fast (and so stage-5 gcd tests, which force
+-- `modI` numerals, stay tractable until the sharing issue is fixed).
+def t_7_2_q  : Id Nat (divI 7 2 (lt_zero_suc 1)) 3 = refl
+def t_7_2_r  : Id Nat (modI 7 2 (lt_zero_suc 1)) 1 = refl
+def t_12_3_q : Id Nat (divI 12 3 (lt_zero_suc 2)) 4 = refl
+def t_12_3_r : Id Nat (modI 12 3 (lt_zero_suc 2)) 0 = refl
+def t_5_8_q  : Id Nat (divI 5 8 (lt_zero_suc 7)) 0 = refl
+def t_5_8_r  : Id Nat (modI 5 8 (lt_zero_suc 7)) 5 = refl
