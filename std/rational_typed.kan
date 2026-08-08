@@ -11,12 +11,16 @@
 --
 -- Built on the inductive tower std/int.kan (numerators are `Int`). The safety is
 -- STRUCTURAL — it needs no proofs. The cost: `Int`/`Nat` are unary until the
--- kernel accelerates their closed values (ADR-013 milestone 3), so this type is
--- practical for modest numerators/denominators today. It is the correctness-first
--- sibling of std/rational.kan (which is efficient but not yet type-enforced); the
--- two converge once acceleration lands. Not normalized to lowest terms (that
--- needs verified gcd, milestone 2); `eqF`/`ltF` cross-multiply, so they are
--- correct regardless.
+-- kernel accelerates their closed values (ADR-013 milestone 3, now landed). `Frac`
+-- makes den≠0 STRUCTURAL (den = suc denPred) with no proof obligation — the
+-- lightest type-safe option. Not normalized to lowest terms; `eqF`/`ltF`
+-- cross-multiply, so they are correct regardless.
+--
+-- For the FULLY canonical, proof-carrying rational — den>0 AND coprimality as
+-- PROOF fields, normalized to lowest terms, built on the now-complete verified gcd
+-- tower — see std/rational_reduced.kan. The three rationals: `rational` (fast,
+-- Option-safe API), `rational_typed`/`Frac` (structural den≠0, no proofs), and
+-- `rational_reduced` (full proof-carrying canonical form).
 -- ============================================================================
 import "int.kan"
 import "option.kan"

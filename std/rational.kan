@@ -12,12 +12,16 @@
 -- honest, no junk values from the public API.
 --
 -- Scope note (see DECISIONS.md ADR-013): den≠0 / coprimality are MAINTAINED by
--- the smart constructors here, not yet PROVEN in the type. The raw `rational`
+-- the smart constructors here, not PROVEN in the type. The raw `rational`
 -- constructor can still build a non-canonical value (e.g. `rational 3 0`); it is
--- the documented unsafe escape hatch. The type-ENFORCED version is being built on
--- the verified integer tower (std/int.kan); until it lands, always construct via
--- `mkQ` / `fromInt` and divide via `divQ` / `recipQ`, and the API stays safe.
--- (`eqQ`/`ltQ` cross-multiply, so they are correct even on a non-canonical input.)
+-- the documented unsafe escape hatch. This is the FAST, efficient API.
+--
+-- The type-ENFORCED version has since LANDED: std/rational_reduced.kan carries
+-- `den > 0` and coprimality as PROOF fields (divide-by-zero is a type error there,
+-- and every value is provably in lowest terms) — it is the correctness-first
+-- sibling. Use THIS module (`mkQ`/`fromInt`, `divQ`/`recipQ`) when you want speed
+-- with a safe public API; use `rational_reduced` when you want the guarantees in
+-- the type. (`eqQ`/`ltQ` cross-multiply, so they are correct even on a non-canonical input.)
 --
 -- Integer literals carry a `z` suffix (0z, 1z, …). Decimal-literal sugar
 -- (0.25 ↦ 1/4) is a separate, deferred lexer change.
