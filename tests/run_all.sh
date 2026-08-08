@@ -4,8 +4,17 @@
 #   • every file with an `eval` must produce IDENTICAL output from all three
 #     runtimes: `kan run`, the OCaml backend, and the C backend.
 # Exits nonzero on the first failure. Run from the repo root:  bash tests/run_all.sh
+#
+# Default: FULL gate — checks everything (authoritative; run before committing).
+# FAST=1 bash tests/run_all.sh  — skips the heavy verified-tower files (they
+#   re-pay the gcd correctness proofs on import; see ADR-016) for a quick
+#   iteration loop. The full gate remains the source of truth.
 set -u
 cd "$(dirname "$0")/.." || exit 2
+
+# Files that are correct but expensive to type-check (the ADR-016 reduction-cost
+# wart, re-paid on import). Skipped only when FAST=1.
+SLOW_FILES="std/gcd.kan std/rational_reduced.kan"
 
 KAN="${KAN:-kan}"
 command -v "$KAN" >/dev/null 2>&1 || KAN="_build/default/bin/kan.exe"
@@ -19,6 +28,10 @@ green(){ printf '\033[32m%s\033[0m\n' "$1"; }
 files=$(ls examples/*.kan std/*.kan 2>/dev/null)
 
 for f in $files; do
+  # FAST mode: skip the known-heavy files (still checked by the full gate).
+  if [ "${FAST:-0}" = "1" ] && printf '%s\n' $SLOW_FILES | grep -qxF "$f"; then
+    printf 'SKIP (FAST): %s\n' "$f"; continue
+  fi
   # 1) must type-check
   if ! "$KAN" check "$f" >/dev/null 2>&1; then
     red "CHECK FAILED: $f"; fail=$((fail+1)); continue
@@ -64,4 +77,5 @@ reject "recursion wrapped by a constructor (non-tail match)" \
 
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"
+[ "${FAST:-0}" = "1" ] && echo "(FAST mode — skipped: $SLOW_FILES; run the full gate before committing)"
 [ "$fail" -eq 0 ] || exit 1
