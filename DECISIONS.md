@@ -258,6 +258,27 @@ path must reproduce (tri-runtime), and `std/accel_defeq.kan` pins the definition
 reductions the conversion checker must preserve (all by `refl`). The fast path is
 correct iff both stay green after the kernel change.
 
+**Kernel acceleration — DONE (2026-08-08).** Milestone 3 landed, guarded by the
+spec, in three increments:
+- (1) The kernel represents closed `Nat` as a canonical bignum `VNatLit` (a `VSuc`
+  only ever wraps a neutral; `VZero` deleted), fully inductive.
+- (2a) Fast `nadd`/`nmul` kernel primitives with an O(1) bignum path, obeying the
+  SAME recursion equations as inductive add/mul (so they are definitionally
+  interchangeable). `nadd 10^12 …` / `nmul 10^6 10^6` now check instantly.
+- (2b) `Nat` is bignum-backed in all three runtimes (`erase`, OCaml, C) — the C
+  backend's 32-bit-`int` Nat is gone, closing the overflow/divergence trap.
+- (2c) `std/nat.kan`'s `add`/`mul` DELEGATE to the primitives. The entire proof
+  gate re-checks green — the agreement guarantee that the fast path equals the
+  inductive definitions. `mul 100000 100000` (10^10) now computes O(1) and agrees
+  across all three runtimes; before, it was infeasible unary.
+The trust gap that Lean/Agda accept on faith is here narrowed to a checkable
+one: `std/accel_defeq.kan` + `std/accel_ops.kan` + `examples/accel_spec.kan`
+(tri-runtime) are re-verified on every commit, and all three runtimes splice the
+same `bigint.ml`. **Consequence:** the inductive `Int`/`Rational` tower is now
+efficient, so a single efficient AND type-enforced `Rational` (invariants as
+proof fields) is no longer blocked on representation — only on the remaining
+verified-gcd work (milestone 2). No axioms were added.
+
 ---
 
 ## Phase plan (tracks README §13)

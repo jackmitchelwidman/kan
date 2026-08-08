@@ -20,7 +20,7 @@ let prelude1 = {ml|type ival =
   | VConV of string * ival list
   | VElimV of string * ival list
   | VBoolV of bool
-  | VNatV of int
+  | VNatV of Bi.t
   | VStrV of string
   | VIntV of Bi.t
   | VPairV of ival * ival
@@ -31,7 +31,9 @@ let dropn n l = List.filteri (fun i _ -> i >= n) l
 let ifst = function VPairV (a, _) -> a | VUnit -> VUnit | _ -> failwith "fst"
 let isnd = function VPairV (_, b) -> b | VUnit -> VUnit | _ -> failwith "snd"
 let iif c t e = match c with VBoolV true -> t () | VBoolV false -> e () | _ -> failwith "if"
-let isuc = function VNatV k -> VNatV (k + 1) | _ -> failwith "suc"
+let isuc = function VNatV k -> VNatV (Bi.add k Bi.one) | _ -> failwith "suc"
+let iintnatadd a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.add x y) | _ -> failwith "nadd"
+let iintnatmul a b = match a, b with VNatV x, VNatV y -> VNatV (Bi.mul x y) | _ -> failwith "nmul"
 let istrapp a b = match a, b with VStrV x, VStrV y -> VStrV (x ^ y) | _ -> failwith "strcat"
 let istreq a b = match a, b with VStrV x, VStrV y -> VBoolV (x = y) | _ -> failwith "streq"
 let iintadd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.add x y) | _ -> failwith "iadd"
@@ -41,9 +43,9 @@ let iintdiv a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.div x y) | _ -> 
 let iintgcd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.gcd x y) | _ -> failwith "igcd"
 let iinteq a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.equal x y) | _ -> failwith "ieq"
 let iintlt a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.compare x y < 0) | _ -> failwith "ilt"
-let iintfromnat n = match n with VNatV k -> VIntV (Bi.of_int k) | _ -> failwith "fromNat"
+let iintfromnat n = match n with VNatV k -> VIntV k | _ -> failwith "fromNat"
 let rec ishow = function
-  | VNatV n -> string_of_int n
+  | VNatV n -> Bi.to_string n
   | VBoolV b -> if b then "true" else "false"
   | VStrV s -> "\"" ^ s ^ "\""
   | VIntV b -> Bi.to_string b
@@ -77,7 +79,7 @@ and ielim e sp =
     | _ -> VElimV (e, sp)
 let inatelim z s n =
   match n with
-  | VNatV k -> let acc = ref z in for i = 0 to k - 1 do acc := iapp (iapp s (VNatV i)) !acc done; !acc
+  | VNatV k -> let acc = ref z and i = ref Bi.zero in while Bi.compare !i k < 0 do acc := iapp (iapp s (VNatV !i)) !acc; i := Bi.add !i Bi.one done; !acc
   | _ -> failwith "natElim"
 |ml}
 
@@ -96,8 +98,10 @@ let rec cexpr globals locals (e : iexpr) : string =
   | IElimH e -> Printf.sprintf "(VElimV (%S, []))" e
   | IBool b -> Printf.sprintf "(VBoolV %b)" b
   | IIf (c, t, e) -> Printf.sprintf "(iif %s (fun () -> %s) (fun () -> %s))" (go c) (go t) (go e)
-  | INat n -> Printf.sprintf "(VNatV %d)" n
+  | INat n -> Printf.sprintf "(VNatV (Bi.of_string %S))" (Bigint.to_string n)
   | ISuc e -> Printf.sprintf "(isuc %s)" (go e)
+  | INatAdd (a, b) -> Printf.sprintf "(iintnatadd %s %s)" (go a) (go b)
+  | INatMul (a, b) -> Printf.sprintf "(iintnatmul %s %s)" (go a) (go b)
   | INatElim (z, s, n) -> Printf.sprintf "(inatelim %s %s %s)" (go z) (go s) (go n)
   | IStr s -> Printf.sprintf "(VStrV %S)" s
   | IStrApp (a, b) -> Printf.sprintf "(istrapp %s %s)" (go a) (go b)

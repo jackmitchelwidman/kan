@@ -1,8 +1,15 @@
 -- std/nat — natural-number arithmetic, with a proof.
 import "logic.kan"
 
-def add : Nat -> Nat -> Nat = lambda m n: match m { | zero => n    | suc k => suc (add k n) }
-def mul : Nat -> Nat -> Nat = lambda m n: match m { | zero => zero | suc k => add n (mul k n) }
+-- add/mul delegate to the kernel-accelerated primitives (ADR-013): O(1) bignum
+-- on closed values, while obeying the SAME recursion equations as the structural
+-- definitions (add 0 n = n; add (suc k) n = suc (add k n); dual for mul) — so the
+-- inductive proofs below are unchanged. The commented structural forms are the
+-- specification the primitives implement.
+--   add m n = match m { zero => n    | suc k => suc (add k n) }
+--   mul m n = match m { zero => zero | suc k => add n (mul k n) }
+def add : Nat -> Nat -> Nat = lambda m n: nadd m n
+def mul : Nat -> Nat -> Nat = lambda m n: nmul m n
 
 -- equality and ordering: recursion that shrinks BOTH arguments (accumulator-
 -- style), so the second argument moves through the eliminator's motive.

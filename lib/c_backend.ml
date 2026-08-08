@@ -154,7 +154,7 @@ static Value *env_get(Env *e, int i) { while (i-- > 0) e = e->tail; return e->he
 
 static Value *mk_clo(Fn f, Env *env) { Value *v = alloc(VCLO); v->fn = f; v->env = env; return v; }
 static Value *mk_bool(int b) { Value *v = alloc(VBOOL); v->i = b; return v; }
-static Value *mk_nat(int n) { Value *v = alloc(VNAT); v->i = n; return v; }
+static Value *mk_nat(Big *b) { Value *v = alloc(VNAT); v->big = b; return v; }
 static Value *mk_pair(Value *a, Value *b) { Value *v = alloc(VPAIR); v->a = a; v->b = b; return v; }
 static Value *mk_head(int tag, const char *name) { Value *v = alloc(tag); v->name = name; v->args = NULL; v->nargs = 0; return v; }
 static Value *mk_con(const char *name) { return mk_head(VCON, name); }
@@ -169,11 +169,13 @@ static Value *int_div(Value *a, Value *b) { return mk_int(big_div(a->big, b->big
 static Value *int_gcd(Value *a, Value *b) { return mk_int(big_gcd(a->big, b->big)); }
 static Value *int_eq(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) == 0); }
 static Value *int_lt(Value *a, Value *b) { return mk_bool(big_cmp(a->big, b->big) < 0); }
-static Value *int_fromnat(Value *n) { return mk_int(big_from_int((long long)n->i)); }
+static Value *int_fromnat(Value *n) { return mk_int(n->big); }
+static Value *nat_add(Value *a, Value *b) { return mk_nat(big_add(a->big, b->big)); }
+static Value *nat_mul(Value *a, Value *b) { return mk_nat(big_mul(a->big, b->big)); }
 static int as_bool(Value *v) { return v->i; }
 static Value *fst_v(Value *v) { return v->tag == VPAIR ? v->a : UNIT; }
 static Value *snd_v(Value *v) { return v->tag == VPAIR ? v->b : UNIT; }
-static Value *suc_v(Value *v) { return mk_nat(v->i + 1); }
+static Value *suc_v(Value *v) { return mk_nat(big_add(v->big, big_from_int(1))); }
 static Value *str_app(Value *a, Value *b) {
   size_t la = strlen(a->str), lb = strlen(b->str);
   char *r = malloc(la + lb + 1); memcpy(r, a->str, la); memcpy(r + la, b->str, lb + 1);
@@ -237,14 +239,14 @@ static Value *apply(Value *f, Value *a) {
 }
 
 static Value *inatelim(Value *z, Value *s, Value *n) {
-  int k = n->i; Value *acc = z;
-  for (int j = 0; j < k; j++) acc = apply(apply(s, mk_nat(j)), acc);
+  Value *acc = z; Big *j = big_from_int(0);
+  while (big_cmp(j, n->big) < 0) { acc = apply(apply(s, mk_nat(j)), acc); j = big_add(j, big_from_int(1)); }
   return acc;
 }
 
 static void print_value(Value *v) {
   switch (v->tag) {
-    case VNAT: printf("%d", v->i); break;
+    case VNAT: { char *s = big_to_str(v->big); printf("%s", s); free(s); break; }
     case VBOOL: printf(v->i ? "true" : "false"); break;
     case VSTR: printf("\"%s\"", v->str); break;
     case VINT: { char *s = big_to_str(v->big); printf("%s", s); free(s); break; }
@@ -286,8 +288,10 @@ let compile (decls : Tt.decl list) : string =
     | IElimH e -> Printf.sprintf "mk_elim(%s)" (quote e)
     | IBool b -> Printf.sprintf "mk_bool(%d)" (if b then 1 else 0)
     | IIf (c, t, e) -> Printf.sprintf "(as_bool(%s) ? %s : %s)" (cexpr nloc envv c) (cexpr nloc envv t) (cexpr nloc envv e)
-    | INat n -> Printf.sprintf "mk_nat(%d)" n
+    | INat n -> Printf.sprintf "mk_nat(big_from_str(%s))" (quote (Bigint.to_string n))
     | ISuc e -> Printf.sprintf "suc_v(%s)" (cexpr nloc envv e)
+    | INatAdd (a, b) -> Printf.sprintf "nat_add(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
+    | INatMul (a, b) -> Printf.sprintf "nat_mul(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)
     | INatElim (z, s, n) -> Printf.sprintf "inatelim(%s, %s, %s)" (cexpr nloc envv z) (cexpr nloc envv s) (cexpr nloc envv n)
     | IStr s -> Printf.sprintf "mk_str(%s)" (quote s)
     | IStrApp (a, b) -> Printf.sprintf "str_app(%s, %s)" (cexpr nloc envv a) (cexpr nloc envv b)

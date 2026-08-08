@@ -29,7 +29,8 @@ def t_add_sk   : (k : Nat) -> (n : Nat) -> Id Nat (nadd (suc k) n) (suc (nadd k 
 def t_mul_0n   : (n : Nat) -> Id Nat (nmul 0 n) 0                       = lambda n: refl
 def t_mul_sk   : (k : Nat) -> (n : Nat) -> Id Nat (nmul (suc k) n) (nadd n (nmul k n)) = lambda k n: refl
 
--- NB: agreement with the inductive add/mul on neutrals holds once std/nat.kan's
--- add/mul DELEGATE to these primitives (increment 2c) — at which point the whole
--- proof gate re-checking green is the agreement guarantee. (Before delegation,
--- `nmul 2 n` and the old `mul 2 n` have different neutral heads, as expected.)
+-- Agreement with add/mul (which now DELEGATE to these primitives, increment 2c):
+-- these hold on neutrals, and the whole proof gate re-checking green is the
+-- broader agreement guarantee.
+def t_agree_add : (n : Nat) -> Id Nat (nadd 2 n) (add 2 n) = lambda n: refl
+def t_agree_mul : (n : Nat) -> Id Nat (nmul 2 n) (mul 2 n) = lambda n: refl

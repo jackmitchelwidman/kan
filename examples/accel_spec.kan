@@ -14,6 +14,13 @@ eval mul 12 12                -- 144
 eval mul 0 99                 -- 0
 eval mul 7 8                  -- 56
 
+-- LARGE (ADR-013 increment 2): infeasible in unary, now O(1) via the accelerated
+-- add/mul, and identical across all three runtimes (the C-backend overflow trap
+-- is closed — Nat is bignum-backed everywhere).
+eval add 1000000000000 2000000000000  -- 3000000000000
+eval mul 100000 100000                 -- 10000000000  (10^10: would overflow a 32-bit Nat)
+eval mul 1000000 1000000               -- 1000000000000
+
 -- Int arithmetic via the toInteger bridge
 eval toInteger (addI (pos 100) (pos 50))       -- 150
 eval toInteger (addI (pos 5) (negsuc 2))       -- 2     (5 + (-3))

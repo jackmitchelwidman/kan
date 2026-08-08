@@ -22,8 +22,10 @@ type iexpr =
   | IElimH of string         (* eliminator head, applied via IApp *)
   | IBool of bool
   | IIf of iexpr * iexpr * iexpr
-  | INat of int
+  | INat of Bigint.t
   | ISuc of iexpr
+  | INatAdd of iexpr * iexpr
+  | INatMul of iexpr * iexpr
   | INatElim of iexpr * iexpr * iexpr
   | IStr of string
   | IStrApp of iexpr * iexpr
@@ -50,10 +52,11 @@ let rec erase (t : tm) : iexpr =
   | True -> IBool true
   | False -> IBool false
   | If (c, t, e) -> IIf (erase c, erase t, erase e)
-  | Zero -> INat 0
-  | NatLit b -> INat (int_of_string (Bigint.to_string b))   (* source literals fit an int; bignum backing is a later increment *)
-  | NatAdd _ | NatMul _ -> failwith "nadd/nmul: kernel-only so far (ADR-013 increment 2a); runtime backing lands in 2b"
-  | Suc n -> (match erase n with INat k -> INat (k + 1) | e -> ISuc e)
+  | Zero -> INat Bigint.zero
+  | NatLit b -> INat b
+  | NatAdd (a, b) -> INatAdd (erase a, erase b)
+  | NatMul (a, b) -> INatMul (erase a, erase b)
+  | Suc n -> (match erase n with INat k -> INat (Bigint.add k Bigint.one) | e -> ISuc e)
   | NatElim (_, z, s, n) -> INatElim (erase z, erase s, erase n)   (* motive erased *)
   | Con c -> IConH c
   | Elim e -> IElimH e
@@ -79,7 +82,7 @@ type ival =
   | VConV of string * ival list
   | VElimV of string * ival list
   | VBoolV of bool
-  | VNatV of int
+  | VNatV of Bigint.t
   | VStrV of string
   | VIntV of Bigint.t
   | VPairV of ival * ival
@@ -127,15 +130,16 @@ and ieval env t =
   | IBool b -> VBoolV b
   | IIf (c, t, e) -> (match ieval env c with VBoolV true -> ieval env t | VBoolV false -> ieval env e | _ -> failwith "if")
   | INat n -> VNatV n
-  | ISuc e -> (match ieval env e with VNatV k -> VNatV (k + 1) | _ -> failwith "suc")
+  | ISuc e -> (match ieval env e with VNatV k -> VNatV (Bigint.add k Bigint.one) | _ -> failwith "suc")
+  | INatAdd (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.add x y) | _ -> failwith "nadd")
+  | INatMul (a, b) -> (match ieval env a, ieval env b with VNatV x, VNatV y -> VNatV (Bigint.mul x y) | _ -> failwith "nmul")
   | INatElim (z, s, n) ->
       (match ieval env n with
        | VNatV k ->
            let sv = ieval env s and zv = ieval env z in
-           (* fold bottom-up so recursion depth is O(1), not O(k): a naive
-              [go (k-1)] blows the stack once k reaches ~10^6 (e.g. fac 10). *)
-           let acc = ref zv in
-           for i = 0 to k - 1 do acc := iapp (iapp sv (VNatV i)) !acc done;
+           (* fold bottom-up so recursion depth is O(1), not O(k). *)
+           let acc = ref zv and i = ref Bigint.zero in
+           while Bigint.compare !i k < 0 do acc := iapp (iapp sv (VNatV !i)) !acc; i := Bigint.add !i Bigint.one done;
            !acc
        | _ -> failwith "natElim on a non-numeral")
   | IStr s -> VStrV s
@@ -149,11 +153,11 @@ and ieval env t =
   | IIntGcd (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VIntV (Bigint.gcd x y) | _ -> failwith "igcd")
   | IIntEq (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.equal x y) | _ -> failwith "ieq")
   | IIntLt (a, b) -> (match ieval env a, ieval env b with VIntV x, VIntV y -> VBoolV (Bigint.compare x y < 0) | _ -> failwith "ilt")
-  | IIntFromNat n -> (match ieval env n with VNatV k -> VIntV (Bigint.of_int k) | _ -> failwith "fromNat")
+  | IIntFromNat n -> (match ieval env n with VNatV k -> VIntV k | _ -> failwith "fromNat")   (* O(1): nat is already a bignum *)
   | IUnit -> VUnit
 
 let rec ishow = function
-  | VNatV n -> string_of_int n
+  | VNatV n -> Bigint.to_string n
   | VBoolV b -> if b then "true" else "false"
   | VStrV s -> "\"" ^ s ^ "\""
   | VIntV b -> Bigint.to_string b
