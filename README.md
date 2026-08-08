@@ -471,8 +471,10 @@ Deliberately after the philosophy, never before it.
 5. **Pattern matching and structural recursion**, elaborated to eliminators — total by construction, now including accumulator-style recursion and dependent-motive proofs by induction.
 6. **An unbounded `Integer`** (arbitrary precision) alongside the inductive `Nat`, plus a primitive `String`.
 7. **Category theory in the library** — `Category`/`Functor`/`NatTrans` with their laws as fields, and the Kan-extension universal property, all checked ([`std/`](std/)).
+8. **A verified number tower** — an inductive `Int`, verified Euclidean division and a verified `gcd` (divides both *and* maximal), all axiom-free; culminating in a **type-enforced rational** ([`std/rational_reduced.kan`](std/rational_reduced.kan)) whose `den > 0` and lowest-terms invariants are *proof fields* — so **divide-by-zero is a type error**, every value is provably in lowest terms, and arithmetic is exact.
+9. **Explicit dependent motives** — `match e as x return T` for dependent elimination on a nested/non-leading scrutinee (ADR-015), the elaborator unlock behind the tower above.
 
-**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); an explicit `match … return (motive)` for dependent elimination anywhere; `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
+**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); the field *laws* of ℚ as theorems (needs the residual `Int` ring axioms); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
 
 ---
 
