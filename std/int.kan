@@ -79,15 +79,13 @@ def addI_zero : (i : Int) -> Id Int (addI i (pos zero)) i
       | pos m    => ap Nat Int (lambda x: pos x) (add m zero) m (add_n_zero m)
       | negsuc n => refl }
 
--- negation is involutive: neg (neg i) = i.  The `pos` case needs to inspect the
--- Nat inside, which a NESTED match can't refine — so factor it into a top-level
--- helper whose own annotation supplies the dependent motive. (This is the general
--- technique for "nested dependent motive" proofs until `match e return` lands.)
-def negI_negI_pos : (m : Nat) -> Id Int (negI (negI (pos m))) (pos m)
-  = lambda m: match m { | zero => refl | suc k => refl }
-
+-- negation is involutive: neg (neg i) = i.  The `pos` case must inspect the Nat
+-- inside; an EXPLICIT dependent motive (`match m as mm return …`, ADR-015) refines
+-- it directly — no helper def needed.
 def negI_negI : (i : Int) -> Id Int (negI (negI i)) i
-  = lambda i: match i { | pos m => negI_negI_pos m | negsuc n => refl }
+  = lambda i: match i {
+      | pos m => match m as mm return (Id Int (negI (negI (pos mm))) (pos mm)) { | zero => refl | suc k => refl }
+      | negsuc n => refl }
 
 -- addI is commutative. Case-split both arguments; the cross-sign cases collapse
 -- definitionally (both sides are the same `diff`), the same-sign cases reduce to

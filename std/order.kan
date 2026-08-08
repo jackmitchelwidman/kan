@@ -10,6 +10,7 @@
 -- lemmas in std/nat.kan are exactly what discharge these.
 -- ============================================================================
 import "nat.kan"
+import "either.kan"
 
 -- m ≤ n : there is a k with k + m = n
 def Le : Nat -> Nat -> U = lambda m n: (k : Nat) * Id Nat (add k m) n
@@ -34,22 +35,6 @@ def le_trans : (a : Nat) -> (b : Nat) -> (c : Nat) -> Le a b -> Le b c -> Le a c
 -- divisibility: 1 divides everything, and every n divides itself.
 def dvd_one  : (n : Nat) -> Dvd 1 n = lambda n: (n, mul_n_one n)    -- n · 1 = n
 def dvd_refl : (n : Nat) -> Dvd n n = lambda n: (1, add_n_zero n)   -- 1 · n = n  (mul 1 n ≡ add n 0)
-
--- ----------------------------------------------------------------------------
--- STAGE 3 STATUS (ADR-013 milestone 2). The reusable ≤/< toolkit below is done
--- and green. The next piece — a witness-producing comparison
---   leDec : (b a : Nat) -> Either (Le b a) (Lt a b)
--- — is BLOCKED on an elaborator gap, confirmed empirically: it must case-split
--- both b and a with a result type depending on both, which needs either (i) a
--- NESTED dependent motive (the inner match can't refine its scrutinee), or (ii)
--- MUTUAL recursion (factoring the inner match into a top-level helper makes it
--- and leDec mutually recursive, which Kan's one-def/one-eliminator, no-forward-
--- reference elaboration can't express). Both are the same missing capability:
--- an explicit dependent motive, `match e return (motive) { … }` (ADR-012's
--- flagged next step). Landing that unblocks leDec -> divmodI -> the gcd theorem
--- stack (stages 3–6), and retroactively removes the helper-def workarounds used
--- elsewhere in the tower. That elaborator feature is the next investment.
--- ----------------------------------------------------------------------------
 
 -- monotonicity toolkit for ≤ / < (used by the decision procedure and divmod).
 def le_suc_mono : (m : Nat) -> (n : Nat) -> Le m n -> Le (suc m) (suc n)
@@ -83,3 +68,17 @@ def le_add_sub : (m : Nat) -> (n : Nat) -> Le m n -> Id Nat (add m (sub n m)) n
         (trans Nat (add m (fst le)) (add (fst le) m) n
            (add_comm m (fst le))
            (snd le))
+
+-- DECISION PROCEDURE: for any b, a, either b ≤ a or a < b — WITH the witness.
+-- This case-splits both arguments with a result depending on both; it is
+-- possible only because of the explicit dependent motive (`match a as aa
+-- return …`, ADR-015). It is the gate for divmod and the whole gcd tower.
+def leDec : (b : Nat) -> (a : Nat) -> Either (Le b a) (Lt a b)
+  = lambda b a: match b {
+      | zero => left (Le zero a) (Lt a zero) (le_zero a)
+      | suc b2 => match a as aa return (Either (Le (suc b2) aa) (Lt aa (suc b2))) {
+          | zero => right (Le (suc b2) zero) (Lt zero (suc b2)) (lt_zero_suc b2)
+          | suc a2 => match (leDec b2 a2 : Either (Le b2 a2) (Lt a2 b2))
+                        return (Either (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2))) {
+              | left le  => left  (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2)) (le_suc_mono b2 a2 le)
+              | right lt => right (Le (suc b2) (suc a2)) (Lt (suc a2) (suc b2)) (le_suc_mono (suc a2) b2 lt) } } }

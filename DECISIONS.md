@@ -345,6 +345,36 @@ every design question surfaces cheaply. When stage 1 checks the spec, it moves t
 
 ---
 
+## ADR-015 — Explicit dependent motives: `match e as x return T`
+**Decision.** Add an explicit dependent motive to `match`: `match e as x return T
+{ … }` binds the scrutinee value `x` and uses `\x. T` as the eliminator's motive.
+This lets a **nested or non-leading** match *refine its scrutinee* — the gap that
+plain `return T` (which gives the non-dependent `\_. T`) and the annotation-derived
+motive (only the leading/decreasing binder, ADR-011/012) both left. `match` stays
+sugar over the eliminator, and the kernel checker independently re-validates the
+elaborated `Elim`, so a mis-elaboration **fails closed** (rejects valid programs,
+never accepts invalid ones) — no soundness risk.
+
+**Why.** This was the flagged next step in ADR-012 and the blocker for two things:
+the witness-producing comparison `leDec : (b a) -> Either (Le b a) (Lt a b)`
+(verified-gcd stage 3 — needs to case-split both arguments with a result
+depending on both), and `match`-on-indexed-families (ADR-014 stage 2). It also
+retires the helper-def workarounds (`negI_negI` is now written directly).
+
+**Landed.** Parser change in `lib/tt.ml` (~15 lines); `std/int.kan`'s `negI_negI`
+rewritten to the direct nested form; and **`leDec` now checks** in `std/order.kan`
+— unblocking gcd stages 3–6. Gate green.
+
+**Limits (deliberate, documented).** (1) Arm bodies under an explicit motive are
+checked without a threaded expected type (the per-arm "motive applied to the
+constructor" isn't auto-derived yet), so a *further* nested match inside such an
+arm needs its own `return` (as `leDec`'s innermost `Either` match does).
+Auto-propagating the per-arm expected is a follow-up ergonomic refinement. (2) An
+explicit motive on a recursive/decreasing match errors — the def annotation
+already supplies that motive; only non-decreasing matches take an explicit one.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

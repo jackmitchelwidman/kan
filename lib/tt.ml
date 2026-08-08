@@ -286,7 +286,22 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
          | _ -> fail "match scrutinee: expected ')' or ' : type'")
       end else (atom ns, None)
     in
-    let rty = if peek () = ID "return" then (adv (); Some (term ns)) else expected in
+    (* `match e as x return T { .. }` — an EXPLICIT dependent motive `\x. T`
+       (T may mention the scrutinee value x). This is what lets a nested / non-
+       leading match refine its scrutinee — the gap plain `return T` (which gives
+       the non-dependent `\_. T`) and the annotation-derived motive both leave. *)
+    let mot =
+      if peek () = ID "as" then begin
+        adv ();
+        let x = ident () in
+        if peek () <> ID "return" then fail "match: `as x` must be followed by `return <motive>`";
+        adv ();
+        Some (Lam (x, term (x :: ns)))
+      end else None
+    in
+    let rty = match mot with
+      | Some _ -> None
+      | None -> if peek () = ID "return" then (adv (); Some (term ns)) else expected in
     (* Only a TAIL-POSITION match on one of the def's binders may claim the
        recursion (its decreasing argument). Consume the tail flag either way. *)
     let scrut_binder = (match scrut with Var i -> (match List.nth_opt ns i with Some nm when List.mem nm !rec_binders -> Some nm | _ -> None) | _ -> None) in
@@ -352,6 +367,12 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
        function of the moved arguments (read off the annotation, lifted into
        scope); otherwise the plain result type R *)
     let motive () =
+      match mot with
+      | Some m ->
+          if decreasing then
+            fail "match: an explicit `as … return` motive on a recursive/decreasing match is not yet supported (the def annotation already supplies its motive)"
+          else m
+      | None ->
       if decreasing then
         (* DEPENDENT motive: the annotation's Pi over the scrutinee, as a lambda
            (so the result type may mention the scrutinee — this is what lets a
