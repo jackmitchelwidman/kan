@@ -133,3 +133,9 @@ def demo_div  : Option Reduced = divR (reduce (pos 1) 2 (lt_zero_suc 1)) (reduce
 -- is genuine mathematical equality on ℚ — a direct payoff of the proof fields.
 def eqR : Reduced -> Reduced -> Bool
   = lambda x y: and (eqInt (numR x) (numR y)) (eqNat (denR x) (denR y))
+
+-- ---- a few more handy total operations (all cheap constructions) -------------
+def rFromNat : Nat -> Reduced   = lambda n: fromIntR (fromNatI n)          -- n as n/1
+def isZeroR  : Reduced -> Bool  = lambda x: eqInt (numR x) zeroI           -- x == 0 ?
+def absR     : Reduced -> Reduced                                          -- |x|
+  = lambda x: reduce (fromNatI (natAbs (numR x))) (denR x) (dposR x)
