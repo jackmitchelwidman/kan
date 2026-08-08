@@ -71,6 +71,15 @@ def toInteger : Int -> Integer
 def natAbs_pos : (n : Nat) -> Id Nat (natAbs (pos n)) n
   = lambda n: refl
 
+-- natAbs recovers the magnitude of a signed-negative int:
+-- natAbs (intOfSignMag true m) = m. (Case-split m — an explicit motive, ADR-015 —
+-- since intOfSignMag branches on m; the Bool `true` is fixed so no Bool-elim gap.)
+def natAbs_negOfMag : (m : Nat) -> Id Nat (natAbs (intOfSignMag true m)) m
+  = lambda m: (match m as mm return (Nat -> Id Nat (natAbs (intOfSignMag true mm)) mm) {
+      | zero  => lambda d: refl
+      | suc k => lambda d: refl }) zero    -- applied to a dummy so the match is not
+                                           -- tail position (explicit motive allowed)
+
 -- adding zero on the right is the identity — the `pos` case reduces to Nat's
 -- `add_n_zero` (transported through the `pos` constructor by `ap`); the `negsuc`
 -- case is definitional (diff 0 (suc n) = negsuc n).
@@ -169,11 +178,19 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 --    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
 -- No axioms anywhere in the tower (stages 3–6).
 --
+-- DONE (milestone 2 SUMMIT): the type-ENFORCED rational is assembled.
+-- std/rational_reduced.kan defines
+--   Reduced = (num:Int) * (den:Nat) * (Lt 0 den) * (Coprime (natAbs num) den)
+-- — invariants as PROOF fields — and a smart constructor `reduce : Int -> (d:Nat)
+-- -> Lt 0 d -> Reduced` that divides out gcd(|num|,den) and DISCHARGES all four
+-- obligations (coprimality via reduce_coprime; den>0 via gcd_pos/mul_pos_factor;
+-- sign via a pos/negsuc split that dodges the Bool-elim gap, with natAbs_negOfMag).
+-- Divide-by-zero is now a TYPE error, and every value is provably in lowest terms.
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
+--  • arithmetic ON `Reduced`: addR/mulR/... via cross-multiply + `reduce` (needs
+--    one more lemma, mul_pos : Lt 0 a -> Lt 0 b -> Lt 0 (mul a b), for the product
+--    denominator). Until those land, "provably exact rational ARITHMETIC" would
+--    overstate; the record + reduction to lowest terms is what's proven.
 --  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
---  • assemble the type-ENFORCED `Rational` record on top of reduce_coprime. Mostly
---    construction, but a few small lemmas remain: gcd_pos (Lt 0 b -> Lt 0 (gcdI a b))
---    to discharge reduce_coprime's hypothesis, cofactor positivity for the den≠0
---    field, and Int/sign plumbing (the tower is on Nat; numerators are Int). Make
---    the coprimality field the `Coprime` predicate (what reduce_coprime yields).
 -- ============================================================================

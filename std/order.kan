@@ -197,3 +197,25 @@ def dvd_mul_both : (d : Nat) -> (x : Nat) -> (g : Nat) -> Dvd d x -> Dvd (mul d 
       , trans Nat (mul (fst dx) (mul d g)) (mul (mul (fst dx) d) g) (mul x g)
           (sym Nat (mul (mul (fst dx) d) g) (mul (fst dx) (mul d g)) (mul_assoc (fst dx) d g))
           (ap Nat Nat (lambda z: mul z g) (mul (fst dx) d) x (snd dx)) )
+
+-- ---- positivity of factors / divisors (for the canonical Rational) ----------
+-- if x·g > 0 then x > 0 (else x=0 makes x·g = 0). Convoy on x (applied to the
+-- hypothesis, so the match is not tail position — an explicit motive is allowed).
+def mul_pos_factor : (x : Nat) -> (g : Nat) -> Lt zero (mul x g) -> Lt zero x
+  = lambda x g h:
+      (match x as xx return (Lt zero (mul xx g) -> Lt zero xx) {
+        | zero  => lambda hh: hh              -- Lt 0 (mul 0 g) ≡ Lt 0 0, vacuous
+        | suc k => lambda hh: lt_zero_suc k }) h
+
+-- a divisor of a POSITIVE number is positive:  g | b, b > 0  ⟹  g > 0.
+-- (If g = 0 then b = k·0 = 0, contradiction — the branch is vacuous.) Convoy on g.
+def dvd_pos_divisor : (g : Nat) -> (b : Nat) -> Dvd g b -> Lt zero b -> Lt zero g
+  = lambda g b dvd bpos:
+      (match g as gg return (Dvd gg b -> Lt zero b -> Lt zero gg) {
+        | zero  => lambda dv bp:
+            transp Nat (lambda z: Lt zero z) b zero
+              (trans Nat b (mul (fst dv) zero) zero
+                 (sym Nat (mul (fst dv) zero) b (snd dv))
+                 (mul_n_zero (fst dv)))
+              bp
+        | suc k => lambda dv bp: lt_zero_suc k }) dvd bpos

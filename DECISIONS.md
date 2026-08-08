@@ -452,8 +452,27 @@ Euclidean division, verified gcd (divides-both *and* maximal), and proof-carryin
 reduction to lowest terms — the load-bearing mathematics a type-ENFORCED `Rational`
 (den ≠ 0 and coprimality as PROOF fields) needs.
 
-Assembling that record is *mostly* construction, but not quite zero new lemmas —
-the honest checklist for next session:
+**Assembled (the summit).** `std/rational_reduced.kan` now defines the
+type-ENFORCED rational as a record whose invariants are PROOF fields —
+`Reduced = (num:Int) * (den:Nat) * (Lt 0 den) * (Coprime (natAbs num) den)` — with
+a smart constructor `reduce : Int -> (d:Nat) -> Lt 0 d -> Reduced` that divides out
+`gcd(|num|,den)` and discharges all four obligations (coprimality via
+`reduce_coprime`; `den>0` via `gcd_pos`/`mul_pos_factor`; sign via a `pos`/`negsuc`
+split — dodging the Bool-elim gap — with `natAbs_negOfMag`). The small lemmas the
+checklist below predicted were all needed and are proven: `gcd_pos` (gcd.kan),
+`mul_pos_factor` + `dvd_pos_divisor` (order.kan), `natAbs_negOfMag` (int.kan). No
+axioms. Divide-by-zero is now a *type error*; every `Reduced` is provably lowest-terms.
+
+Two honest caveats: (1) arithmetic ON `Reduced` (addR/mulR via cross-multiply +
+`reduce`) is NOT done — it needs one more lemma (`mul_pos`), so "provably exact
+rational *arithmetic*" would overstate; the record + reduction is what's proven.
+(2) `rational_reduced.kan` is EXPENSIVE to type-check (~20s): it re-pays gcd.kan's
+proofs on import (~5s) plus ~14s of conversion over the many repeated neutral
+`gcd_dvd m d` subterms in `reduce`/`reduceWith`. Same ADR-016 root cause, now at
+check-time; abstracting `gcd_dvd m d` to a binding would sever its definitional
+link to `reduce_coprime`, so it resists the obvious factoring. The gate went 15s→35s.
+
+The original checklist (all now discharged) was:
  • `gcd_pos : Lt 0 b -> Lt 0 (gcdI a b)` — discharges `reduce_coprime`'s positivity
    hypothesis for variable inputs (derive from `gcd_dvd`: g ∣ b, b>0, g=0 ⟹ b=0
    via `suc_ne_zero`). Small, but real.

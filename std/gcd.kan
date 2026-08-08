@@ -128,3 +128,8 @@ def reduce_coprime : (a : Nat) -> (b : Nat) -> Lt zero (gcdI a b)
 -- (Applying reduce_coprime here type-checks too, but forces the full coprimality
 -- reduction — kept out of the gate for cost; see divmod.kan's known-cost note.)
 def gcd64_pos : Lt zero (gcdI 6 4) = lt_zero_suc 1
+
+-- the gcd of anything with a POSITIVE number is positive (it divides that
+-- number). Needed to feed reduce_coprime's Lt 0 (gcdI a b) hypothesis.
+def gcd_pos : (a : Nat) -> (b : Nat) -> Lt zero b -> Lt zero (gcdI a b)
+  = lambda a b bpos: dvd_pos_divisor (gcdI a b) b (snd (gcd_dvd a b)) bpos

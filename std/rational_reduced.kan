@@ -1,0 +1,76 @@
+-- ============================================================================
+-- std/rational_reduced — a rational number PROVEN to be in lowest terms.
+--
+-- The summit of the verified integer tower (ADR-013 milestone 2). A `Reduced`
+-- carries its invariants as PROOF FIELDS, not as conventions a smart constructor
+-- happens to maintain:
+--
+--     Reduced =  (num : Int)                     the numerator (sign lives here)
+--             *  (den : Nat)                     the denominator
+--             *  (Lt zero den)                   den > 0            — a PROOF
+--             *  (Coprime (natAbs num) den)      lowest terms       — a PROOF
+--
+-- So a value of type `Reduced` is a rational the CHECKER has verified is
+-- well-formed: the denominator is provably nonzero (divide-by-zero is a type
+-- error, not a runtime guard), and |num| and den are provably coprime. The smart
+-- constructor `reduce` builds one from any Int/positive-Nat pair by dividing out
+-- gcd(|num|, den) and DISCHARGING all four obligations — using reduce_coprime
+-- (std/gcd.kan) for coprimality, gcd_pos / mul_pos_factor for positivity.
+--
+-- Cost note (ADR-016): `reduce n d p` as a CONSTRUCTION is cheap (it checks by
+-- substitution). Forcing its numerals — e.g. `Id Nat (denR (reduce (pos 6) 4 p)) 2
+-- = refl` — reduces gcd/divmod and hits the known b^depth blow-up, so we keep such
+-- assertions out of the gate. The fast compute path stays the primitives.
+-- ============================================================================
+import "gcd.kan"
+import "int.kan"
+
+-- the type: a rational in lowest terms, invariants as proof fields.
+def Reduced : U
+  = (num : Int) * (den : Nat) * (Lt zero den) * (Coprime (natAbs num) den)
+
+def numR : Reduced -> Int = lambda q: fst q
+def denR : Reduced -> Nat = lambda q: fst (snd q)
+
+-- The core builder: given the MAGNITUDE m of the numerator, a positive
+-- denominator d, and a numerator `nm` whose absolute value is the reduced
+-- magnitude (na' = m / gcd(m,d)), assemble the Reduced. Separating this out lets
+-- `reduce` supply the correctly-signed `nm` per branch while the den/positivity/
+-- coprimality proofs are written once.
+def reduceWith : (m : Nat) -> (d : Nat) -> (dpos : Lt zero d) -> (nm : Int)
+  -> Id Nat (natAbs nm) (fst (fst (gcd_dvd m d)))
+  -> Reduced
+  = lambda m d dpos nm habs:
+      ( nm
+      , ( fst (snd (gcd_dvd m d))                                   -- den' = d / gcd
+        , ( mul_pos_factor (fst (snd (gcd_dvd m d))) (gcdI m d)     -- den' > 0
+              (transp Nat (lambda z: Lt zero z)
+                 d (mul (fst (snd (gcd_dvd m d))) (gcdI m d))
+                 (sym Nat (mul (fst (snd (gcd_dvd m d))) (gcdI m d)) d
+                      (snd (snd (gcd_dvd m d))))
+                 dpos)
+          , transp Nat (lambda z: Coprime z (fst (snd (gcd_dvd m d))))  -- coprime
+              (fst (fst (gcd_dvd m d))) (natAbs nm)
+              (sym Nat (natAbs nm) (fst (fst (gcd_dvd m d))) habs)
+              (reduce_coprime m d (gcd_pos m d dpos)) ) ) )
+
+-- THE SMART CONSTRUCTOR. Case-split the numerator (NOT a Bool — dodges the
+-- Bool-elimination gap): the `pos` branch is fully definitional (natAbs (pos na')
+-- ≡ na', so habs is refl); the `negsuc` branch signs the reduced magnitude with
+-- intOfSignMag and uses natAbs_negOfMag for habs.
+def reduce : (n : Int) -> (d : Nat) -> Lt zero d -> Reduced
+  = lambda n d dpos: match n {
+      | pos m    => reduceWith m d dpos (pos (fst (fst (gcd_dvd m d)))) refl
+      | negsuc k => reduceWith (suc k) d dpos
+                      (intOfSignMag true (fst (fst (gcd_dvd (suc k) d))))
+                      (natAbs_negOfMag (fst (fst (gcd_dvd (suc k) d)))) }
+
+-- constants / injections (all are CONSTRUCTIONS — cheap to check).
+def rZero   : Reduced          = reduce zeroI (suc zero) (lt_zero_suc zero)
+def rOne    : Reduced          = reduce oneI  (suc zero) (lt_zero_suc zero)
+def fromIntR : Int -> Reduced  = lambda n: reduce n (suc zero) (lt_zero_suc zero)
+
+-- a concrete construction on literals (6/4): building it type-checks, which means
+-- all four proof obligations were discharged. (We do NOT assert the numerals 3/2
+-- by refl here — that forces the gcd reduction; see the cost note above.)
+def demo_6_4 : Reduced = reduce (pos 6) 4 (lt_zero_suc 3)
