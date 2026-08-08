@@ -245,7 +245,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     | ID "false" -> adv (); False
     | ID "Nat" -> adv (); Nat
     | ID "zero" -> adv (); Zero
-    | NUM k -> adv (); let rec mk i = if i <= 0 then Zero else Suc (mk (i - 1)) in mk k
+    | NUM k -> adv (); NatLit (Bigint.of_int k)   (* canonical literal — no Suc-tower built at parse time *)
     | ID "String" -> adv (); StringT
     | STR s -> adv (); Str s
     | ID "Integer" -> adv (); IntT
@@ -446,7 +446,7 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         let rec no_vars = function
           | Var _ -> false
           | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _
-          | IntT | IntLit _ -> true
+          | IntT | IntLit _ | NatLit _ -> true
           | Pi (_, a, b) | Sig (_, a, b) | App (a, b) | Pair (a, b) | Ann (a, b) | StrApp (a, b) | StrEq (a, b)
           | IntAdd (a, b) | IntSub (a, b) | IntMul (a, b) | IntEq (a, b) | IntLt (a, b) | IntDiv (a, b) | IntGcd (a, b) -> no_vars a && no_vars b
           | Lam (_, b) | Suc b | Fst b | Snd b | IntFromNat b -> no_vars b

@@ -36,6 +36,7 @@ type tm =
   | Nat
   | Zero
   | Suc of tm
+  | NatLit of Bigint.t                (* a canonical Nat literal (bignum-backed) *)
   | NatElim of tm * tm * tm * tm      (* dependent induction: natElim P z s n : P n *)
   | Data of string                    (* a datatype/type-former head; applied to params via App *)
   | Con of string                     (* a constructor head; applied to params & args via App *)
@@ -68,7 +69,7 @@ let rec lift d cutoff t =
   let l = lift d cutoff and lb = lift d (cutoff + 1) in
   match t with
   | Var i -> if i >= cutoff then Var (i + d) else Var i
-  | U _ | Bool | True | False | Nat | Zero | Refl | Data _ | Con _ | Elim _ | StringT | Str _ | IntT | IntLit _ -> t
+  | U _ | Bool | True | False | Nat | Zero | NatLit _ | Refl | Data _ | Con _ | Elim _ | StringT | Str _ | IntT | IntLit _ -> t
   | Pi (x, a, b) -> Pi (x, l a, lb b)
   | Sig (x, a, b) -> Sig (x, l a, lb b)
   | Lam (x, b) -> Lam (x, lb b)
@@ -204,7 +205,7 @@ type value =
   | VFalse
   | VIf of value * value * value      (* neutral scrutinee *)
   | VNat
-  | VZero
+  | VNatLit of Bigint.t                (* a canonical closed Nat (bignum); a VSuc only ever wraps a neutral *)
   | VSuc of value
   | VNatElim of value * value * value * value   (* neutral target *)
   | VData of string * value list       (* type former applied to a spine of arguments *)
@@ -249,8 +250,9 @@ let rec eval (env : value list) (t : tm) : value =
   | False -> VFalse
   | If (c, t, e) -> vif (eval env c) (eval env t) (eval env e)
   | Nat -> VNat
-  | Zero -> VZero
-  | Suc n -> VSuc (eval env n)
+  | Zero -> VNatLit Bigint.zero
+  | NatLit b -> VNatLit b
+  | Suc n -> vsuc (eval env n)
   | NatElim (p, z, s, n) -> vnatelim (eval env p) (eval env z) (eval env s) (eval env n)
   | Data d -> VData (d, [])
   | Con c -> VCon (c, [])
@@ -309,15 +311,29 @@ and vfst v = match v with VPair (a, _) -> a | _ -> VFst v
 and vsnd v = match v with VPair (_, b) -> b | _ -> VSnd v
 and vtransp a p x y pe d = match pe with VRefl -> d | _ -> VTransp (a, p, x, y, pe, d)
 and vif c t e = match c with VTrue -> t | VFalse -> e | _ -> VIf (c, t, e)
+(* smart Suc: keep closed nats canonical as VNatLit; a VSuc only wraps a neutral.
+   NEVER use raw VSuc in an eval path — that is what makes conversion sound
+   (VNatLit vs VSuc is always distinct: a VSuc chain bottoms out in a neutral). *)
+and vsuc v = match v with VNatLit n -> VNatLit (Bigint.add n Bigint.one) | _ -> VSuc v
+
 and vnatelim p z s n =
-  (* Peel the concrete VSuc layers first (collecting each predecessor), then
-     fold bottom-up. A naive [vnatelim p z s m] recurses to depth n, blowing
-     the stack for large closed nats; this keeps depth O(1). Neutral targets
-     keep their VNatElim form, with any concrete sucs above them rebuilt. *)
-  let rec peel n acc = match n with VSuc m -> peel m (m :: acc) | _ -> (n, acc) in
-  let base, preds = peel n [] in
-  let start = match base with VZero -> z | _ -> VNatElim (p, z, s, base) in
-  List.fold_left (fun acc m -> vapp (vapp s m) acc) start preds
+  match n with
+  | VNatLit k ->
+      (* closed target: fold the method k times over a bigint counter (O(k) in the
+         count, O(1) stack). Fast per-op arithmetic is a later increment (ADR-013). *)
+      let acc = ref z and i = ref Bigint.zero in
+      while Bigint.compare !i k < 0 do
+        acc := vapp (vapp s (VNatLit !i)) !acc;
+        i := Bigint.add !i Bigint.one
+      done;
+      !acc
+  | _ ->
+      (* neutral target (a VSuc chain over a neutral base, or a bare neutral):
+         peel the sucs and fold; the base is never VNatLit here. *)
+      let rec peel n acc = match n with VSuc m -> peel m (m :: acc) | _ -> (n, acc) in
+      let base, preds = peel n [] in
+      let start = VNatElim (p, z, s, base) in
+      List.fold_left (fun acc m -> vapp (vapp s m) acc) start preds
 and vstrapp a b = match a, b with VStr x, VStr y -> VStr (x ^ y) | _ -> VStrApp (a, b)
 and vstreq a b = match a, b with VStr x, VStr y -> if x = y then VTrue else VFalse | _ -> VStrEq (a, b)
 and vintadd a b = match a, b with VInt x, VInt y -> VInt (Bigint.add x y) | _ -> VIntAdd (a, b)
@@ -327,10 +343,7 @@ and vintdiv a b = match a, b with VInt x, VInt y -> VInt (Bigint.div x y) | _ ->
 and vintgcd a b = match a, b with VInt x, VInt y -> VInt (Bigint.gcd x y) | _ -> VIntGcd (a, b)
 and vinteq a b = match a, b with VInt x, VInt y -> if Bigint.equal x y then VTrue else VFalse | _ -> VIntEq (a, b)
 and vintlt a b = match a, b with VInt x, VInt y -> if Bigint.compare x y < 0 then VTrue else VFalse | _ -> VIntLt (a, b)
-and vintfromnat n =
-  (* reduce on a fully-concrete Nat tower; stay stuck on a neutral *)
-  let rec count acc = function VZero -> Some acc | VSuc m -> count (acc + 1) m | _ -> None in
-  (match count 0 n with Some k -> VInt (Bigint.of_int k) | None -> VIntFromNat n)
+and vintfromnat n = match n with VNatLit k -> VInt k | _ -> VIntFromNat n   (* O(1): the nat is already a bignum *)
 and inst c v = eval (v :: c.env) c.body
 
 let rec quote (l : int) (v : value) : tm =
@@ -353,7 +366,7 @@ let rec quote (l : int) (v : value) : tm =
   | VFalse -> False
   | VIf (c, t, e) -> If (quote l c, quote l t, quote l e)
   | VNat -> Nat
-  | VZero -> Zero
+  | VNatLit b -> NatLit b
   | VSuc n -> Suc (quote l n)
   | VNatElim (p, z, s, n) -> NatElim (quote l p, quote l z, quote l s, quote l n)
   | VData (d, sp) -> List.fold_left (fun acc v -> App (acc, quote l v)) (Data d) sp
@@ -398,7 +411,7 @@ let rec conv (l : int) (a : value) (b : value) : bool =
   | VFalse, VFalse -> true
   | VIf (c, t, e), VIf (c', t', e') -> conv l c c' && conv l t t' && conv l e e'
   | VNat, VNat -> true
-  | VZero, VZero -> true
+  | VNatLit a, VNatLit b -> Bigint.equal a b
   | VSuc a, VSuc b -> conv l a b
   | VNatElim (p, z, s, n), VNatElim (p', z', s', n') ->
       conv l p p' && conv l z z' && conv l s s' && conv l n n'
@@ -481,12 +494,13 @@ and infer (ctx : ctx) (t : tm) : value =
   | If (c, t, e) -> check ctx c VBool; let ct = infer ctx t in check ctx e ct; ct
   | Nat -> VU 0
   | Zero -> VNat
+  | NatLit _ -> VNat
   | Suc n -> check ctx n VNat; VNat
   | NatElim (p, z, s, n) ->
       (* motive  P : Nat -> U 0  (level-0 families; the common case) *)
       check ctx p (VPi ("_", VNat, { env = []; body = U 0 }));
       let vp = eval ctx.env p in
-      check ctx z (vapp vp VZero);                         (* base : P zero *)
+      check ctx z (vapp vp (VNatLit Bigint.zero));         (* base : P zero *)
       (* step : (k : Nat) -> P k -> P (suc k)  — built directly as a value *)
       let s_ty =
         VPi ("k", VNat,
@@ -554,6 +568,7 @@ and show ?(ns = []) (t : tm) : string =
   | If (c, t, e) -> Printf.sprintf "if %s %s %s" (show ~ns c) (show ~ns t) (show ~ns e)
   | Nat -> "Nat"
   | Zero -> "0"
+  | NatLit b -> Bigint.to_string b
   | Suc t -> (match nat_int t with Some k -> string_of_int (k + 1) | None -> Printf.sprintf "suc %s" (show ~ns t))
   | NatElim (p, z, s, n) -> Printf.sprintf "natElim %s %s %s %s" (show ~ns p) (show ~ns z) (show ~ns s) (show ~ns n)
   | Data d -> d

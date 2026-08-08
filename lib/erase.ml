@@ -51,6 +51,7 @@ let rec erase (t : tm) : iexpr =
   | False -> IBool false
   | If (c, t, e) -> IIf (erase c, erase t, erase e)
   | Zero -> INat 0
+  | NatLit b -> INat (int_of_string (Bigint.to_string b))   (* source literals fit an int; bignum backing is a later increment *)
   | Suc n -> (match erase n with INat k -> INat (k + 1) | e -> ISuc e)
   | NatElim (_, z, s, n) -> INatElim (erase z, erase s, erase n)   (* motive erased *)
   | Con c -> IConH c
