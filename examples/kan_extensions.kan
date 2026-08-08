@@ -1,0 +1,86 @@
+-- ============================================================================
+-- examples/kan_extensions.kan — the construction Kan is named for, IN Kan.
+--
+--   "The notion of Kan extension subsumes all the other fundamental concepts of
+--    category theory."                              — Saunders Mac Lane
+--
+-- A LEFT Kan extension of a functor  F : A -> D  along  p : A -> B  is the best
+-- approximation of F by a functor on all of B: a functor  L : B -> D  with a
+-- natural transformation  η : F ⇒ L∘p  that is UNIVERSAL — every competitor
+-- (G, γ : F ⇒ G∘p) factors through a mediating  σ : L ⇒ G.  The RIGHT Kan
+-- extension is the dual (mapping IN instead of out).
+--
+-- Everything below TYPE-CHECKS — and in Kan, a type that checks is a theorem.
+-- Run it:   kan check examples/kan_extensions.kan
+-- ============================================================================
+import "../std/kan.kan"
+
+-- ---------------------------------------------------------------------------
+-- 1. THE FUNDAMENTAL EXAMPLE — extend along the identity, get F back.
+--
+-- Every functor is its own Kan extension along the identity functor: take
+-- L = F, unit = the identity F ⇒ F∘id = F. This is the simplest genuine Kan
+-- extension, and it holds for ANY F, in both variances (std/kan.kan proves the
+-- general statements `lanAlongId` / `ranAlongId`; here we exhibit concrete,
+-- checked instances so you can see them inhabit the Kan-extension TYPES).
+-- ---------------------------------------------------------------------------
+
+-- a concrete functor to play with: the identity on the terminal category.
+def F : Functor One One = idFunctor One
+
+-- its left and right Kan extensions along the identity — fully concrete values.
+def lanId : LeftKanExt  One One One (idFunctor One) F = lanAlongId One One F
+def ranId : RightKanExt One One One (idFunctor One) F = ranAlongId One One F
+
+-- the extension really recovers F: the extending functor L is F itself.
+def lanId_recovers_F : Id (Functor One One) (fst lanId) F = refl
+def ranId_recovers_F : Id (Functor One One) (fst ranId) F = refl
+
+-- ---------------------------------------------------------------------------
+-- 2. THE UNIVERSAL PROPERTY, COMPUTED.
+--
+-- A Kan extension is not just a functor — it carries the universal mediating
+-- map. We can pull it out of the extension and RUN it: given any competitor
+-- (G, γ : F ⇒ G∘p) it returns the factoring σ : L ⇒ G. So the universal
+-- property is not merely stated, it computes.
+-- ---------------------------------------------------------------------------
+
+-- the mediating map extracted from the left Kan extension.
+def lanId_mediator
+  : (G : Functor One One)
+    -> NatTrans One One F (compFunctor One One One (idFunctor One) G)
+    -> NatTrans One One F G
+  = snd (snd lanId)
+
+-- feed it the trivial competitor (F itself, with the identity): out comes a
+-- genuine natural transformation σ : F ⇒ F. Checked — the property runs.
+def lanId_sigma : NatTrans One One F F
+  = lanId_mediator F (idNat One One F)
+
+-- ---------------------------------------------------------------------------
+-- 3. "ALL CONCEPTS ARE KAN EXTENSIONS" — stated in Kan.
+--
+-- The unique functor  A -> 1  (to the terminal category) turns the slogan into
+-- checkable definitions: a COLIMIT of F is its left Kan extension along A -> 1,
+-- and a LIMIT is the right Kan extension. Kan lets you say this precisely.
+-- ---------------------------------------------------------------------------
+
+-- the unique functor from any category to the terminal category One.
+def toOne : (A : Category) -> Functor A One
+  = lambda A: ( lambda a: unit
+              , ( lambda a b f: unit
+                , ( lambda a: refl , lambda a b c g f: refl ) ) )
+
+-- a COLIMIT of F : A -> D is exactly the left Kan extension of F along A -> 1.
+def ColimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+  = lambda A D F: LeftKanExt A One D (toOne A) F
+
+-- a LIMIT of F is the right Kan extension of F along A -> 1.
+def LimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+  = lambda A D F: RightKanExt A One D (toOne A) F
+
+-- These are well-formed Kan TYPES — the slogan is not a metaphor here, it is a
+-- statement the checker accepts. Inhabiting them for a general A is the theory
+-- of (co)limits (needs coends — Kan's next frontier); the identity extensions
+-- in §1 are the base cases Kan already builds and verifies. The point stands:
+-- the language named for Kan extensions can express, and check, Kan extensions.

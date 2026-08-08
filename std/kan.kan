@@ -47,3 +47,13 @@ def lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
       ( F
       , ( idNat A D F
         , lambda G gamma: gamma ) )
+
+-- Dually, F is its own RIGHT Kan extension along the identity: R = F, counit the
+-- identity F∘id = F ⇒ F, and the mediating map forwards its input. (Both hold
+-- because F∘id ≡ F definitionally, so idNat has the right type.)
+def ranAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+                 -> RightKanExt A A D (idFunctor A) F
+  = lambda A D F:
+      ( F
+      , ( idNat A D F
+        , lambda G gamma: gamma ) )
