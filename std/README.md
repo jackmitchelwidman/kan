@@ -27,7 +27,7 @@ Each file is included at most once, even if reached through several imports.
 | `order.kan` | `≤`, `<`, and divisibility `∣` as Σ-**witnesses** (a proof of `Le m n` *is* the difference; of `Dvd d n` *is* the quotient); `le_trans`, the decision procedure `leDec`, and the divisibility algebra `dvd_add`/`dvd_mul_l`/`dvd_lin`/`dvd_sub` |
 | `int.kan` | the **inductive** integers `Int` (`pos`/`negsuc`, unique representation) with `addI`/`subI`/`mulI`/`negI`, proven ring facts (`negI_negI`, `addI_comm`, `mulI_comm`, …), and a bridge to the fast primitive `Integer` |
 | `divmod.kan` | **verified Euclidean division** `divmodI : (a b) → 0<b → Σq Σr. (q·b+r = a) × (r<b)` — division carrying its own correctness proof (fuel-Euclid, termination proved) — plus the Euclid step `dvd_mod_fwd`/`dvd_mod_bwd` |
-| `gcd.kan` | **verified gcd** by Euclid (`gcdI`, computes) with the theorem `gcd_dvd : (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)` — the gcd provably divides both arguments |
+| `gcd.kan` | **verified gcd** by Euclid (`gcdI`, computes), proven `gcd_dvd` (divides both) and `gcd_greatest` (maximal — every common divisor divides it), and `reduce_coprime`: dividing `a`,`b` by their gcd yields a **coprime** pair (a fraction reduced to lowest terms, proven) |
 | `list.kan` | polymorphic `List A`: `length`, `map`, `append` |
 | `option.kan` | `Option A`: `none`, `some`, `map_option` |
 | `either.kan` | `Either A B`: `left`, `right`, `either` |

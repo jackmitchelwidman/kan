@@ -148,3 +148,9 @@ def mul_sub_distrib_r : (a : Nat) -> (b : Nat) -> (c : Nat)
                        (mul_sub_distrib_r k j c)
                        (sym Nat (sub (add c (mul k c)) (add c (mul j c))) (sub (mul k c) (mul j c))
                           (sub_add_cancel_l c (mul k c) (mul j c))) } }
+
+-- left cancellation for +:  g + x = g + y  ⟹  x = y.  Induction on g.
+def add_cancel_l : (g : Nat) -> (x : Nat) -> (y : Nat) -> Id Nat (add g x) (add g y) -> Id Nat x y
+  = lambda g x y p: match g {
+      | zero   => p
+      | suc g2 => add_cancel_l g2 x y (suc_inj (add g2 x) (add g2 y) p) }

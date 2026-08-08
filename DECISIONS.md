@@ -436,6 +436,26 @@ is discharged by the Euclid lemma `dvd_mod_fwd`. The `b`-match carries an ADR-01
 explicit motive so both `enough` and the `gcdF …` subject refine with `b`. No
 axioms. Gate green at 46/0. Remaining: stage 6 (maximality ⟹ coprime-after-div).
 
+**Stage 6 — maximality ⟹ coprime after division (done; TOWER COMPLETE).**
+`gcd_greatest : Dvd c a → Dvd c b → Dvd c (gcdI a b)` (any common divisor divides
+the gcd) mirrors `gcdF` exactly, discharging the step with the other Euclid lemma
+`dvd_mod_bwd`. On top, with multiplicative cancellation new to `std/nat.kan`/
+`std/order.kan` (`add_cancel_l`, `mul_pos_ne_zero`, `mul_cancel_r`) and the
+scaling lemma `dvd_mul_both`, `coprime_cofactors` proves: if `a = ca·g` and
+`b = cb·g` with `g = gcd a b > 0` then `ca`, `cb` are coprime — and the corollary
+`reduce_coprime` extracts the cofactors from `gcd_dvd` and shows them coprime, i.e.
+**reducing `a/b` by its gcd puts it in lowest terms, proven**. `Coprime x y` is
+defined as "every common divisor divides 1". No axioms. Gate green at 46/0.
+
+**Milestone 2 (ADR-013) is now complete**: the inductive integer tower has verified
+Euclidean division, verified gcd (divides-both *and* maximal), and proof-carrying
+reduction to lowest terms — everything a type-ENFORCED `Rational` (den ≠ 0 and
+coprimality as PROOF fields) needs. What remains is *assembling that record* on top
+of `reduce_coprime` (construction, not new mathematics) and the residual ring
+axioms. The one open wart is the divmod/gcd reduction-cost blow-up (ADR-016 known
+issue) — a separate evaluator task; the fast compute path stays the `ndiv`/`ngcd`
+primitives.
+
 ---
 
 ## Phase plan (tracks README §13)

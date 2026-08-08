@@ -160,15 +160,17 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
 -- std/divmod.kan proves dvd_mod_fwd/dvd_mod_bwd — i.e. d|b ∧ d|(a mod b) ⟺ d|a
 -- ∧ d|b, the fact that makes gcd(a,b) = gcd(b, a mod b) preserve the divisor set.
 --
--- DONE since (milestone 2, stage 5): verified gcd by Euclid. std/gcd.kan defines
--- the fuel-Euclid `gcdI` (gcd(a,0)=a; gcd(a,b)=gcd(b, a mod b)) and proves
--- `gcd_dvd : (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)` — the gcd divides BOTH
--- arguments — by induction mirroring gcdF, using the Euclid step dvd_mod_fwd.
+-- DONE (milestone 2 COMPLETE, stages 5–6): the verified gcd tower. std/gcd.kan:
+--  • gcdI — fuel-Euclid gcd (gcd(a,0)=a; gcd(a,b)=gcd(b, a mod b)); it computes.
+--  • gcd_dvd      : Dvd (gcdI a b) a  ×  Dvd (gcdI a b) b   (gcd divides both).
+--  • gcd_greatest : Dvd c a → Dvd c b → Dvd c (gcdI a b)    (maximality).
+--  • reduce_coprime : dividing a,b by their gcd yields a COPRIME pair (lowest
+--    terms) — via mul_cancel_r. This is the last load-bearing lemma a
+--    type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields) needs.
+-- No axioms anywhere in the tower (stages 3–6).
 --
 -- Still to prove (true; in progress; NO axioms will paper over them):
 --  • remaining ring axioms: addI/mulI assoc, mul-by-zero/one, distributivity.
---  • gcd MAXIMALITY (stage 6): any common divisor of a,b divides gcdI a b (uses
---    dvd_mod_bwd) ⟹ dividing a,b by their gcd yields a COPRIME pair — the last
---    lemma a type-ENFORCED `Rational` (den ≠ 0 and coprimality as PROOF fields)
---    needs.
+--  • assemble the type-ENFORCED `Rational` record on top of reduce_coprime (the
+--    proof obligations are now all discharged; this is construction, not new math).
 -- ============================================================================

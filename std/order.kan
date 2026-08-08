@@ -165,3 +165,35 @@ def dvd_sub : (d : Nat) -> (x : Nat) -> (y : Nat) -> Dvd d x -> Dvd d y -> Dvd d
           (trans Nat (sub (mul (fst dx) d) (mul (fst dy) d)) (sub x (mul (fst dy) d)) (sub x y)
              (ap Nat Nat (lambda z: sub z (mul (fst dy) d)) (mul (fst dx) d) x (snd dx))
              (ap Nat Nat (lambda z: sub x z) (mul (fst dy) d) y (snd dy))) )
+
+-- ---- multiplicative cancellation (gcd tower, stage 6) -----------------------
+-- (suc x)·g with g > 0 is never zero.
+def mul_pos_ne_zero : (x : Nat) -> (g : Nat) -> (gpos : Lt zero g) -> Id Nat (mul (suc x) g) zero -> Void
+  = lambda x g gpos p:
+      suc_ne_zero (add (fst gpos) (mul x g))
+        (trans Nat (suc (add (fst gpos) (mul x g))) (mul (suc x) g) zero
+           (sym Nat (mul (suc x) g) (suc (add (fst gpos) (mul x g)))
+              (ap Nat Nat (lambda z: add z (mul x g)) g (suc (fst gpos)) (pos_suc g gpos)))
+           p)
+
+-- RIGHT cancellation for ·:  x·g = y·g  with g > 0  ⟹  x = y.  Induction on x;
+-- the mismatched-parity cases are impossible (mul_pos_ne_zero), the suc/suc case
+-- cancels the leading g (add_cancel_l) then recurses.
+def mul_cancel_r : (x : Nat) -> (y : Nat) -> (g : Nat) -> Lt zero g -> Id Nat (mul x g) (mul y g) -> Id Nat x y
+  = lambda x: match x {
+      | zero => lambda y g gpos: match y as yy return (Id Nat (mul zero g) (mul yy g) -> Id Nat zero yy) {
+          | zero   => lambda p: refl
+          | suc y2 => lambda p: absurd (Id Nat zero (suc y2))
+                        (mul_pos_ne_zero y2 g gpos (sym Nat (mul zero g) (mul (suc y2) g) p)) }
+      | suc x2 => lambda y g gpos: match y as yy return (Id Nat (mul (suc x2) g) (mul yy g) -> Id Nat (suc x2) yy) {
+          | zero   => lambda p: absurd (Id Nat (suc x2) zero) (mul_pos_ne_zero x2 g gpos p)
+          | suc y2 => lambda p: ap Nat Nat (lambda z: suc z) x2 y2
+                        (mul_cancel_r x2 y2 g gpos (add_cancel_l g (mul x2 g) (mul y2 g) p)) } }
+
+-- scale a divisibility by g on both sides:  d | x  ⟹  d·g | x·g.
+def dvd_mul_both : (d : Nat) -> (x : Nat) -> (g : Nat) -> Dvd d x -> Dvd (mul d g) (mul x g)
+  = lambda d x g dx:
+      ( fst dx
+      , trans Nat (mul (fst dx) (mul d g)) (mul (mul (fst dx) d) g) (mul x g)
+          (sym Nat (mul (mul (fst dx) d) g) (mul (fst dx) (mul d g)) (mul_assoc (fst dx) d g))
+          (ap Nat Nat (lambda z: mul z g) (mul (fst dx) d) x (snd dx)) )

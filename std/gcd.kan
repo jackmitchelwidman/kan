@@ -65,3 +65,60 @@ def gcdF_dvd : (fuel : Nat) -> (a : Nat) -> (b : Nat) -> (enough : Le b fuel)
 
 def gcd_dvd : (a : Nat) -> (b : Nat) -> (Dvd (gcdI a b) a) * (Dvd (gcdI a b) b)
   = lambda a b: gcdF_dvd b a b (le_refl b)
+
+-- ---- MAXIMALITY: every common divisor of a, b divides gcd a b ---------------
+-- Mirrors gcdF's recursion (shared gcd_en), discharging the step with the OTHER
+-- Euclid lemma dvd_mod_bwd (c|a ∧ c|b ⟹ c|(a mod b)). Note a, c, ca are bound
+-- before the b-match (they don't depend on b); en and cb ride the explicit motive.
+def gcdF_greatest : (fuel : Nat) -> (a : Nat) -> (c : Nat) -> Dvd c a
+  -> (b : Nat) -> (enough : Le b fuel) -> Dvd c b -> Dvd c (gcdF fuel a b enough)
+  = lambda fuel: match fuel {
+      | zero => lambda a c ca b enough cb: ca          -- gcdF 0 a b _ = a
+      | suc f => lambda a c ca b: match b as bb return
+          ((en : Le bb (suc f)) -> Dvd c bb -> Dvd c (gcdF (suc f) a bb en)) {
+          | zero  => lambda en cb: ca                  -- gcdF (suc f) a 0 _ = a
+          | suc b2 => lambda en cb:                    -- gcd(a,b) = gcd(b, a mod b)
+              gcdF_greatest f (suc b2) c cb
+                (modI a (suc b2) (lt_zero_suc b2)) (gcd_en f a b2 en)
+                (dvd_mod_bwd c a (suc b2) (lt_zero_suc b2) ca cb) } }
+
+def gcd_greatest : (c : Nat) -> (a : Nat) -> (b : Nat) -> Dvd c a -> Dvd c b -> Dvd c (gcdI a b)
+  = lambda c a b ca cb: gcdF_greatest b a c ca b (le_refl b) cb
+
+-- ---- COPRIME AFTER DIVISION: the tower's summit ------------------------------
+-- Coprime x y: the only common divisors are units (divide 1).
+def Coprime : Nat -> Nat -> U = lambda x y: (d : Nat) -> Dvd d x -> Dvd d y -> Dvd d 1
+
+-- if d·g divides g (g>0), then d divides 1.  (m·(d·g)=g ⟹ (m·d)·g = 1·g ⟹ m·d=1.)
+def coprime_final : (d : Nat) -> (g : Nat) -> Lt zero g -> Dvd (mul d g) g -> Dvd d 1
+  = lambda d g gpos gg:
+      ( fst gg
+      , mul_cancel_r (mul (fst gg) d) 1 g gpos
+          (trans Nat (mul (mul (fst gg) d) g) (mul (fst gg) (mul d g)) (mul 1 g)
+             (mul_assoc (fst gg) d g)
+             (trans Nat (mul (fst gg) (mul d g)) g (mul 1 g)
+                (snd gg)
+                (sym Nat (mul 1 g) g (add_n_zero g)))) )
+
+-- THE THEOREM: if a = ca·g and b = cb·g with g = gcd a b > 0, then ca, cb are
+-- coprime. (Any common divisor d of ca,cb gives d·g | a and d·g | b, so by
+-- maximality d·g | g, so d | 1.)
+def coprime_cofactors : (a : Nat) -> (b : Nat) -> (ca : Nat) -> (cb : Nat)
+  -> Lt zero (gcdI a b)
+  -> Id Nat (mul ca (gcdI a b)) a -> Id Nat (mul cb (gcdI a b)) b
+  -> Coprime ca cb
+  = lambda a b ca cb gpos eqa eqb d dca dcb:
+      coprime_final d (gcdI a b) gpos
+        (gcd_greatest (mul d (gcdI a b)) a b
+           (transp Nat (lambda z: Dvd (mul d (gcdI a b)) z) (mul ca (gcdI a b)) a eqa
+              (dvd_mul_both d ca (gcdI a b) dca))
+           (transp Nat (lambda z: Dvd (mul d (gcdI a b)) z) (mul cb (gcdI a b)) b eqb
+              (dvd_mul_both d cb (gcdI a b) dcb)))
+
+-- COROLLARY (the usable form): the cofactors a/g and b/g extracted from gcd_dvd
+-- are coprime — i.e. reducing a fraction a/b by its gcd puts it in lowest terms.
+def reduce_coprime : (a : Nat) -> (b : Nat) -> Lt zero (gcdI a b)
+  -> Coprime (fst (fst (gcd_dvd a b))) (fst (snd (gcd_dvd a b)))
+  = lambda a b gpos:
+      coprime_cofactors a b (fst (fst (gcd_dvd a b))) (fst (snd (gcd_dvd a b))) gpos
+        (snd (fst (gcd_dvd a b))) (snd (snd (gcd_dvd a b)))
