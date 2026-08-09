@@ -102,6 +102,7 @@
     <div class="cta">
       <a class="btn" href="https://github.com/jackmitchelwidman/kan">View on GitHub</a>
       <a class="btn ghost" href="kan-extensions.html">Why “Kan”? →</a>
+      <a class="btn ghost" href="rationals.html">Exact rationals →</a>
       <a class="btn ghost" href="#try">Try it</a>
       <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">Read the design</a>
     </div>
@@ -210,6 +211,10 @@
 eval fac 50</pre>
 <pre><span class="c">$ kan run integer.kan</span>
 30414093201713378043612608166064768844377641568960512000000000000</pre>
+    <p style="margin-top:18px"><a class="btn" href="rationals.html">Exact rationals — divide-by-zero is a type error →</a></p>
+    <p class="out">And a step further: a rational whose <code>den &gt; 0</code> and lowest-terms invariants are
+    <em>proof fields</em> the checker verifies — so ÷0 can’t be written, and every value is provably
+    reduced. Built on a verified <code>gcd</code>.</p>
   </section>
 
   <section>
