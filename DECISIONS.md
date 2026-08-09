@@ -594,12 +594,43 @@ approach is proven correct on the pos case) but on evaluator/conversion cost.
 **Consequences.** (1) The correct partial development is parked in
 `docs/rational_laws_draft.kan` — OUTSIDE `std/` so the gate never checks (and hangs
 on) it — ready to resume. (2) Two reusable stones landed in the main tree:
-`mul_swap3` (nat.kan) and `mulI_intSMtrue_pos` (int.kan). (3) **The ADR-016
-evaluator/conversion fix is now the single critical path** for both the ℚ field
-laws AND the proof-carrying constructive reals (ADR-017) — it should be the next
-kernel-level investment. Deferred: `EqR` transitivity + operation-congruence
-(need Int mul-cancellation, a further ~16-leaf build) — moot until the keystone
-checks. Gate green at 50/0 (the blocked file is not in it).
+`mul_swap3` (nat.kan) and `mulI_intSMtrue_pos` (int.kan). (3) The ADR-016
+evaluator/conversion fix is the critical path for the ℚ-field-laws-**on-Reduced**
+and for *fast* proof-tier reduction. **CORRECTION (see ADR-020): it is NOT the
+blocker for proof-carrying constructive reals — those route around it via `Frac`.**
+Deferred: `EqR` transitivity + operation-congruence (need Int mul-cancellation, a
+further ~16-leaf build) — moot until the keystone checks. Gate green at 50/0.
+
+---
+
+## ADR-020 — proof-carrying constructive reals via `Frac` (routes around ADR-016)
+
+**The pivot.** A CReal's approximations need a rational with *provable* ordered-field
+laws — but NOT lowest terms. So build the proof tier on `Frac`
+(`rational_typed.kan`: `num : Int`, `den = suc denPred`) instead of `Reduced`. `Frac`
+has no `reduce`/`gcd`, so it has no ADR-016 cost, and its structural denominator makes
+positivity definitional. This corrects ADR-019: ADR-016 was never the CReal blocker —
+the `Reduced` route was.
+
+**Landed (`std/creal_proof.kan`, checks in ~20ms):**
+- `LeI` — Int order as a Σ-witness (`b − a` is a non-negative `pos k`); `LeI_refl`,
+  `LeI_trans`, and `LeI_add_mono` (the precision-propagation lemma), on `addI_swap`/
+  `addI_swap4`.
+- `LeF` — `Frac` order by cross-multiplication through `LeI`; `absF`, `invSuc`,
+  `LeF_zero`, `LeI_zero_pos`, `subF_num_zero` (`q − q` has numerator 0, via
+  `mulI_distrib_r` + `addI_negI` — the ring axioms paying off).
+- **`CRealP = (approx : Nat -> Frac) * (regular: |x m − x n| ≤ 1/(m+1)+1/(n+1))`**, and
+  **`fromQP : Frac -> CRealP`** — every rational is a proof-carrying real. So
+  proof-carrying constructive reals EXIST in Kan, inhabited.
+
+**Scope / remaining.** Closure under `+`/`−` (`addCP`/`negCP`) needs the **triangle
+inequality** (`|a+b| ≤ |a|+|b|` — crux is the Nat statement `natAbs(addI a b) ≤
+natAbs a + natAbs b`, sign-cases + natAbs-of-`diff`) and, for `negCP`, negI-distribution
+lemmas (`negI_addI`, `negI_mulI_l`, `natAbs_negI`); `addCP` also reindexes the modulus.
+Multiplication (proven magnitude bounds), concrete reals (√2 = proven Newton
+convergence), and division (apartness-as-proof) are the tier beyond. The COMPUTATIONAL
+tier (`std/creal.kan`) already computes all of these; the proof tier is catching up,
+now unblocked (no ADR-016 dependency).
 
 ---
 
