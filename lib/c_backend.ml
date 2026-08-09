@@ -269,6 +269,22 @@ let fresh = let n = ref 0 in fun () -> incr n; "fn_" ^ string_of_int !n
 
 let quote s = "\"" ^ s ^ "\""
 
+(* Names may be namespaced ("M::add"), whose "::" is illegal in a C identifier.
+   Mangle a name into a valid, injective C identifier: alphanumerics pass through,
+   '_' doubles (so it can't clash with an escape), any other byte becomes "_XX"
+   (hex). Used only where a name forms a C identifier (e.g. the _recs_ arrays);
+   runtime string comparisons keep the original name via `quote`. *)
+let cident s =
+  let b = Buffer.create (String.length s + 4) in
+  String.iter
+    (fun ch ->
+      if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+      then Buffer.add_char b ch
+      else if ch = '_' then Buffer.add_string b "__"
+      else Buffer.add_string b (Printf.sprintf "_%02x" (Char.code ch)))
+    s;
+  Buffer.contents b
+
 let compile (decls : Tt.decl list) : string =
   let ctx = ref empty in
   let ndefs = ref 0 in
@@ -341,8 +357,8 @@ let compile (decls : Tt.decl list) : string =
   Buffer.add_string reg (Printf.sprintf "static int elim_nc(const char *x) {\n%s  return 0;\n}\n" (case_int (List.map (fun (e, _, nc) -> (e, nc)) !elims)));
   Buffer.add_string reg (Printf.sprintf "static int ctor_np(const char *x) {\n%s  return 0;\n}\n" (case_int (List.map (fun (c, np, _, _) -> (c, np)) !ctors)));
   Buffer.add_string reg (Printf.sprintf "static int ctor_pos(const char *x) {\n%s  return 0;\n}\n" (case_int (List.map (fun (c, _, p, _) -> (c, p)) !ctors)));
-  List.iter (fun (c, _, _, recs) -> Buffer.add_string reg (Printf.sprintf "static int _recs_%s[] = {%s};\n" c (if recs = [] then "0" else String.concat ", " (List.map (fun b -> if b then "1" else "0") recs)))) !ctors;
-  Buffer.add_string reg (Printf.sprintf "static int *ctor_recs(const char *x) {\n%s  return 0;\n}\n" (String.concat "" (List.map (fun (c, _, _, _) -> Printf.sprintf "  if (!strcmp(x, %s)) return _recs_%s;\n" (quote c) c) !ctors)));
+  List.iter (fun (c, _, _, recs) -> Buffer.add_string reg (Printf.sprintf "static int _recs_%s[] = {%s};\n" (cident c) (if recs = [] then "0" else String.concat ", " (List.map (fun b -> if b then "1" else "0") recs)))) !ctors;
+  Buffer.add_string reg (Printf.sprintf "static int *ctor_recs(const char *x) {\n%s  return 0;\n}\n" (String.concat "" (List.map (fun (c, _, _, _) -> Printf.sprintf "  if (!strcmp(x, %s)) return _recs_%s;\n" (quote c) (cident c)) !ctors)));
   let n = max !ndefs 1 in
   prelude1 ^ "\n" ^ Buffer.contents reg ^ "\n" ^ prelude2 ^ "\n"
   ^ Printf.sprintf "static Value *G[%d];\n\n" n

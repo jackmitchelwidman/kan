@@ -16,6 +16,17 @@ eval add 2 (length Nat xs)
 
 Each file is included at most once, even if reached through several imports.
 
+Import **qualified** with `as` to keep a module's names in their own namespace —
+useful when two modules would otherwise clash (both defining `Color`, say):
+
+```
+import "../std/nat.kan" as Nat
+
+eval Nat::add 2 3          -- 5   (datatypes, constructors, and defs all namespaced)
+```
+
+A plain `import` is unqualified (equivalent to "open"). See `examples/namespaces.kan`.
+
 ## Modules
 
 | Module | Contents |

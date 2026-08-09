@@ -77,12 +77,38 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.7.0 ===================== -->
+  <section id="v0.7.0" class="current">
+    <div class="vhead">
+      <h2>v0.7.0</h2>
+      <span class="date">2026-08-09 · 16:27 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle">Namespaces: qualified imports.</p>
+    <ul>
+      <li><b>Qualified imports — <code>import "std/nat.kan" as Nat</code>.</b> A module
+        imported <code>as M</code> keeps its names in their own namespace, referenced as
+        <code>M::add</code>, <code>M::Color</code>, <code>M::red</code> — datatypes,
+        constructors, and functions are all namespaced, <em>including inside</em>
+        <code>match</code>. So two modules that each define a <code>Color</code> and a
+        <code>code</code> now coexist happily (<code>Paint::Color</code> vs
+        <code>Mood::Color</code>) instead of colliding. A plain <code>import</code> stays
+        unqualified, so nothing existing changes. The separator is <code>::</code>
+        (<code>.</code> remains the lambda separator).</li>
+      <li>It's a pure front-end feature — a parse-time namespace prefix, no kernel
+        change — and the type checker keeps the namespaces genuinely distinct
+        (feeding a <code>Mood::Color</code> to a <code>Paint</code> function is a type
+        error). All three backends agree on namespaced programs. See
+        <code>examples/namespaces.kan</code>.</li>
+      <li><em>Still to come:</em> export/visibility control and <code>open M</code> — see the design notes.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.6.0 ===================== -->
-  <section id="v0.6.0" class="current">
+  <section id="v0.6.0">
     <div class="vhead">
       <h2>v0.6.0</h2>
       <span class="date">2026-08-09 · 14:59 IDT</span>
-      <span class="tag">latest</span>
       <span class="tag break">breaking</span>
     </div>
     <p class="subtitle">One namespace, and it's enforced.</p>

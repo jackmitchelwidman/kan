@@ -98,11 +98,22 @@ feature, so this is a milestone, not a patch.
   guarantee section.
 - **Indexed families** (`Vec`, `Fin`): still the biggest missing type-theory
   feature; a dedicated, careful milestone (unsound if rushed).
-- **Namespaces / qualified imports.** Kan has one flat global namespace. As of
-  v0.6.0 duplicate top-level names are a hard error (no more silent shadowing —
-  see `Tt.check_unique`), which removes the footgun. The remaining ergonomic step,
-  for when the library grows, is *qualified imports* (`import "std/nat.kan" as Nat`
-  → `Nat.add`) so the same short name can live in two modules; then, later,
-  export/visibility control so an `import` doesn't pull in a file's transitive
-  names. Both are pure name-resolution features — no kernel change. Not needed yet:
-  the stdlib currently has zero cross-file name collisions.
+- **Namespaces / qualified imports.** Kan started with one flat global namespace.
+  v0.6.0 made duplicate top-level names a hard error (no silent shadowing — see
+  `Tt.check_unique`). **v0.7.0 added qualified imports**: `import "std/nat.kan" as Nat`
+  puts that module's names under `Nat::add`, `Nat::Bool`, etc. — datatypes,
+  constructors, and functions all namespaced, including inside `match` — so the same
+  short name can live in many modules (`Paint::Color` and `Mood::Color` coexist). A
+  plain `import` stays unqualified (= "open"). It's a pure front-end feature: a parse
+  -time prefix in `Tt.parse` plus `(path, prefix)` keying in the loader; the kernel is
+  unchanged (the C backend mangles `::` out of generated identifiers via `cident`).
+  **Still open** (the "later" pieces): (1) *export/visibility control* — an `import`
+  still leaks a module's transitive unqualified imports into your scope; a module
+  should choose its public surface. (2) `open M` to bring an already-qualified
+  module's names in unqualified. (3) `exposing`/`hiding` lists. All additive.
+  Two known consequences of the current prefix-based design, acceptable for now:
+  importing the *same* module both bare and `as M` yields two nominally distinct
+  copies (`Option` and `Opt::Option` are incompatible types); and aliases are
+  program-global, not scoped to the importing file (two files each aliasing a
+  different module as `H` would clash via `check_unique` or see each other's `H::`
+  names). Real file-scoped aliases come with the export-control work.

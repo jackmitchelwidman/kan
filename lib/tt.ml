@@ -60,7 +60,15 @@ let tokenize (s : string) : tok array =
     end
     else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' then begin
       let j = ref !i in
-      while !j < n && is_a s.[!j] do incr j done;
+      let is_start k = (s.[k] >= 'a' && s.[k] <= 'z') || (s.[k] >= 'A' && s.[k] <= 'Z') || s.[k] = '_' in
+      let read_seg () = while !j < n && is_a s.[!j] do incr j done in
+      read_seg ();
+      (* glue a qualified name `M::add` (or `A::B::c`) into one identifier token,
+         but only when contiguous — `::` is the namespace separator; `.` remains
+         the lambda separator, and a single `:` is still the annotation colon. *)
+      while !j + 2 < n && s.[!j] = ':' && s.[!j + 1] = ':' && is_start (!j + 2) do
+        j := !j + 2; read_seg ()
+      done;
       push (ID (String.sub s !i (!j - !i))); i := !j
     end
     else if c >= '0' && c <= '9' then begin
@@ -117,7 +125,17 @@ let reset_tables () =
 
 (* `ns0` seeds the name scope with globals from files parsed earlier (imports),
    so a file can reference definitions imported before it. *)
-let parse ?(ns0 = []) (toks : tok array) : decl list =
+let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
+  (* NAMESPACES. When a file is imported `as M`, it is parsed with prefix "M":
+     its declared names are registered as "M::name", and a bare reference inside
+     the file resolves to "M::name" first, falling back to the unqualified name
+     (so it can still see primitives and its own unqualified imports). A name that
+     already contains "::" is an explicit qualified reference and is used as-is. *)
+  let is_qual s = String.contains s ':' in
+  let qual s = if prefix = "" then s else prefix ^ "::" ^ s in      (* for DECLARATIONS *)
+  let cands s = if prefix <> "" && not (is_qual s) then [ prefix ^ "::" ^ s; s ] else [ s ] in
+  let find_key tbl s = List.find_opt (fun k -> Hashtbl.mem tbl k) (cands s) in
+  let var_key ns s = List.find_map (fun k -> index_of k ns) (cands s) in
   let pos = ref 0 in
   let peek () = toks.(!pos) in
   let peek2 () = if !pos + 1 < Array.length toks then toks.(!pos + 1) else EOF in
@@ -229,11 +247,12 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
       | ID "ieq" -> adv (); let a = atom ns in let b = atom ns in IntEq (a, b)
       | ID "ilt" -> adv (); let a = atom ns in let b = atom ns in IntLt (a, b)
       | ID "fromNat" -> adv (); IntFromNat (atom ns)
-      | ID x when (match Hashtbl.find_opt ctors x with Some k -> k > 0 | None -> false) ->
-          adv (); List.fold_left (fun acc a -> App (acc, a)) (Con x) (take_atoms (Hashtbl.find ctors x))
-      | ID x when Hashtbl.mem elims x ->
-          adv (); let _, k = Hashtbl.find elims x in
-          List.fold_left (fun acc a -> App (acc, a)) (Elim x) (take_atoms k)
+      | ID x when (match find_key ctors x with Some k -> Hashtbl.find ctors k > 0 | None -> false) ->
+          adv (); let k = Option.get (find_key ctors x) in
+          List.fold_left (fun acc a -> App (acc, a)) (Con k) (take_atoms (Hashtbl.find ctors k))
+      | ID x when find_key elims x <> None ->
+          adv (); let e = Option.get (find_key elims x) in let _, k = Hashtbl.find elims e in
+          List.fold_left (fun acc a -> App (acc, a)) (Elim e) (take_atoms k)
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
@@ -258,11 +277,11 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     | ID "refl" -> adv (); Refl
     | ID x when List.mem x reserved_head -> fail (x ^ " must be applied to its arguments")
     | ID x when List.mem x decl_kw -> fail ("unexpected '" ^ x ^ "'")
-    | ID x when Hashtbl.mem datatypes x -> adv (); Data x
-    | ID x when (match Hashtbl.find_opt ctors x with Some 0 -> true | _ -> false) -> adv (); Con x
-    | ID x when Hashtbl.mem ctors x -> fail (x ^ " needs arguments")
-    | ID x when Hashtbl.mem elims x -> fail (x ^ " needs arguments (parameters, a motive, methods, and a target)")
-    | ID x -> adv (); (match index_of x ns with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
+    | ID x when find_key datatypes x <> None -> adv (); Data (Option.get (find_key datatypes x))
+    | ID x when (match find_key ctors x with Some k -> Hashtbl.find ctors k = 0 | None -> false) -> adv (); Con (Option.get (find_key ctors x))
+    | ID x when find_key ctors x <> None -> fail (x ^ " needs arguments")
+    | ID x when find_key elims x <> None -> fail (x ^ " needs arguments (parameters, a motive, methods, and a target)")
+    | ID x -> adv (); (match var_key ns x with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
     | LP ->
         adv ();
         let t = term ns in
@@ -327,7 +346,13 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
     let arms = ref [] in
     while peek () = BAR do
       adv ();
-      let cname = ident () in
+      let cname_raw = ident () in
+      (* resolve a user constructor through the namespace prefix; a bare arm name
+         inside an `as M` scrutinee finds "M::ctor". Nat/Bool builtins are never
+         prefixed. Constructors are stored resolved so they match `data_info`. *)
+      let cname = (match cname_raw with
+        | "zero" | "suc" | "true" | "false" -> cname_raw
+        | _ -> (match find_key ctor_owner cname_raw with Some ck -> ck | None -> cname_raw)) in
       let rec pbs acc = match peek () with ID x -> adv (); pbs (x :: acc) | FATARROW -> adv (); List.rev acc | _ -> fail "expected pattern binders then '=>'" in
       let bs = pbs [] in
       let nargs, ih_names, rec_pairs =
@@ -448,10 +473,19 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         let inner = term ~expected:(peel (List.length lead) ty) ns' in
         rec_fname := None; rec_binders := []; rec_annot := None; rec_decarg := ""; rec_ihmap := []; rec_at_top := false;
         let body = List.fold_right (fun x b -> Lam (x, b)) lead inner in
-        Def (name, ty, body)
+        Def (qual name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
-    | ID "import" -> adv (); (match peek () with STR p -> adv (); Import p | _ -> fail "expected a \"path\" after import")
+    | ID "import" ->
+        adv ();
+        (match peek () with
+         | STR p ->
+             adv ();
+             (* optional `as M` — the alias is consumed here and acted on by the
+                loader (scan_imports); the parsed Import node itself is discarded. *)
+             (if peek () = ID "as" then (adv (); match peek () with ID _ -> adv () | _ -> fail "expected a namespace name after `as`"));
+             Import p
+         | _ -> fail "expected a \"path\" after import")
     | ID "data" ->
         adv (); let name = ident () in
         (* parameters:  (p : T) ... *)
@@ -463,11 +497,11 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         in
         let ps = parse_params [] in
         let k = List.length ps in
-        Hashtbl.replace datatypes name ();      (* register early so constructor types can be recursive *)
+        Hashtbl.replace datatypes (qual name) ();      (* register early so constructor types can be recursive *)
         let ns_ctor = List.fold_left (fun a (pn, _) -> pn :: a) ns ps in
         (* the datatype applied to all its parameters, as it appears under `depth` binders *)
         let applied_data_tm depth =
-          List.fold_left (fun acc m -> App (acc, Var (k - 1 - m + depth))) (Data name) (List.init k (fun m -> m))
+          List.fold_left (fun acc m -> App (acc, Var (k - 1 - m + depth))) (Data (qual name)) (List.init k (fun m -> m))
         in
         let rec no_vars = function
           | Var _ -> false
@@ -502,8 +536,8 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
             | _ -> fail ("constructor " ^ cname ^ ": unsupported argument type (want a parameter, " ^ name ^ ", or a closed type)")
           in
           let argtys = List.map classify dargs in
-          Hashtbl.replace ctors cname (k + n);
-          (cname, argtys)
+          Hashtbl.replace ctors (qual cname) (k + n);
+          (qual cname, argtys)
         in
         let rec many acc =
           let c = parse_ctor () in
@@ -513,10 +547,10 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
         in
         let cs = (match peek () with RBRACE -> [] | _ -> many []) in
         eat RBRACE "}";
-        Hashtbl.replace elims (name ^ "_elim") (name, k + 1 + List.length cs + 1);
-        Hashtbl.replace data_info name (k, cs);
-        List.iter (fun (cn, _) -> Hashtbl.replace ctor_owner cn name) cs;
-        Data_decl (name, ps, cs)
+        Hashtbl.replace elims ((qual name) ^ "_elim") (qual name, k + 1 + List.length cs + 1);
+        Hashtbl.replace data_info (qual name) (k, cs);
+        List.iter (fun (cn, _) -> Hashtbl.replace ctor_owner cn (qual name)) cs;
+        Data_decl (qual name, ps, cs)
     | _ -> fail "expected a declaration (import / def / check / eval / data)"
   in
   (* interleave: each def extends the name scope for later decls *)

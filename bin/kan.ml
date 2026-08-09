@@ -31,11 +31,17 @@ let canon file = normalize (if Filename.is_relative file then Filename.concat (S
 
 (* the import paths of a file, found without full parsing (imports come first,
    and the parser needs earlier files' datatypes in scope before parsing this one) *)
+(* returns (path, alias) pairs; `import "p" as M` gives (p, Some "M"), a plain
+   `import "p"` gives (p, None). An aliased import is loaded into namespace M. *)
 let scan_imports toks =
+  let n = Array.length toks in
   let rec go i acc =
-    if i + 1 >= Array.length toks then List.rev acc
+    if i + 1 >= n then List.rev acc
     else match toks.(i), toks.(i + 1) with
-      | Tt.ID "import", Tt.STR p -> go (i + 2) (p :: acc)
+      | Tt.ID "import", Tt.STR p ->
+          if i + 3 < n && toks.(i + 2) = Tt.ID "as" && (match toks.(i + 3) with Tt.ID _ -> true | _ -> false)
+          then let m = (match toks.(i + 3) with Tt.ID m -> m | _ -> "") in go (i + 4) ((p, Some m) :: acc)
+          else go (i + 2) ((p, None) :: acc)
       | _ -> go (i + 1) acc
   in
   go 0 []
@@ -46,25 +52,30 @@ let scan_imports toks =
 let load_program entry : Tt.decl list =
   Tt.reset_tables ();
   let visited = Hashtbl.create 16 in
-  (* `ns` accumulates global def names (most-recent-first) so far, for scoping. *)
-  let rec load ns file =
-    let c = canon file in
-    if Hashtbl.mem visited c then ([], ns)
+  (* `ns` accumulates global def names (most-recent-first) so far, for scoping.
+     `prefix` is the namespace this file is loaded into ("" = unqualified); a file
+     imported `as M` is parsed with prefix "M". The same file under different
+     prefixes is loaded once per prefix (key = (path, prefix)). *)
+  let rec load prefix ns file =
+    let key = (canon file, prefix) in
+    if Hashtbl.mem visited key then ([], ns)
     else begin
-      Hashtbl.replace visited c ();
+      Hashtbl.replace visited key ();
       let toks = Tt.tokenize (read_file file) in
       let dir = Filename.dirname file in
       let idecls, ns1 =
         List.fold_left
-          (fun (acc, ns) p -> let d, ns' = load ns (Filename.concat dir p) in (acc @ d, ns'))
+          (fun (acc, ns) (p, alias) ->
+             let sub = match alias with Some m -> m | None -> "" in
+             let d, ns' = load sub ns (Filename.concat dir p) in (acc @ d, ns'))
           ([], ns) (scan_imports toks)
       in
-      let own = Tt.parse ~ns0:ns1 toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
+      let own = Tt.parse ~ns0:ns1 ~prefix toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
       let ns2 = List.fold_left (fun a d -> match d with Tt.Def (n, _, _) -> n :: a | _ -> a) ns1 own in
       (idecls @ own, ns2)
     end
   in
-  let decls = fst (load [] entry) in
+  let decls = fst (load "" [] entry) in
   Tt.check_unique decls;          (* one flat namespace: no duplicate top-level names *)
   decls
 

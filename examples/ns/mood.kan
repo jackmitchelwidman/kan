@@ -1,0 +1,3 @@
+-- a DIFFERENT module that ALSO defines `Color` and `code` — the classic clash.
+data Color { calm : Color, tense : Color }
+def code : Color -> Nat = lambda c: match c { | calm => 10 | tense => 20 }

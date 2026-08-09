@@ -79,6 +79,9 @@ reject "duplicate top-level name (def vs def)" \
   'def d : Nat = 1 def d : Nat = 2'
 reject "duplicate top-level name (constructor vs def)" \
   'data Age { age : Nat -> Age } def age : Age -> Nat = \a. match a { | age n => n }'
+# qualified names (namespaces): an unknown qualified reference is a clean error
+reject "unbound qualified name" \
+  'def x : Nat = Foo::bar'
 
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"

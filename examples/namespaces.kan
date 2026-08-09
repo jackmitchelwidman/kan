@@ -1,0 +1,14 @@
+-- ============================================================================
+-- examples/namespaces.kan — qualified imports (`import "…" as M`).
+--
+-- Two modules each declare a type `Color` AND a function `code`. Under Kan's flat
+-- namespace that is a hard error. Imported `as Paint` / `as Mood`, they coexist:
+-- you refer to `Paint::Color`, `Paint::code`, `Mood::code`, etc. — datatypes,
+-- constructors, and functions are all namespaced, including inside `match`.
+-- ============================================================================
+import "ns/paint.kan" as Paint
+import "ns/mood.kan"  as Mood
+
+eval Paint::code Paint::blue                           -- 2
+eval Mood::code  Mood::tense                           -- 20
+eval Paint::code (Paint::mix Paint::red Paint::white)  -- 3   (mix red white = white)

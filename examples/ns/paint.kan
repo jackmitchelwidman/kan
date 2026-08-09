@@ -1,0 +1,4 @@
+-- a small module: paint colours. Note it defines `Color` and `code`.
+data Color { red : Color, blue : Color, white : Color }
+def code : Color -> Nat = lambda c: match c { | red => 1 | blue => 2 | white => 3 }
+def mix  : Color -> Color -> Color = lambda a b: match a { | red => b | blue => b | white => a }
