@@ -405,6 +405,54 @@ def mAssocN : (p : Nat) -> (b : Int) -> (c : Int)
 def mulI_assoc : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (mulI (mulI a b) c) (mulI a (mulI b c))
   = lambda a b c: match a { | pos p => mAssocP p b c | negsuc p => mAssocN p b c }
 
+-- ---- distributivity workhorses (mul over diff): toward mulI-over-addI --------
+-- m·(n−o) = m·n − m·o.  Same double-induction template as add_diff_pos; the
+-- suc/suc case is the IH, glued with mul_suc (m·suc = m + m··) and diff_cancel_l.
+def mul_diff_pos : (n : Nat) -> (o : Nat) -> (m : Nat)
+  -> Id Int (mulI (pos m) (diff n o)) (diff (mul m n) (mul m o))
+  = lambda n o m: match n {
+      | zero => (match o as oo return (Id Int (mulI (pos m) (diff zero oo)) (diff (mul m zero) (mul m oo))) {
+          | zero => trans Int (pos (mul m zero)) (pos zero) (diff (mul m zero) (mul m zero))
+                      (ap Nat Int (lambda z: pos z) (mul m zero) zero (mul_n_zero m))
+                      (sym Int (diff (mul m zero) (mul m zero)) (pos zero) (diff_n_n (mul m zero)))
+          | suc k => sym Int (diff (mul m zero) (mul m (suc k))) (intOfSignMag true (mul m (suc k)))
+                       (ap Nat Int (lambda z: diff z (mul m (suc k))) (mul m zero) zero (mul_n_zero m)) })
+      | suc j => (match o as oo return (Id Int (mulI (pos m) (diff (suc j) oo)) (diff (mul m (suc j)) (mul m oo))) {
+          | zero => trans Int (pos (mul m (suc j))) (diff (mul m (suc j)) zero) (diff (mul m (suc j)) (mul m zero))
+                      (sym Int (diff (mul m (suc j)) zero) (pos (mul m (suc j))) (diff_m_0 (mul m (suc j))))
+                      (ap Nat Int (lambda z: diff (mul m (suc j)) z) zero (mul m zero) (sym Nat (mul m zero) zero (mul_n_zero m)))
+          | suc k => trans Int (mulI (pos m) (diff j k)) (diff (mul m j) (mul m k)) (diff (mul m (suc j)) (mul m (suc k)))
+                       (mul_diff_pos j k m)
+                       (sym Int (diff (mul m (suc j)) (mul m (suc k))) (diff (mul m j) (mul m k))
+                          (trans Int (diff (mul m (suc j)) (mul m (suc k))) (diff (add m (mul m j)) (add m (mul m k))) (diff (mul m j) (mul m k))
+                             (trans Int (diff (mul m (suc j)) (mul m (suc k))) (diff (add m (mul m j)) (mul m (suc k))) (diff (add m (mul m j)) (add m (mul m k)))
+                                (ap Nat Int (lambda z: diff z (mul m (suc k))) (mul m (suc j)) (add m (mul m j)) (mul_suc m j))
+                                (ap Nat Int (lambda z: diff (add m (mul m j)) z) (mul m (suc k)) (add m (mul m k)) (mul_suc m k)))
+                             (diff_cancel_l m (mul m j) (mul m k)))) }) }
+
+-- −(m+1)·(n−o) = (m+1)·o − (m+1)·n  (the diff swaps, since the factor is negative).
+def mul_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
+  -> Id Int (mulI (negsuc m) (diff n o)) (diff (mul (suc m) o) (mul (suc m) n))
+  = lambda n o m: match n {
+      | zero => (match o as oo return (Id Int (mulI (negsuc m) (diff zero oo)) (diff (mul (suc m) oo) (mul (suc m) zero))) {
+          | zero => trans Int (intOfSignMag true (mul (suc m) zero)) (pos zero) (diff (mul (suc m) zero) (mul (suc m) zero))
+                      (ap Nat Int (lambda z: intOfSignMag true z) (mul (suc m) zero) zero (mul_n_zero (suc m)))
+                      (sym Int (diff (mul (suc m) zero) (mul (suc m) zero)) (pos zero) (diff_n_n (mul (suc m) zero)))
+          | suc k => trans Int (pos (mul (suc m) (suc k))) (diff (mul (suc m) (suc k)) zero) (diff (mul (suc m) (suc k)) (mul (suc m) zero))
+                       (sym Int (diff (mul (suc m) (suc k)) zero) (pos (mul (suc m) (suc k))) (diff_m_0 (mul (suc m) (suc k))))
+                       (ap Nat Int (lambda z: diff (mul (suc m) (suc k)) z) zero (mul (suc m) zero) (sym Nat (mul (suc m) zero) zero (mul_n_zero (suc m)))) })
+      | suc j => (match o as oo return (Id Int (mulI (negsuc m) (diff (suc j) oo)) (diff (mul (suc m) oo) (mul (suc m) (suc j)))) {
+          | zero => sym Int (diff (mul (suc m) zero) (mul (suc m) (suc j))) (intOfSignMag true (mul (suc m) (suc j)))
+                      (ap Nat Int (lambda z: diff z (mul (suc m) (suc j))) (mul (suc m) zero) zero (mul_n_zero (suc m)))
+          | suc k => trans Int (mulI (negsuc m) (diff j k)) (diff (mul (suc m) k) (mul (suc m) j)) (diff (mul (suc m) (suc k)) (mul (suc m) (suc j)))
+                       (mul_diff_negsuc j k m)
+                       (sym Int (diff (mul (suc m) (suc k)) (mul (suc m) (suc j))) (diff (mul (suc m) k) (mul (suc m) j))
+                          (trans Int (diff (mul (suc m) (suc k)) (mul (suc m) (suc j))) (diff (add (suc m) (mul (suc m) k)) (add (suc m) (mul (suc m) j))) (diff (mul (suc m) k) (mul (suc m) j))
+                             (trans Int (diff (mul (suc m) (suc k)) (mul (suc m) (suc j))) (diff (add (suc m) (mul (suc m) k)) (mul (suc m) (suc j))) (diff (add (suc m) (mul (suc m) k)) (add (suc m) (mul (suc m) j)))
+                                (ap Nat Int (lambda z: diff z (mul (suc m) (suc j))) (mul (suc m) (suc k)) (add (suc m) (mul (suc m) k)) (mul_suc (suc m) k))
+                                (ap Nat Int (lambda z: diff (add (suc m) (mul (suc m) k)) z) (mul (suc m) (suc j)) (add (suc m) (mul (suc m) j)) (mul_suc (suc m) j)))
+                             (diff_cancel_l (suc m) (mul (suc m) k) (mul (suc m) j)))) }) }
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
@@ -482,12 +530,15 @@ def mulI_assoc : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (mulI (mulI a b) 
 -- Combined with (ℤ,+) a commutative group, this is EVERYTHING of a commutative
 -- ring EXCEPT distributivity.
 --
+-- DONE (distributivity workhorses): mul_diff_pos (m·(n−o) = m·n − m·o) and
+-- mul_diff_negsuc (−(m+1)·(n−o) = (m+1)·o − (m+1)·n) — the mul-over-diff family,
+-- same double-induction template as add_diff_pos (suc/suc discharged by mul_suc +
+-- diff_cancel_l). These are the heavy lifting for distributivity.
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • DISTRIBUTIVITY (mulI over addI) — the last ring axiom. Needs a mul-over-diff
---    family (mul_diff_pos : mulI (pos m)(diff n o) = diff (mul m n)(mul m o), and
---    its negsuc twin), same double-induction template as add_diff_pos, whose
---    suc/suc case discharges via mul_suc + diff_cancel_l; then an 8-sign-case
---    assembly. With it, (ℤ,+,·) is a commutative ring; the ℚ field laws and the
+--  • DISTRIBUTIVITY assembly (mulI over addI) — the last ring axiom: an 8-sign-case
+--    glue over addI's diff outputs, composed with mul_diff_pos/mul_diff_negsuc.
+--    With it, (ℤ,+,·) is a COMMUTATIVE RING; the ℚ field laws and the
 --    proof-carrying constructive-real tier (ADR-017) follow.
 --  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
 -- ============================================================================
