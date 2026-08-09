@@ -77,12 +77,32 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.9.3 ===================== -->
+  <section id="v0.9.3" class="current">
+    <div class="vhead">
+      <h2>v0.9.3</h2>
+      <span class="date">2026-08-09 · 21:57 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle">The universality checker — diagnostics in Kan-extension terms.</p>
+    <ul>
+      <li><b>The totality checker already <em>is</em> a fold checker</b> — it accepts exactly the
+        structural recursions, i.e. the folds (catamorphisms), i.e. the unique maps out of initial
+        algebras. Now it <em>says so</em>: rejections are narrated in universal terms and paired with
+        the canonical fix.</li>
+      <li>Instead of a terse "not structural" (or, for a wrapped recursive call, the old cryptic
+        <code>unbound name 'f'</code>), you get: <em>"a total function is the fold — the unique Kan
+        extension of its cases — so recurse on a constructor sub-part, cover every constructor, keep
+        the recursion in tail position, or carry extra state as an accumulator/pair."</em> "This isn't
+        total" becomes "this isn't yet the canonical universal map — here's how to make it one."</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.9.2 ===================== -->
-  <section id="v0.9.2" class="current">
+  <section id="v0.9.2">
     <div class="vhead">
       <h2>v0.9.2</h2>
       <span class="date">2026-08-09 · 21:46 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle">"Recursion is a Kan extension" — proven in Kan.</p>
     <ul>

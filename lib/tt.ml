@@ -299,14 +299,14 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
             if j < dpos then
               match name_of a with
               | Some nm when nm = List.nth bnds j -> ()
-              | _ -> fail (Printf.sprintf "recursive call to '%s': argument %d (before the decreasing one) must be passed unchanged" x (j + 1)))
+              | _ -> fail (Printf.sprintf "recursive call to '%s': argument %d (before the decreasing one) must be passed unchanged. In a fold the parameters left of the recursion argument are fixed — they parameterize the algebra; only the recursion argument shrinks. Pass it unchanged, or move a genuinely-varying parameter to the right of the decreasing one." x (j + 1)))
             args;
           let ih =
             match name_of (List.nth args dpos) with
             | Some nm -> (match List.assoc_opt nm !rec_ihmap with
                           | Some ih -> ih
-                          | None -> fail (Printf.sprintf "recursive call to '%s' must decrease on a structurally-smaller argument, but '%s' is not one" x nm))
-            | None -> fail (Printf.sprintf "recursive call to '%s': the decreasing argument must be a pattern variable" x)
+                          | None -> fail (Printf.sprintf "recursive call to '%s' must decrease on a structurally-smaller argument, but '%s' is not one. A total function is the fold (catamorphism) out of the initial algebra — the unique Kan extension of its cases — so each recursive call must be on a constructor sub-part the match exposes (e.g. the k in `suc k`), never the whole value. To reach a deeper predecessor (like n-2), carry the extra state in the result (an accumulator / pair) so it stays one fold — cf. examples/cookbook.kan `fibPair`." x nm))
+            | None -> fail (Printf.sprintf "recursive call to '%s': the decreasing argument must be a pattern variable — recurse on the sub-structure the match binds (e.g. k from `suc k`), not a computed expression. That is what makes the definition the fold, the unique map out of the initial algebra." x)
           in
           let ihv = (match index_of ih ns with Some i -> Var i | None -> fail "internal error: induction hypothesis not in scope") in
           let moved_vals = List.filteri (fun j _ -> j > dpos) args in
@@ -377,7 +377,12 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
     | ID x when find_key ctors x <> None -> fail (x ^ " needs arguments")
     | ID x when find_key elims x <> None -> fail (x ^ " needs arguments (parameters, a motive, methods, and a target)")
     | ID x when field_key x <> None -> adv (); let (k, n) = Option.get (field_key x) in Lam ("r", proj_field k n (Var 0))
-    | ID x -> adv (); (match var_key ns x with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
+    | ID x -> adv (); (match var_key ns x with
+        | Some i -> Var i
+        | None ->
+            if !rec_fname = Some x then
+              fail (Printf.sprintf "recursive call to '%s' is not in a position Kan reads as structural recursion. The recursive `match` on the decreasing argument must be in tail position — the body itself (optionally applied to further arguments), not wrapped inside a constructor or other expression — so the definition presents the fold, the unique map out of the initial algebra. Lift the recursion out of its wrapper." x)
+            else fail ("unbound name '" ^ x ^ "'"))
     | LP ->
         adv ();
         let t = term ns in
@@ -483,7 +488,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
     eat RBRACE "}";
     let arms = List.rev !arms in
     let names_of = List.map fst arms in
-    let find c = try List.assoc c arms with Not_found -> fail ("match: missing case for '" ^ c ^ "'") in
+    let find c = try List.assoc c arms with Not_found -> fail ("match: missing case for '" ^ c ^ "' — a fold must handle every constructor (the cocone out of the initial algebra must be total, or the universal map is undefined). Add the missing case.") in
     (* the motive: for the decreasing match it is the def's return type as a
        function of the moved arguments (read off the annotation, lifted into
        scope); otherwise the plain result type R *)
