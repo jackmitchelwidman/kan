@@ -100,7 +100,7 @@
     <img class="brand" src="kan-logo.png" alt="Kan — Categorical Programming Language">
     <h1>A language of<br>universal extension.</h1>
     <p class="byline" style="margin:.35em 0 .2em; font-size:16px; color:var(--muted)">Created by <a href="https://sheaf.one/about.html#leadership"><strong>Jack Widman, PhD</strong></a></p>
-    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.9.0" href="changelog.html#v0.9.0" title="What's new in this version">Kan v0.9.0</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 20:17 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
+    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.9.1" href="changelog.html#v0.9.1" title="What's new in this version">Kan v0.9.1</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 21:01 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
@@ -112,6 +112,32 @@
       <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/README.md">Read the design</a>
     </div>
   </header>
+
+  <section id="every-program">
+    <h2>Every program is a Kan extension</h2>
+    <p class="lead">Not a slogan — a claim the compiler will show you. A Kan program is a
+    <strong>presentation</strong>: each definition is a generator, and the program's meaning is its
+    <strong>initial model</strong> — a left Kan extension of the generators along their inclusion.
+    <em>Every</em> definition is a fiber of that one construction: folds and matches are the rich
+    fibers (genuine (co)limits and Kan extensions); a literal is the trivial fiber. Nothing is left
+    out, and nothing is forced.</p>
+    <p><code>kan explain</code> renders each definition as its fiber:</p>
+<pre><span class="c">$ kan explain program.kan</span>
+Color    an inductive type {red | green | blue} — the initial algebra of its
+         constructor functor (a colimit); its recursor is the unique mediating map
+seven    a value — a generator with a defining equation; its universal completion
+         is trivial (the terminal fiber)
+parity   a fold over Color — the left Kan extension of its cases along the
+         constructors ↪ Color
+sumTo    a fold over ℕ (a catamorphism) — the left Kan extension of its zero/suc
+         cases along {zero, suc} ↪ ℕ
+Monoid   a signature — a dependent record type (a presented theory); its values
+         are its models</pre>
+    <p class="out">The trivial fiber (<code>seven</code>) and the rich ones (<code>sumTo</code>,
+    <code>parity</code>) are fibers of a <em>single</em> left Kan extension — the philosophy,
+    rendered on your own code. This is what distinguishes Kan: not that it <em>can</em> express
+    universal constructions, but that every program already <em>is</em> one.</p>
+  </section>
 
   <section>
     <h2>The idea</h2>

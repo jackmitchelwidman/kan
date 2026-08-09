@@ -734,6 +734,37 @@ let check_unique (decls : decl list) : unit =
       | Check _ | Eval _ | Import _ | Open _ -> ())
     decls
 
+(* -------- the Kan lens: each definition as a fiber of the initial-model Kan extension --------
+   A program is a presentation (its defs are generators, its equations relations);
+   its meaning is the initial model — a left Kan extension of the generators along
+   their inclusion. `kan explain` renders each def's fiber of that one construction:
+   folds/matches are the rich fibers (genuine (co)limits / Kan extensions), a plain
+   value is the trivial fiber. This describes STRUCTURE, so it inspects the elaborated
+   core term rather than re-deriving anything. *)
+let describe_decl (d : decl) : (string * string) option =
+  let strip s = match String.rindex_opt s ':' with Some i -> String.sub s (i + 1) (String.length s - i - 1) | None -> s in
+  let dtype e = let s = strip e in if Filename.check_suffix s "_elim" then Filename.chop_suffix s "_elim" else s in
+  let rec peel t = match t with Lam (_, b) -> peel b | _ -> t in
+  let rec head t = match t with App (f, _) -> head f | _ -> t in
+  match d with
+  | Data_decl (n, _, cs) ->
+      Some (n, Printf.sprintf "an inductive type {%s} — the initial algebra of its constructor functor (a colimit); its recursor is the unique mediating map."
+                 (String.concat " | " (List.map (fun (c, _) -> strip c) cs)))
+  | Def (n, _, body) ->
+      let desc =
+        match head (peel body) with
+        | NatElim _ -> "a fold over \xe2\x84\x95 (a catamorphism) — the left Kan extension of its zero/suc cases along {zero, suc} \xe2\x86\xaa \xe2\x84\x95."
+        | Elim e -> Printf.sprintf "a fold over %s (the universal map out of its initial algebra) — the left Kan extension of its cases along the constructors \xe2\x86\xaa %s." (dtype e) (dtype e)
+        | If _ -> "case analysis on Bool — a copairing out of a coproduct (a colimit; Lan along the map to 1)."
+        | Sig _ -> "a signature — a dependent record type (a presented theory); its values are its models."
+        | Pi _ -> "a \xce\xa0-type — right adjoint to substitution (itself a Kan extension; Lawvere)."
+        | U _ | Data _ | Bool | Nat | StringT | IntT | Id _ -> "a type."
+        | Var _ | Fst _ | Snd _ -> "a derived operation — built from earlier generators."
+        | _ -> "a value — a generator with a defining equation; its universal completion is trivial (the terminal fiber)."
+      in
+      Some (n, desc)
+  | Check _ | Eval _ | Import _ | Open _ -> None
+
 (* -------- driver: elaborate, check, report -------- *)
 
 let run_decls (decls : decl list) : unit =

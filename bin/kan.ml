@@ -4,6 +4,7 @@
    Kan is a dependently typed language; its files are .kan.
      kan check <file.kan>            type-check and report the types
      kan run   <file.kan>            type-check, then run the program
+     kan explain <file.kan>          show each definition as its Kan-extension fiber
      kan build <file.kan> [-o out]   type-check, then compile to a native binary
      kan emit-ml <file.kan>          print the generated OCaml
      kan       <file.kan>            same as `check`
@@ -151,6 +152,24 @@ let do_check file = try Tt.run_decls (load_program file) with e -> die e
 
 let do_run file = try Erase.run (load_program file) with e -> die e
 
+(* `kan explain file` — the Kan lens: render each of the file's own definitions as
+   its fiber of the program's initial-model Kan extension (see Tt.describe_decl). *)
+let do_explain file =
+  try
+    let decls = load_program file in
+    let entry_tag = Filename.remove_extension (Filename.basename (canon file)) ^ "#0" in
+    let prefix = entry_tag ^ "::" in
+    let strip s = match String.rindex_opt s ':' with Some i -> String.sub s (i + 1) (String.length s - i - 1) | None -> s in
+    let own d = match Tt.describe_decl d with Some (n, _) -> (try String.sub n 0 (String.length prefix) = prefix with Invalid_argument _ -> false) | None -> false in
+    print_string
+      ("A Kan program is a presentation: each definition is a generator, and the program's\n\
+        meaning is its initial model — a left Kan extension of the generators along their\n\
+        inclusion. Every definition below is a fiber of that one construction.\n\n");
+    List.iter
+      (fun d -> if own d then match Tt.describe_decl d with Some (n, desc) -> Printf.printf "  %-12s  %s\n" (strip n) desc | None -> ())
+      decls
+  with e -> die e
+
 let do_emit_ml file = try print_string (Ocaml_backend.compile (parse file)) with e -> die e
 let do_emit_c file = try print_string (C_backend.compile (parse file)) with e -> die e
 
@@ -227,6 +246,7 @@ let () =
   match Array.to_list Sys.argv with
   | _ :: "check" :: [ file ] -> do_check file
   | _ :: "run" :: [ file ] -> do_run file
+  | _ :: "explain" :: [ file ] -> do_explain file
   | _ :: "emit-ml" :: [ file ] -> do_emit_ml file
   | _ :: "emit-c" :: [ file ] -> do_emit_c file
   | _ :: "build" :: rest ->

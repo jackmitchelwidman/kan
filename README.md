@@ -2,7 +2,7 @@
 
 ## A Language of Universal Extension
 
-### Design Document — Version 0.9.0 (2026-08-09 20:17 IDT)
+### Design Document — Version 0.9.1 (2026-08-09 21:01 IDT)
 
 *Version is bumped on any change to Kan's public interface; the canonical value lives in [`VERSION`](VERSION).*
 
@@ -479,6 +479,7 @@ Deliberately after the philosophy, never before it.
 11. **ℤ is a commutative ring, proven** ([`std/int.kan`](std/int.kan)) — the inductive integers satisfy the full commutative-ring axioms as checked theorems, axiom-free: `(ℤ,+)` a commutative group (`addI_assoc`/`addI_comm`/`addI_negI`), `(ℤ,·)` a commutative monoid with absorbing zero (`mulI_assoc`/`mulI_comm`/`mulI_one`/`mulI_zero`), and distributivity (`mulI_distrib_l`/`_r`) — all via a diff-homomorphism toolkit that routes around the Bool-elimination gap at the integer level.
 12. **A module system** ([`examples/namespaces.kan`](examples/namespaces.kan)) — every file is a module with its own namespace, so modules may reuse names freely (`Paint::Color` vs `Mood::Color`). Names resolve to your own module first, then to the unique imported module that provides them; imports are **explicit** (you get a module's exports, never its dependencies' names). Controls: `import "x" as M` (qualified `M::name`), `exposing (…)`/`hiding (…)` filters, `private def`/`data` for module-local names, and `open M`. Pure front-end (parse-time module tags; the kernel is untouched), all three runtimes agreeing on namespaced programs.
 13. **Parametrized modules** ([`examples/functors.kan`](examples/functors.kan)) — a `record` declaration is a signature (a dependent record type); a value of it is a structure; a function between them is a functor. `record Monoid { M : U, e : M, op : M -> M -> M, … laws … }`, project fields with `op m`, and the checker recovers each field's (dependent) type via its `Fst`/`Snd` rules. Demonstrated with a lawful `(ℕ,+)` monoid, the `Opposite` functor, and monoid homomorphisms — all checked, all three runtimes agreeing. Pure desugaring to Σ + a field registry (no kernel change), riding the module system so signatures live in their own namespaces.
+14. **The Kan lens — every program is a Kan extension** (`kan explain`) — a program is a *presentation*: each definition is a generator, and the program's meaning is its **initial model**, a left Kan extension of the generators along their inclusion. `kan explain <file>` renders each definition as its **fiber** of that one construction — folds/matches as the rich fibers (genuine (co)limits / Kan extensions), a literal as the trivial fiber. This makes the philosophy (*"a Kan program is a partial diagram awaiting universal completion"*) something the compiler *shows* on real code, uniformly, degenerate cases and all.
 
 **Next.** Indexed inductive families (`Vec`, `Fin`); record-literal syntax `{ field = value }` and implicit arguments (ergonomics); the field *laws* of ℚ as theorems (now following from the ℤ ring axioms above, up to a setoid on `Reduced`) — which also unblocks the *proof-carrying* real tier (regularity as a proof field); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
 
