@@ -502,6 +502,44 @@ positivity hypothesis is dischargeable on literals — the exact constructor sha
 
 ---
 
+## ADR-017 — constructive reals (`std/creal.kan`), computational tier
+
+**Decision.** Add constructive (computable) real numbers as `CReal = Nat -> Rational`
+with the convention that `x n` is within `1/2^n` of the value. A real is a *process*
+producing rational approximations; arithmetic propagates precision (a sum to `1/2^n`
+asks each summand for `1/2^(n+1)`; multiplication bounds the operands' magnitude from
+level 0 via a fueled `bitLen` and asks for `1/2^(n+k+2)`). Division takes an
+**apartness-from-zero witness** `Apart0` (a level `n0` with `|x| ≥ 1/2^n0`) and asks
+the divisor for `1/2^(n+2·n0+1)` — the "÷0 needs evidence" story generalized from
+`den > 0` to reals. Concrete reals: `sqrt2` (Newton, `bitLen n + 2` steps — quadratic,
+so the fraction sizes stay ~`n` digits, NOT `2^n`), `piC` (Machin,
+`16·arctan(1/5) − 4·arctan(1/239)`, `n+2` terms), `eC` (`Σ1/k!`, `n+2` terms). Readout
+via `scaledFloor x d = ⌊x·10^d⌋` at level `4d+4`. Built on the FAST `std/rational.kan`
+(primitive `Integer`), so it computes quickly — `√2`, `π`, `e` to 10 digits agree
+across `kan run` / OCaml / C in the gate (`examples/creal.kan`).
+
+**Two tiers (this is the computational one).** The `1/2^n` regularity is *maintained
+by construction and documented*, NOT a proof field — exactly the `rational.kan`
+(maintained) vs `rational_reduced.kan` (proven) split. A **proof-carrying `CReal`** —
+regularity as a Σ proof field, division taking a real apartness proof — is future work.
+It is genuinely blocked, not merely unwritten: even `fromQ`'s trivial regularity needs
+`subQ q q = 0` (the additive-inverse law), which sits behind the deferred Int ring
+axioms; and against the fast rational there is no equational theory at all (primitive
+`Integer` has no induction principle). The prerequisite chain, in order:
+1. Int ring axioms (`addI`/`mulI` assoc & distrib — the hard `diff` cross-sign cases);
+2. the field laws of `Reduced` **+ a setoid** (Reduced ops aren't structurally
+   congruent without proof irrelevance);
+3. an ordered-field theory (`<`, `≤`, triangle inequality, monotonicity) on that
+   proved rational;
+4. the ADR-016 reduction-cost fix (else proof-tier CReal arithmetic is `b^depth`).
+
+The proof tier reuses this exact interface over the proved rational; nothing here is
+named "verified". Inherent constructive limits (not implementation gaps): equality is
+undecidable (deliberately no `eqC`; apartness is the positive notion), order is only
+decidable up to a tolerance, and only computable reals are representable.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,

@@ -473,8 +473,9 @@ Deliberately after the philosophy, never before it.
 7. **Category theory in the library** — `Category`/`Functor`/`NatTrans` with their laws as fields, and the Kan-extension universal property, all checked ([`std/`](std/)).
 8. **A verified number tower** — an inductive `Int`, verified Euclidean division and a verified `gcd` (divides both *and* maximal), all axiom-free; culminating in a **type-enforced rational** ([`std/rational_reduced.kan`](std/rational_reduced.kan)) whose `den > 0` and lowest-terms invariants are *proof fields* — so **divide-by-zero is a type error**, every value is provably in lowest terms, and arithmetic is exact.
 9. **Explicit dependent motives** — `match e as x return T` for dependent elimination on a nested/non-leading scrutinee (ADR-015), the elaborator unlock behind the tower above.
+10. **Constructive reals** ([`std/creal.kan`](std/creal.kan)) — a real is a *process* producing rational approximations to any precision (`CReal = Nat -> Rational`, `x n` within `1/2^n`); with precision-propagating arithmetic, apartness-gated division (÷0 needs evidence), and `√2`, `π`, `e` computed to agreeing digits across all three runtimes. Computational tier (regularity maintained by construction; see ADR-017).
 
-**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); the field *laws* of ℚ as theorems (needs the residual `Int` ring axioms); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
+**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); the field *laws* of ℚ as theorems (needs the residual `Int` ring axioms) — which also unblocks the *proof-carrying* real tier (regularity as a proof field); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
 
 ---
 

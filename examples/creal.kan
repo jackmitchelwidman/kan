@@ -1,0 +1,25 @@
+-- ============================================================================
+-- examples/creal.kan — constructive reals in action (std/creal.kan).
+--
+-- A real is a process producing rational approximations to any precision. Here we
+-- read several off to ten decimal places with `scaledFloor x d = ⌊x · 10^d⌋`, and
+-- do exact arithmetic on them. Each `eval` prints the digits; the regression gate
+-- also checks that `kan run`, the OCaml backend, and the C backend all agree.
+-- ============================================================================
+import "../std/creal.kan"
+
+-- √2, π, e to ten decimal places:
+eval scaledFloor sqrt2 10                       -- 14142135623   (√2 = 1.4142135623…)
+eval scaledFloor piC   10                       -- 31415926535   (π  = 3.1415926535…)
+eval scaledFloor eC    10                       -- 27182818284   (e  = 2.7182818284…)
+
+-- arithmetic on reals, read back to ten / six places:
+eval scaledFloor (addC sqrt2 (fromIntC 1z)) 10  -- 24142135623   (√2 + 1)
+eval scaledFloor (subC piC eC) 10               -- 4233108251    (π − e = 0.4233108251…)
+eval scaledFloor (mulC sqrt2 sqrt2) 6           -- 2000000       (√2 · √2 = 2)
+
+-- division REQUIRES an apartness-from-zero witness. √2 ≥ 1 = 1/2^0, so `apart 0`:
+eval scaledFloor (recipC sqrt2 (apart 0)) 10    -- 7071067811    (1/√2 = 0.7071067811…)
+
+-- (there is deliberately no `eqC : CReal -> CReal -> Bool` — equality of reals is
+--  undecidable; the positive notion is the apartness witness used just above.)

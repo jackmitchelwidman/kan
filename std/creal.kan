@@ -1,0 +1,132 @@
+-- ============================================================================
+-- std/creal — constructive (computable) real numbers.
+--
+-- A real is a PROCESS producing rational approximations. Concretely:
+--
+--     CReal = Nat -> Rational
+--
+-- with the CONVENTION that `x n` is within 1/2^n of the true value x. Every
+-- library constructor honours this; a hand-rolled `CReal` must too (the caller's
+-- obligation). Arithmetic propagates precision — e.g. to get a sum within 1/2^n
+-- we ask each summand for 1/2^(n+1).
+--
+-- TIER. This is the COMPUTATIONAL tier: the 1/2^n regularity condition is
+-- maintained by construction, not carried as a proof field. It is the exact
+-- analogue of std/rational.kan (fast, invariants maintained) versus
+-- std/rational_reduced.kan (invariants PROVEN). A proof-carrying `CReal` — where
+-- the regularity bound is a Σ proof field and division takes a real apartness
+-- proof — is future work, gated on a chain of prerequisites: the Int ring axioms
+-- (addI/mulI assoc & distrib), the field laws of `Reduced` (+ a setoid, since
+-- Reduced ops aren't structurally congruent), an ordered-field theory on that
+-- proved rational, and the ADR-016 reduction-cost fix. See DECISIONS.md ADR-017.
+--
+-- Honest limits (inherent to constructive reals, not to this implementation):
+--   • equality is UNDECIDABLE — there is deliberately no `eqC`; the positive
+--     notion is apartness (see Apart0 / division below);
+--   • order is not decidable either — only comparison up to a tolerance;
+--   • only computable reals are representable (but that is every real you can name).
+-- ============================================================================
+import "nat.kan"
+import "rational.kan"
+import "option.kan"
+
+-- ---- small Integer / Nat kit -----------------------------------------------
+def imax  : Integer -> Integer -> Integer = lambda a b: match (ilt a b) { | true => b | false => a }
+def ipow  : Integer -> Nat -> Integer     = lambda b e: match e { | zero => 1z | suc j => imul b (ipow b j) }
+def tenPow : Nat -> Integer               = lambda d: match d { | zero => 1z | suc k => imul 10z (tenPow k) }
+
+-- number of bits of a positive Integer (fueled halve-and-count): 2^(bitLen v) > v.
+def bitLen : Nat -> Integer -> Nat
+  = lambda fuel v: match fuel {
+      | zero  => zero
+      | suc f => match (ilt v 1z) { | true => zero | false => suc (bitLen f (idiv v 2z)) } }
+
+-- an Integer strictly above |q|  (⌊|q|⌋ + 1, since denominators are positive).
+def intBoundAbs : Rational -> Integer
+  = lambda q: iadd (idiv (iabs (num q)) (iabs (den q))) 1z
+
+-- ---- the type and the core operations --------------------------------------
+def CReal : U = Nat -> Rational
+
+-- exact reals from rationals / integers (approximation error 0).
+def fromQ    : Rational -> CReal = lambda q: lambda n: q
+def fromIntC : Integer -> CReal  = lambda i: fromQ (fromInt i)
+
+-- addition: to be within 1/2^n, take each summand within 1/2^(n+1).
+def addC : CReal -> CReal -> CReal = lambda x y: lambda n: addQ (x (suc n)) (y (suc n))
+def negC : CReal -> CReal          = lambda x:   lambda n: negQ (x n)
+def subC : CReal -> CReal -> CReal = lambda x y: addC x (negC y)
+-- |·| is 1-Lipschitz, so the same index preserves the bound.
+def absC : CReal -> CReal          = lambda x:   lambda n: absQ (x n)
+
+-- multiplication needs a magnitude bound. |x| < 2^k with k from level 0 only
+-- (|x| ≤ |x 0| + 1); then asking each factor for 1/2^(n+k+2) gives the product
+-- within 1/2^n. (Never probe the factors at a deeper index to find the bound —
+-- that would not terminate the precision analysis.)
+def mulBoundExp : CReal -> CReal -> Nat
+  = lambda x y: bitLen 512 (iadd (imax (intBoundAbs (x 0)) (intBoundAbs (y 0))) 1z)
+def mulC : CReal -> CReal -> CReal
+  = lambda x y: lambda n:
+      mulQ (x (add (add n (mulBoundExp x y)) 2)) (y (add (add n (mulBoundExp x y)) 2))
+
+-- ---- apartness from zero, and division -------------------------------------
+-- Apart0 carries a level n0 witnessing |x| ≥ 1/2^n0 (x is bounded away from 0).
+-- In the proof tier this Nat becomes an actual apartness proof — division needing
+-- EVIDENCE that the divisor is nonzero, the direct generalization of `den > 0`.
+data Apart0 { apart : Nat -> Apart0 }
+def exp0 : Apart0 -> Nat = lambda a: match a { | apart k => k }
+
+def recipOr : Rational -> Rational -> Rational
+  = lambda q d: match (recipQ q : Option Rational) { | none => d | some r => r }
+
+-- 1/x, given |x| ≥ 1/2^n0: request x at index n + 2·n0 + 1 (the none case can't
+-- occur — |x m| ≥ 1/2^(n0+1) > 0 — the fallback is unreachable).
+def recipC : CReal -> Apart0 -> CReal
+  = lambda x a: lambda n: recipOr (x (add n (add (mul 2 (exp0 a)) 1))) qone
+def divC : CReal -> CReal -> Apart0 -> CReal
+  = lambda x y a: mulC x (recipC y a)
+
+-- ---- concrete reals --------------------------------------------------------
+def divOr : Rational -> Rational -> Rational -> Rational
+  = lambda a b d: match (divQ a b : Option Rational) { | none => d | some r => r }
+
+-- √2 by Newton:  x ↦ (x + 2/x)/2, from x0 = 1. Convergence is quadratic and the
+-- iterates stay ≥ √2 (so 2/x is fine), so bitLen n + 2 steps beat 1/2^n with room.
+def newton2 : Rational -> Rational
+  = lambda x: divOr (addQ x (divOr (fromInt 2z) x qone)) (fromInt 2z) qone
+def newtonN : Nat -> Rational -> Rational
+  = lambda k x0: match k { | zero => x0 | suc j => newton2 (newtonN j x0) }
+def sqrt2 : CReal
+  = lambda n: newtonN (add (bitLen 512 (fromNat n)) 2) (fromInt 1z)
+
+-- arctan(1/m) = Σ_{k≥0} (-1)^k / ((2k+1)·m^(2k+1)); sign is threaded, no parity test.
+-- (exponent 2k+1 is written as add k (suc k) to avoid needing Nat multiplication.)
+-- `rem` (the decreasing arg) comes first; m/s/k ride along and may change.
+def arctanSum : Nat -> Integer -> Integer -> Nat -> Rational
+  = lambda rem m s k: match rem {
+      | zero  => qzero
+      | suc r => addQ (rational s (imul (fromNat (add k (suc k))) (ipow m (add k (suc k)))))
+                      (arctanSum r m (ineg s) (suc k)) }
+def arctanInv : Integer -> Nat -> Rational = lambda m terms: arctanSum terms m 1z 0
+
+-- π by Machin:  π = 16·arctan(1/5) − 4·arctan(1/239). Each term of arctan(1/5)
+-- gains ~4.6 bits, so n+2 terms clear 1/2^n comfortably.
+def piApprox : Nat -> Rational
+  = lambda terms: subQ (mulQ (fromInt 16z) (arctanInv 5z terms)) (mulQ (fromInt 4z) (arctanInv 239z terms))
+def piC : CReal = lambda n: piApprox (add n 2)
+
+-- e = Σ 1/k!.  Factorial denominators outrun 2^n immediately, so n+2 terms suffice.
+def factI : Nat -> Integer = lambda k: match k { | zero => 1z | suc j => imul (fromNat (suc j)) (factI j) }
+-- `rem` first (decreasing); k rides along.
+def eSum : Nat -> Nat -> Rational
+  = lambda rem k: match rem { | zero => qzero | suc r => addQ (rational 1z (factI k)) (eSum r (suc k)) }
+def eC : CReal = lambda n: eSum (add n 2) 0
+
+-- ---- reading a real off as digits ------------------------------------------
+-- ⌊ x · 10^d ⌋ as an Integer — the first d decimal digits. We evaluate x at
+-- level 4d+4 (2^(4d) > 10^d, with slack). NOTE: idiv truncates toward zero (so
+-- for a negative real this truncates rather than floors), and the final digit can
+-- be off by one right at a truncation boundary — expected for any finite readout.
+def scaledFloor : CReal -> Nat -> Integer
+  = lambda x d: idiv (imul (num (x (add (add (add (add d d) d) d) 4))) (tenPow d))
+                     (den (x (add (add (add (add d d) d) d) 4)))
