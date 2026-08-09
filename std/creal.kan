@@ -122,6 +122,68 @@ def eSum : Nat -> Nat -> Rational
   = lambda rem k: match rem { | zero => qzero | suc r => addQ (rational 1z (factI k)) (eSum r (suc k)) }
 def eC : CReal = lambda n: eSum (add n 2) 0
 
+-- ============================================================================
+-- A small, robust library of functions on the reals. These take RATIONAL
+-- arguments (Rational -> CReal): √ of a rational, exp of a rational, natural
+-- powers. Real-argument versions (sqrt of a CReal, exp∘CReal) need apartness /
+-- modulus-of-continuity plumbing and are deliberately out of scope — this set is
+-- "small but robust": every result is correct by construction on ALL inputs.
+-- Each iteration/term count is derived from the ARGUMENT's size (not just the
+-- precision index), which is what keeps them correct for large arguments.
+-- ============================================================================
+def twoPow  : Nat -> Integer = lambda k: match k { | zero => 1z | suc j => imul 2z (twoPow j) }
+-- half / even by single-level accumulator recursion (n first, toggle second) so
+-- the recursion decreases on a direct sub-term.
+def halfA : Nat -> Bool -> Nat
+  = lambda n p: match n { | zero => zero | suc k => match p { | true => suc (halfA k false) | false => halfA k true } }
+def half : Nat -> Nat = lambda n: halfA n false
+def evenA : Nat -> Bool -> Bool
+  = lambda n acc: match n { | zero => acc | suc k => match acc { | true => evenA k false | false => evenA k true } }
+def evenNat : Nat -> Bool = lambda n: evenA n true
+
+-- natural powers x^n by binary exponentiation (log n multiplications, not n —
+-- naive repeated mulC stacks precision-index bumps).
+def powSq : CReal -> CReal = lambda y: mulC y y
+def powBin : Nat -> CReal -> Nat -> CReal
+  = lambda fuel x n: match fuel {
+      | zero  => fromQ qone
+      | suc f => match n {
+          | zero  => fromQ qone
+          | suc m => match (evenNat (suc m)) {
+              | true  => powSq (powBin f x (half (suc m)))
+              | false => mulC x (powSq (powBin f x (half (suc m)))) } } }
+def powNatC : CReal -> Nat -> CReal
+  = lambda x n: powBin (add (bitLen 512 (fromNat n)) (suc zero)) x n
+
+-- √ of a non-negative rational (√|a|), by Newton x ↦ (x + a/x)/2. The SEED is
+-- 2^⌈bits/2⌉ (within ~2× of √a), so the argument size is absorbed there and
+-- bitLen n + 4 iterations then suffice for ANY a — the fix for large arguments.
+def newtonA  : Rational -> Rational -> Rational
+  = lambda a x: divOr (addQ x (divOr a x qone)) (fromInt 2z) qone
+def newtonNA : Nat -> Rational -> Rational -> Rational
+  = lambda k a x0: match k { | zero => x0 | suc j => newtonA a (newtonNA j a x0) }
+def sqrtSeed : Rational -> Rational
+  = lambda a: match (leqQ qone a) {
+      | true  => fromInt (twoPow (half (bitLen 512 (intBoundAbs a))))
+      | false => qone }
+def sqrtNN : Rational -> CReal
+  = lambda a: lambda n: newtonNA (add (bitLen 512 (fromNat n)) 4) a (sqrtSeed a)
+def sqrtQ  : Rational -> CReal = lambda a: sqrtNN (absQ a)   -- √|a| (precondition a ≥ 0)
+
+-- exp of a rational, with MANDATORY argument reduction: exp(x) = exp(x/2^j)^(2^j)
+-- with j chosen so |x/2^j| ≤ 1, where the series Σ xⁱ/i! converges uniformly and
+-- n+4 terms suffice. Terms threaded (termᵢ₊₁ = termᵢ · x/(i+1)) so numerators
+-- don't explode. sqRepeat squares j times.
+def expTermsSum : Nat -> Rational -> Rational -> Nat -> Rational
+  = lambda rem xr term k: match rem {
+      | zero  => qzero
+      | suc r => addQ term (expTermsSum r xr (mulQ term (divOr xr (fromInt (fromNat (suc k))) qzero)) (suc k)) }
+def expSeries : Rational -> CReal = lambda xr: lambda n: expTermsSum (add n 4) xr qone zero
+def sqRepeat  : Nat -> CReal -> CReal = lambda j y: match j { | zero => y | suc i => sqRepeat i (mulC y y) }
+def expQ : Rational -> CReal
+  = lambda x: sqRepeat (bitLen 512 (intBoundAbs x))
+                (expSeries (divOr x (fromInt (twoPow (bitLen 512 (intBoundAbs x)))) qzero))
+
 -- ---- reading a real off as digits ------------------------------------------
 -- ⌊ x · 10^d ⌋ as an Integer — the first d decimal digits. We evaluate x at
 -- level 4d+4 (2^(4d) > 10^d, with slack). NOTE: idiv truncates toward zero (so

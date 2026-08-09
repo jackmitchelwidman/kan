@@ -21,5 +21,13 @@ eval scaledFloor (mulC sqrt2 sqrt2) 6           -- 2000000       (√2 · √2 =
 -- division REQUIRES an apartness-from-zero witness. √2 ≥ 1 = 1/2^0, so `apart 0`:
 eval scaledFloor (recipC sqrt2 (apart 0)) 10    -- 7071067811    (1/√2 = 0.7071067811…)
 
+-- ---- the math library (Rational -> CReal): √, exp, natural powers ----------
+eval scaledFloor (sqrtQ (fromInt 5z)) 10            -- 22360679774     (√5)
+eval scaledFloor (sqrtQ (fromInt 1000000z)) 10      -- 10000000000000  (√1e6 = 1000; large-arg seed test)
+eval scaledFloor (expQ (fromInt 1z)) 10             -- 27182818284     (e via expQ — matches eC above)
+eval scaledFloor (expQ (fromInt 2z)) 10             -- 73890560989     (e²)
+eval scaledFloor (expQ (fromInt (isub 0z 1z))) 10   -- 3678794411      (e⁻¹)
+eval scaledFloor (powNatC (sqrtQ (fromInt 2z)) 2) 6 -- 2000000         ((√2)² = 2)
+
 -- (there is deliberately no `eqC : CReal -> CReal -> Bool` — equality of reals is
 --  undecidable; the positive notion is the apartness witness used just above.)
