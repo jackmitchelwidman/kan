@@ -131,10 +131,10 @@
       <figcaption>The universal property, as a picture. In Kan, it is a type.</figcaption>
     </figure>
 
-    <p>In Kan a <code>Category</code> is a dependent record whose <b>laws are fields</b>, so this universal
+    <p>In Kan a <code>SmallCategory</code> is a dependent record whose <b>laws are fields</b>, so this universal
     property is not prose — it is a type the checker accepts:</p>
 <pre><span class="c">-- std/kan.kan — the left Kan extension of F along p, as a universal property</span>
-<span class="k">def</span> LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+<span class="k">def</span> LeftKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                  -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (L : Functor B D)                                          <span class="c">-- the extending functor</span>
@@ -150,7 +150,7 @@
     <b>identity</b>. Take <code>L = F</code> and let the unit be the identity <code>F ⇒ F∘id = F</code>.
     It holds for <em>any</em> <code>F</code>, in both variances — and it type-checks, so it is proven.</p>
 <pre><span class="c">-- std/kan.kan — a functor is its own Kan extension along the identity</span>
-<span class="k">def</span> lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+<span class="k">def</span> lanAlongId : (A : SmallCategory) -> (D : SmallCategory) -> (F : Functor A D)
                  -> LeftKanExt A A D (idFunctor A) F
   = lambda A D F: ( F , ( idNat A D F , lambda G gamma: gamma ) )
 
@@ -182,15 +182,15 @@
     <p>The slogan is Mac Lane’s. In Kan it becomes a definition the checker accepts. The unique functor
     <code>A → 1</code> to the terminal category turns limits and colimits into Kan extensions:</p>
 <pre><span class="c">-- the unique functor to the terminal category 1</span>
-<span class="k">def</span> toOne : (A : Category) -> Functor A One
+<span class="k">def</span> toOne : (A : SmallCategory) -> Functor A One
   = lambda A: ( lambda a: unit , ( lambda a b f: unit , ( lambda a: refl , lambda a b c g f: refl ) ) )
 
 <span class="c">-- a COLIMIT of F is its left Kan extension along A -> 1</span>
-<span class="k">def</span> ColimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+<span class="k">def</span> ColimitOf : (A : SmallCategory) -> (D : SmallCategory) -> Functor A D -> U
   = lambda A D F: LeftKanExt A One D (toOne A) F
 
 <span class="c">-- a LIMIT of F is the right Kan extension along A -> 1</span>
-<span class="k">def</span> LimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+<span class="k">def</span> LimitOf : (A : SmallCategory) -> (D : SmallCategory) -> Functor A D -> U
   = lambda A D F: RightKanExt A One D (toOne A) F</pre>
     <p class="out">These are well-formed Kan types — the slogan is not a metaphor here, it is a statement the
     checker accepts. Inhabiting them for a general <code>A</code> is the theory of (co)limits (needs

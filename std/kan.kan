@@ -17,7 +17,7 @@ import "category.kan"
 -- universal mapping-out — every (G, γ : F ⇒ G∘p) factors through a σ : L ⇒ G.
 -- (The full universal property also asks that σ be the unique arrow whose
 --  whiskering by p recovers γ; the mediating σ is the computational heart.)
-def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+def LeftKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                  -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (L : Functor B D)
@@ -28,7 +28,7 @@ def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
 
 -- Dually, the RIGHT Kan extension: a functor R, a counit ε : R∘p ⇒ F, and the
 -- universal mapping-in — every (G, γ : G∘p ⇒ F) factors through a σ : G ⇒ R.
-def RightKanExt : (A : Category) -> (B : Category) -> (D : Category)
+def RightKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                   -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (R : Functor B D)
@@ -41,7 +41,7 @@ def RightKanExt : (A : Category) -> (B : Category) -> (D : Category)
 -- identity functor on A: take L = F, and η the identity F ⇒ F∘id = F. The
 -- mediating map just forwards its input. This is the base case that anchors the
 -- definition — a Kan extension that Kan can actually build and check.
-def lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+def lanAlongId : (A : SmallCategory) -> (D : SmallCategory) -> (F : Functor A D)
                  -> LeftKanExt A A D (idFunctor A) F
   = lambda A D F:
       ( F
@@ -51,7 +51,7 @@ def lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
 -- Dually, F is its own RIGHT Kan extension along the identity: R = F, counit the
 -- identity F∘id = F ⇒ F, and the mediating map forwards its input. (Both hold
 -- because F∘id ≡ F definitionally, so idNat has the right type.)
-def ranAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+def ranAlongId : (A : SmallCategory) -> (D : SmallCategory) -> (F : Functor A D)
                  -> RightKanExt A A D (idFunctor A) F
   = lambda A D F:
       ( F

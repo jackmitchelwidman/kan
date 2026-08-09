@@ -78,9 +78,11 @@
   .card h3 .op{color:var(--accent); font-family:"SF Mono",ui-monospace,monospace}
 
   .pill{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em;
-        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card)}
+        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card); cursor:pointer}
+  .pill:hover{text-decoration:none; border-color:var(--accent)}
   .newbadge{display:none; margin-left:8px; font-size:12px; font-weight:700; letter-spacing:.03em;
-        color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; vertical-align:middle}
+        color:#fff; background:var(--accent); border-radius:999px; padding:3px 10px; vertical-align:middle; cursor:pointer}
+  .newbadge:hover{text-decoration:none; filter:brightness(1.08)}
   ul.plain{list-style:none; padding:0; margin:0}
   ul.plain li{padding:9px 0; border-bottom:1px solid var(--line); color:var(--muted)}
   ul.plain li:last-child{border-bottom:0}
@@ -98,7 +100,7 @@
     <img class="brand" src="kan-logo.png" alt="Kan — Categorical Programming Language">
     <h1>A language of<br>universal extension.</h1>
     <p class="byline" style="margin:.35em 0 .2em; font-size:16px; color:var(--muted)">Created by <a href="https://sheaf.one/about.html#leadership"><strong>Jack Widman, PhD</strong></a></p>
-    <p style="margin:.2em 0 .1em"><span class="pill" id="kanver" data-version="0.4.1">Kan v0.4.1</span> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 12:51 IDT</span><span id="kannew" class="newbadge">New version available</span></p>
+    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.5.0" href="changelog.html#v0.5.0" title="What's new in this version">Kan v0.5.0</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 13:43 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
@@ -225,12 +227,12 @@ eval fac 50</pre>
   <section>
     <h2>Category theory, in the language</h2>
     <p>The vision — <em>programs are diagrams, computation is universal completion</em> — is not just
-    prose. A <code>Category</code> is a dependent record whose <b>laws are fields</b>, so a value of
-    type <code>Category</code> is one the checker has verified. Functors, natural transformations, the
+    prose. A <code>SmallCategory</code> is a dependent record whose <b>laws are fields</b>, so a value of
+    type <code>SmallCategory</code> is one the checker has verified. Functors, natural transformations, the
     opposite category, composition — all lawful. And the construction the language is named for is a
     definition you can check:</p>
 <pre><span class="c">-- std/kan.kan — the Kan extension, stated as a universal property</span>
-<span class="k">def</span> LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+<span class="k">def</span> LeftKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                  -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (L : Functor B D)
@@ -252,7 +254,7 @@ eval fac 50</pre>
       <li><span class="tick">✓</span> <b>User inductive types</b> (with parameters, e.g. <code>List A</code>) and induction — real proofs</li>
       <li><span class="tick">✓</span> <b>Unbounded <code>Integer</code></b> — arbitrary precision, exact <code>fac 50</code></li>
       <li><span class="tick">✓</span> <b>Two native backends</b> — OCaml and C, verified to agree</li>
-      <li><span class="tick">✓</span> <b>Category theory, lawful</b> — <code>Category</code>, <code>Functor</code>, <code>NatTrans</code>, and Kan extensions, laws checked</li>
+      <li><span class="tick">✓</span> <b>Category theory, lawful</b> — <code>SmallCategory</code>, <code>Functor</code>, <code>NatTrans</code>, and Kan extensions, laws checked</li>
       <li><span class="tick">◦</span> <b>Next:</b> indexed families (<code>Vec</code>, <code>Fin</code>), record syntax, implicit arguments</li>
     </ul>
   </section>
@@ -294,11 +296,18 @@ kan build examples/tutorial.kan -o tut &amp;&amp; ./tut   <span class="c"># comp
     var el = document.getElementById('kanver');
     if(!el) return;
     var current = el.getAttribute('data-version');
+    // Both badges link to this version's changelog section (auto-tracks bumps).
+    el.setAttribute('href', 'changelog.html#v' + current);
     var seen = null;
     try { seen = localStorage.getItem('kanSeenVersion'); } catch(e){}
     if(seen && seen !== current){
       var badge = document.getElementById('kannew');
-      if(badge){ badge.style.display = 'inline-block'; badge.textContent = 'New version available (v' + current + ')'; }
+      if(badge){
+        badge.style.display = 'inline-block';
+        badge.textContent = 'New version available (v' + current + ')';
+        badge.setAttribute('href', 'changelog.html#v' + current);
+        badge.setAttribute('title', "What's new in v" + current);
+      }
     }
     try { localStorage.setItem('kanSeenVersion', current); } catch(e){}
   })();

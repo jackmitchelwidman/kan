@@ -1,11 +1,19 @@
 -- std/category — category theory, in Kan.
 --
--- A `Category` is a dependent record (Σ): a type of objects, a family of
+-- A `SmallCategory` is a dependent record (Σ): a type of objects, a family of
 -- hom-types, identities, composition, and the three laws (left/right identity,
 -- associativity) carried as *proofs* (`Id`). Because the laws are fields, a
--- value of type `Category` is a category that has been *checked* to be one — the
+-- value of type `SmallCategory` is a category that has been *checked* to be one — the
 -- type-checker is the referee. The projections are hidden behind readable
 -- accessors: you write `obj C`, `hom C a b`, `idn C a`, `cmp C a b c g f`.
+--
+-- Why "Small": the objects live in `U` (universe 0), so this type houses exactly
+-- the *small* categories — finite categories, posets, a monoid as a one-object
+-- category, `One`, and so on. It cannot house a *large* category like Grp, Set,
+-- or Top, whose objects are themselves `U`-carrying structures (a group's carrier
+-- is `: U`, so `Group : U1`, which does not fit `Obj : U`). Large categories need
+-- a universe-polymorphic, setoid-based variant (objects/homs at any level, hom
+-- equality by an explicit equivalence rather than `Id`) — see docs/open-questions.md.
 --
 -- On top of it: `Functor` (with its two laws), `NatTrans` (natural
 -- transformations), and the canonical lawful inhabitants — the terminal
@@ -17,7 +25,7 @@ import "logic.kan"     -- sym, trans (equational reasoning for the proofs)
 import "unit.kan"      -- Unit, for the terminal category
 
 -- A category: objects, homs, identity, composition, and the laws.
-def Category
+def SmallCategory
   = (Obj : U) * (Hom : Obj -> Obj -> U)
   * (idn : (a : Obj) -> Hom a a)
   * (cmp : (a : Obj) -> (b : Obj) -> (c : Obj) -> Hom b c -> Hom a b -> Hom a c)
@@ -27,23 +35,23 @@ def Category
        -> Id (Hom a d) (cmp a b d (cmp b c d h g) f) (cmp a c d h (cmp a b c g f)))
 
 -- accessors (they hide the fst/snd projections)
-def obj  : Category -> U = lambda C: fst C
-def hom  : (C : Category) -> obj C -> obj C -> U = lambda C: fst (snd C)
-def idn  : (C : Category) -> (a : obj C) -> hom C a a = lambda C: fst (snd (snd C))
-def cmp  : (C : Category) -> (a : obj C) -> (b : obj C) -> (c : obj C) -> hom C b c -> hom C a b -> hom C a c
+def obj  : SmallCategory -> U = lambda C: fst C
+def hom  : (C : SmallCategory) -> obj C -> obj C -> U = lambda C: fst (snd C)
+def idn  : (C : SmallCategory) -> (a : obj C) -> hom C a a = lambda C: fst (snd (snd C))
+def cmp  : (C : SmallCategory) -> (a : obj C) -> (b : obj C) -> (c : obj C) -> hom C b c -> hom C a b -> hom C a c
          = lambda C: fst (snd (snd (snd C)))
-def idl  : (C : Category) -> (a : obj C) -> (b : obj C) -> (f : hom C a b) -> Id (hom C a b) (cmp C a a b f (idn C a)) f
+def idl  : (C : SmallCategory) -> (a : obj C) -> (b : obj C) -> (f : hom C a b) -> Id (hom C a b) (cmp C a a b f (idn C a)) f
          = lambda C: fst (snd (snd (snd (snd C))))
-def idr  : (C : Category) -> (a : obj C) -> (b : obj C) -> (f : hom C a b) -> Id (hom C a b) (cmp C a b b (idn C b) f) f
+def idr  : (C : SmallCategory) -> (a : obj C) -> (b : obj C) -> (f : hom C a b) -> Id (hom C a b) (cmp C a b b (idn C b) f) f
          = lambda C: fst (snd (snd (snd (snd (snd C)))))
-def assoc : (C : Category) -> (a : obj C) -> (b : obj C) -> (c : obj C) -> (d : obj C)
+def assoc : (C : SmallCategory) -> (a : obj C) -> (b : obj C) -> (c : obj C) -> (d : obj C)
             -> (h : hom C c d) -> (g : hom C b c) -> (f : hom C a b)
             -> Id (hom C a d) (cmp C a b d (cmp C b c d h g) f) (cmp C a c d h (cmp C a b c g f))
           = lambda C: snd (snd (snd (snd (snd (snd C)))))
 
 -- the opposite category C^op: arrows reversed. Left/right identity laws swap;
 -- associativity is the original, reversed with `sym`. A category, mechanically.
-def op : Category -> Category
+def op : SmallCategory -> SmallCategory
   = lambda C:
     ( obj C , ( lambda a b: hom C b a , ( lambda a: idn C a , ( lambda a b c g f: cmp C c b a f g
       , ( lambda a b f: idr C b a f
@@ -56,14 +64,14 @@ def op : Category -> Category
 
 -- the terminal category 1: one object, one arrow. Everything is `unit`, and the
 -- laws hold because Unit has a unique element (proved with its eliminator).
-def One : Category
+def One : SmallCategory
   = ( Unit , ( lambda a b: Unit , ( lambda a: unit , ( lambda a b c g f: unit
       , ( lambda a b f: Unit_elim (lambda x: Id Unit unit x) refl f
         , ( lambda a b f: Unit_elim (lambda x: Id Unit unit x) refl f
           , lambda a b c d h g f: refl ) ) ) ) ) )
 
 -- A functor C -> D: an action on objects and on arrows, preserving id and ∘.
-def Functor : Category -> Category -> U
+def Functor : SmallCategory -> SmallCategory -> U
   = lambda C D:
       (F0 : obj C -> obj D)
     * (F1 : (a : obj C) -> (b : obj C) -> hom C a b -> hom D (F0 a) (F0 b))
@@ -72,26 +80,26 @@ def Functor : Category -> Category -> U
          -> Id (hom D (F0 a) (F0 c)) (F1 a c (cmp C a b c g f))
                (cmp D (F0 a) (F0 b) (F0 c) (F1 b c g) (F1 a b f)))
 
-def fobj : (C : Category) -> (D : Category) -> Functor C D -> obj C -> obj D = lambda C D F: fst F
-def fhom : (C : Category) -> (D : Category) -> (F : Functor C D) -> (a : obj C) -> (b : obj C)
+def fobj : (C : SmallCategory) -> (D : SmallCategory) -> Functor C D -> obj C -> obj D = lambda C D F: fst F
+def fhom : (C : SmallCategory) -> (D : SmallCategory) -> (F : Functor C D) -> (a : obj C) -> (b : obj C)
            -> hom C a b -> hom D (fobj C D F a) (fobj C D F b)
          = lambda C D F: fst (snd F)
-def ffid : (C : Category) -> (D : Category) -> (F : Functor C D) -> (a : obj C)
+def ffid : (C : SmallCategory) -> (D : SmallCategory) -> (F : Functor C D) -> (a : obj C)
            -> Id (hom D (fobj C D F a) (fobj C D F a)) (fhom C D F a a (idn C a)) (idn D (fobj C D F a))
          = lambda C D F: fst (snd (snd F))
-def ffcmp : (C : Category) -> (D : Category) -> (F : Functor C D)
+def ffcmp : (C : SmallCategory) -> (D : SmallCategory) -> (F : Functor C D)
             -> (a : obj C) -> (b : obj C) -> (c : obj C) -> (g : hom C b c) -> (f : hom C a b)
             -> Id (hom D (fobj C D F a) (fobj C D F c)) (fhom C D F a c (cmp C a b c g f))
                   (cmp D (fobj C D F a) (fobj C D F b) (fobj C D F c) (fhom C D F b c g) (fhom C D F a b f))
           = lambda C D F: snd (snd (snd F))
 
 -- the identity functor; both functor laws hold definitionally.
-def idFunctor : (C : Category) -> Functor C C
+def idFunctor : (C : SmallCategory) -> Functor C C
   = lambda C: ( lambda a: a , ( lambda a b f: f , ( lambda a: refl , lambda a b c g f: refl ) ) )
 
 -- composition of functors G ∘ F. The functor laws follow from F's and G's laws,
 -- transported along G's action on arrows (ap) and glued with trans.
-def compFunctor : (C : Category) -> (D : Category) -> (E : Category) -> Functor C D -> Functor D E -> Functor C E
+def compFunctor : (C : SmallCategory) -> (D : SmallCategory) -> (E : SmallCategory) -> Functor C D -> Functor D E -> Functor C E
   = lambda C D E F G:
       ( lambda a: fobj D E G (fobj C D F a)
       , ( lambda a b f: fhom D E G (fobj C D F a) (fobj C D F b) (fhom C D F a b f)
@@ -126,7 +134,7 @@ def compFunctor : (C : Category) -> (D : Category) -> (E : Category) -> Functor 
 
 -- A natural transformation F => G: a family of components with the naturality
 -- square commuting for every arrow.
-def NatTrans : (C : Category) -> (D : Category) -> Functor C D -> Functor C D -> U
+def NatTrans : (C : SmallCategory) -> (D : SmallCategory) -> Functor C D -> Functor C D -> U
   = lambda C D F G:
       (eta : (a : obj C) -> hom D (fobj C D F a) (fobj C D G a))
     * ((a : obj C) -> (b : obj C) -> (f : hom C a b)
@@ -136,7 +144,7 @@ def NatTrans : (C : Category) -> (D : Category) -> Functor C D -> Functor C D ->
 
 -- the identity natural transformation F => F. Its component at a is idn(F a);
 -- the naturality square is precisely D's two identity laws, glued with trans/sym.
-def idNat : (C : Category) -> (D : Category) -> (F : Functor C D) -> NatTrans C D F F
+def idNat : (C : SmallCategory) -> (D : SmallCategory) -> (F : Functor C D) -> NatTrans C D F F
   = lambda C D F:
       ( lambda a: idn D (fobj C D F a)
       , lambda a b f:

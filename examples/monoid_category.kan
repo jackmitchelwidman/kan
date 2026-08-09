@@ -9,7 +9,7 @@
 import "../std/category.kan"
 import "../std/nat.kan"
 
-def NatPlus : Category
+def NatPlus : SmallCategory
   = ( Unit
     , ( lambda a b: Nat
       , ( lambda a: zero
@@ -21,7 +21,7 @@ def NatPlus : Category
 -- the identity functor and identity natural transformation exist on it, and
 -- NatPlus has an opposite category — all for free from std/category.kan.
 def IdNatPlus : Functor NatPlus NatPlus = idFunctor NatPlus
-def NatPlusOp : Category = op NatPlus
+def NatPlusOp : SmallCategory = op NatPlus
 
 -- composition of arrows is addition; identity is zero. Concretely:
 eval cmp NatPlus unit unit unit 3 4      -- 7   (3 "after" 4, i.e. 3 + 4)

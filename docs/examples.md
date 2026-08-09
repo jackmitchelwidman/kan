@@ -335,12 +335,12 @@ and every one type-checks.
 <a name="categories"></a>
 ## Categories — with the laws as fields
 
-A `Category` is a dependent record whose fields include the identity and
-associativity **laws** (as `Id`-proofs). So a *value* of type `Category` is a
+A `SmallCategory` is a dependent record whose fields include the identity and
+associativity **laws** (as `Id`-proofs). So a *value* of type `SmallCategory` is a
 structure the type-checker has verified really is a category.
 
 ```kan
-def Category
+def SmallCategory
   = (Obj : U) * (Hom : Obj -> Obj -> U)
   * (idn : (a : Obj) -> Hom a a)
   * (cmp : (a : Obj) -> (b : Obj) -> (c : Obj) -> Hom b c -> Hom a b -> Hom a c)
@@ -355,16 +355,16 @@ Accessors hide the projections: you write `obj C`, `hom C a b`, `idn C a`,
 ## Concrete categories
 
 ```kan
-def One : Category           -- the terminal category (one object, one arrow)
-def op  : Category -> Category   -- the opposite category (arrows reversed)
-def prod : Category -> Category -> Category   -- the product category C × D (lawful)
+def One : SmallCategory           -- the terminal category (one object, one arrow)
+def op  : SmallCategory -> SmallCategory   -- the opposite category (arrows reversed)
+def prod : SmallCategory -> SmallCategory -> SmallCategory   -- the product category C × D (lawful)
 ```
 
 The natural numbers form a one-object category where composition is `+`
 (the monoid ℕ,+,0) — [`examples/monoid_category.kan`](../examples/monoid_category.kan):
 
 ```kan
-def NatPlus : Category = ( Unit , ( lambda a b: Nat , ( lambda a: zero
+def NatPlus : SmallCategory = ( Unit , ( lambda a b: Nat , ( lambda a: zero
      , ( lambda a b c g f: add g f , ...the monoid laws as proofs... ) ) ) )
 eval cmp NatPlus unit unit unit 3 4      -- 7   (composition is addition)
 ```
@@ -376,8 +376,8 @@ A `Functor C D` carries an action on objects and on arrows, *plus* proofs that i
 preserves identities and composition.
 
 ```kan
-def idFunctor   : (C : Category) -> Functor C C                                   -- identity
-def compFunctor : (C : Category) -> (D : Category) -> (E : Category)
+def idFunctor   : (C : SmallCategory) -> Functor C C                                   -- identity
+def compFunctor : (C : SmallCategory) -> (D : SmallCategory) -> (E : SmallCategory)
                   -> Functor C D -> Functor D E -> Functor C E                    -- G ∘ F
 ```
 
@@ -385,8 +385,8 @@ def compFunctor : (C : Category) -> (D : Category) -> (E : Category)
 ## Natural transformations
 
 ```kan
-def NatTrans : (C : Category) -> (D : Category) -> Functor C D -> Functor C D -> U
-def idNat    : (C : Category) -> (D : Category) -> (F : Functor C D) -> NatTrans C D F F
+def NatTrans : (C : SmallCategory) -> (D : SmallCategory) -> Functor C D -> Functor C D -> U
+def idNat    : (C : SmallCategory) -> (D : SmallCategory) -> (F : Functor C D) -> NatTrans C D F F
 ```
 
 `idNat`'s naturality square is exactly the target category's identity laws.
@@ -397,12 +397,12 @@ def idNat    : (C : Category) -> (D : Category) -> (F : Functor C D) -> NatTrans
 `F ⊣ G` — a unit `η : Id ⇒ G∘F` and a counit `ε : F∘G ⇒ Id`:
 
 ```kan
-def Adjunction : (C : Category) -> (D : Category) -> Functor C D -> Functor D C -> U
+def Adjunction : (C : SmallCategory) -> (D : SmallCategory) -> Functor C D -> Functor D C -> U
   = lambda C D F G:
       (unit : NatTrans C C (idFunctor C) (compFunctor C D C F G))
     * (NatTrans D D (compFunctor D C D G F) (idFunctor D))
 
-def idAdjunction : (C : Category) -> Adjunction C C (idFunctor C) (idFunctor C)
+def idAdjunction : (C : SmallCategory) -> Adjunction C C (idFunctor C) (idFunctor C)
   = lambda C: ( idNat C C (idFunctor C) , idNat C C (idFunctor C) )
 ```
 
@@ -410,13 +410,13 @@ def idAdjunction : (C : Category) -> Adjunction C C (idFunctor C) (idFunctor C)
 ## Monads and comonads
 
 ```kan
-def Monad : (C : Category) -> Functor C C -> U
+def Monad : (C : SmallCategory) -> Functor C C -> U
   = lambda C T:
       (unit : NatTrans C C (idFunctor C) T)            -- η : Id ⇒ T
     * (NatTrans C C (compFunctor C C C T T) T)         -- μ : T∘T ⇒ T
 
 -- the identity functor is a monad (η = μ = the identity natural transformation)
-def idMonad : (C : Category) -> Monad C (idFunctor C)
+def idMonad : (C : SmallCategory) -> Monad C (idFunctor C)
   = lambda C: ( idNat C C (idFunctor C) , idNat C C (idFunctor C) )
 ```
 
@@ -428,14 +428,14 @@ extension of `F` along the identity is `F` itself — constructed, so the statem
 is provably non-empty:
 
 ```kan
-def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+def LeftKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                  -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (L : Functor B D)                                    -- the extension
     * (unit : NatTrans A D F (compFunctor A B D p L))      -- F ⇒ L∘p
     * ((G : Functor B D) -> NatTrans A D F (compFunctor A B D p G) -> NatTrans B D L G)
 
-def lanAlongId : (A : Category) -> (D : Category) -> (F : Functor A D)
+def lanAlongId : (A : SmallCategory) -> (D : SmallCategory) -> (F : Functor A D)
                  -> LeftKanExt A A D (idFunctor A) F
   = lambda A D F: ( F , ( idNat A D F , lambda G gamma: gamma ) )
 ```
@@ -455,16 +455,16 @@ formalized". Each definition says exactly what it does and doesn't impose.
 ```kan
 -- a presheaf: a type at each object, with contravariant restriction maps
 -- (the data; functoriality of the restriction is the remaining condition)
-def Presheaf : Category -> U1
+def Presheaf : SmallCategory -> U1
   = lambda C: (P0 : obj C -> U) * ((a : obj C) -> (b : obj C) -> hom C a b -> P0 b -> P0 a)
 
 -- a sieve on a: a family selecting morphisms into a
-def Sieve : (C : Category) -> obj C -> U1
+def Sieve : (C : SmallCategory) -> obj C -> U1
   = lambda C a: (b : obj C) -> hom C b a -> U
 
 -- a Grothendieck site: a category with a coverage (which sieves are covering)
 -- (the coverage axioms are the conditions on `covers`)
-def Site = (C : Category) * ((a : obj C) -> Sieve C a -> U)
+def Site = (C : SmallCategory) * ((a : obj C) -> Sieve C a -> U)
 
 -- NOT YET A SHEAF: this is *exactly* a presheaf on the site's category. The
 -- defining sheaf condition (unique gluing over every covering sieve — a limit

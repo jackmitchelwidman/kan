@@ -66,17 +66,17 @@ def lanId_sigma : NatTrans One One F F
 -- ---------------------------------------------------------------------------
 
 -- the unique functor from any category to the terminal category One.
-def toOne : (A : Category) -> Functor A One
+def toOne : (A : SmallCategory) -> Functor A One
   = lambda A: ( lambda a: unit
               , ( lambda a b f: unit
                 , ( lambda a: refl , lambda a b c g f: refl ) ) )
 
 -- a COLIMIT of F : A -> D is exactly the left Kan extension of F along A -> 1.
-def ColimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+def ColimitOf : (A : SmallCategory) -> (D : SmallCategory) -> Functor A D -> U
   = lambda A D F: LeftKanExt A One D (toOne A) F
 
 -- a LIMIT of F is the right Kan extension of F along A -> 1.
-def LimitOf : (A : Category) -> (D : Category) -> Functor A D -> U
+def LimitOf : (A : SmallCategory) -> (D : SmallCategory) -> Functor A D -> U
   = lambda A D F: RightKanExt A One D (toOne A) F
 
 -- These are well-formed Kan TYPES — the slogan is not a metaphor here, it is a

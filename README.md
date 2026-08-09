@@ -2,7 +2,7 @@
 
 ## A Language of Universal Extension
 
-### Design Document — Version 0.4.1 (2026-08-09 12:51 IDT)
+### Design Document — Version 0.5.0 (2026-08-09 13:43 IDT)
 
 *Version is bumped on any change to Kan's public interface; the canonical value lives in [`VERSION`](VERSION).*
 
@@ -50,9 +50,9 @@ curl -fsSL https://raw.githubusercontent.com/jackmitchelwidman/kan/main/install.
 ```
 
 Category theory lives *in* the language, not just in the philosophy.
-[`std/category.kan`](std/category.kan) defines `Category`, `Functor`, and
+[`std/category.kan`](std/category.kan) defines `SmallCategory`, `Functor`, and
 `NatTrans` as dependent records whose **laws are fields** — so a value of type
-`Category` is one the type-checker has verified really is a category. It ships
+`SmallCategory` is one the type-checker has verified really is a category. It ships
 the terminal category, the opposite category `op`, the identity functor and
 identity natural transformation, and functor composition, all lawful. And the
 construction the language is named for, [`std/kan.kan`](std/kan.kan), states the
@@ -417,7 +417,7 @@ The fundamental concept of Kan is not, strictly, *the Kan extension* — it is t
 
 Both of the language's fillers — horn-filling (the Kan *complex*) and universal completion (the Kan *extension*) — are Daniel Kan's. The general primitive is precisely what *fuses* his two contributions. Naming the language after the mathematician whose fingerprints are on the whole region is the honest move, exactly as Turing machines and Church's λ are named for people, not mechanisms.
 
-As of now the namesake is not only the philosophy but a definition you can check: [`std/kan.kan`](std/kan.kan) states the left and right Kan extension universal properties as Kan types, resting on the lawful `Category`/`Functor`/`NatTrans` of [`std/category.kan`](std/category.kan). The extension along the identity is constructed, so the statement is inhabited — the language named for Kan extensions can express, and verify, a Kan extension.
+As of now the namesake is not only the philosophy but a definition you can check: [`std/kan.kan`](std/kan.kan) states the left and right Kan extension universal properties as Kan types, resting on the lawful `SmallCategory`/`Functor`/`NatTrans` of [`std/category.kan`](std/category.kan). The extension along the identity is constructed, so the statement is inhabited — the language named for Kan extensions can express, and verify, a Kan extension.
 
 ---
 
@@ -472,7 +472,7 @@ Deliberately after the philosophy, never before it.
 4. **Compilation to native code**, from one erased IR to two backends — OCaml and C — verified to agree.
 5. **Pattern matching and structural recursion**, elaborated to eliminators — total by construction, now including accumulator-style recursion and dependent-motive proofs by induction.
 6. **An unbounded `Integer`** (arbitrary precision) alongside the inductive `Nat`, plus a primitive `String`.
-7. **Category theory in the library** — `Category`/`Functor`/`NatTrans` with their laws as fields, and the Kan-extension universal property, all checked ([`std/`](std/)).
+7. **Category theory in the library** — `SmallCategory`/`Functor`/`NatTrans` with their laws as fields, and the Kan-extension universal property, all checked ([`std/`](std/)).
 8. **A verified number tower** — an inductive `Int`, verified Euclidean division and a verified `gcd` (divides both *and* maximal), all axiom-free; culminating in a **type-enforced rational** ([`std/rational_reduced.kan`](std/rational_reduced.kan)) whose `den > 0` and lowest-terms invariants are *proof fields* — so **divide-by-zero is a type error**, every value is provably in lowest terms, and arithmetic is exact.
 9. **Explicit dependent motives** — `match e as x return T` for dependent elimination on a nested/non-leading scrutinee (ADR-015), the elaborator unlock behind the tower above.
 10. **Constructive reals** ([`std/creal.kan`](std/creal.kan)) — a complete constructive-reals module: a real is a *process* producing rational approximations to any precision (`CReal = Nat -> Rational`, `x n` within `1/2^n`); with precision-propagating `+`/`−`/`×`, apartness-gated division (÷0 needs evidence), and `√2`, `π`, `e` computed to agreeing digits across all three runtimes (ADR-017). A proof-*carrying* companion ([`std/creal_proof.kan`](std/creal_proof.kan)) additionally proves `CRealP` regularity and that every rational is one (ADR-020).

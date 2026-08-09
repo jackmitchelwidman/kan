@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Changelog — Kan</title>
+<meta name="description" content="What's new in each version of Kan. The version number is bumped on every change to the public interface; this page lists what changed.">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+      --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+    --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 22px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre,.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
+
+  header.hero{padding:40px 0 34px; border-bottom:1px solid var(--line)}
+  .back{font-size:14px; color:var(--muted)}
+  .eyebrow{letter-spacing:.16em; text-transform:uppercase; font-size:12px; color:var(--accent); font-weight:700}
+  h1{font-size:clamp(30px,5vw,46px); line-height:1.06; margin:.24em 0 .18em; letter-spacing:-.02em}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--muted); margin:0}
+
+  section{padding:34px 0; border-bottom:1px solid var(--line); scroll-margin-top:20px}
+  section.current{background:linear-gradient(0deg,transparent, color-mix(in srgb, var(--accent) 6%, transparent))}
+  .vhead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 4px}
+  .vhead h2{font-size:24px; letter-spacing:-.01em; margin:0; color:var(--fg); text-transform:none}
+  .vhead .date{font-size:14px; color:var(--muted)}
+  .vhead .tag{font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+              color:#fff; background:var(--accent); border-radius:999px; padding:3px 9px}
+  .vhead .tag.break{background:#c2410c}
+  .subtitle{color:var(--muted); font-style:italic; margin:0 0 14px}
+  ul{margin:0 0 6px; padding-left:22px}
+  li{margin:0 0 9px}
+  li b{color:var(--fg)}
+  p{margin:0 0 16px}
+  .lead{font-size:18px}
+  code{background:var(--code-bg); border:1px solid var(--line); border-radius:5px; padding:.06em .35em; font-size:.9em}
+  .pill{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em;
+        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card)}
+
+  footer{padding:40px 0 70px; color:var(--muted); font-size:14px}
+  footer a{color:var(--muted); text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="back"><a href="/">← Kan</a></p>
+    <p class="eyebrow">Changelog</p>
+    <h1>What's new, version by version.</h1>
+    <p class="sub">Kan's version number is bumped on <em>every</em> change to its public interface — the
+    canonical value lives in <a href="https://github.com/jackmitchelwidman/kan/blob/main/VERSION"><code>VERSION</code></a>.
+    This page says what each bump changed, newest first.</p>
+  </header>
+
+  <!-- ===================== 0.5.0 ===================== -->
+  <section id="v0.5.0" class="current">
+    <div class="vhead">
+      <h2>v0.5.0</h2>
+      <span class="date">2026-08-09 · 13:43 IDT</span>
+      <span class="tag">latest</span>
+      <span class="tag break">breaking</span>
+    </div>
+    <p class="subtitle">Small categories, named honestly.</p>
+    <ul>
+      <li><b>Renamed the category record <code>Category</code> → <code>SmallCategory</code></b> (breaking).
+        Its objects live in universe <code>U</code>, so it houses exactly the <em>small</em> categories — finite
+        categories, posets, a monoid as a one-object category, the terminal category <code>One</code>, the
+        opposite category <code>op</code>, products. The accessors, <code>Functor</code>, <code>NatTrans</code>,
+        and the Kan-extension statements all follow the new name. If you referenced <code>Category</code>,
+        rename to <code>SmallCategory</code>.</li>
+      <li><b>Charted the path to <em>large</em> categories</b> (Grp, Set, Top). They don't fit
+        <code>SmallCategory</code> on two counts — objects would need a higher universe, and morphism equality
+        would need function extensionality. The fix is a <em>universe-polymorphic, setoid-based</em>
+        <code>Category</code> (hom-equality by an explicit equivalence rather than <code>Id</code>), sketched in
+        <a href="https://github.com/jackmitchelwidman/kan/blob/main/docs/open-questions.md">open-questions §4</a>.
+        It's additive to the type theory — no soundness risk — and gated only on universe polymorphism.</li>
+      <li><b>Worked example: the category of Groups.</b> Objects (groups), morphisms (group homomorphisms),
+        identity, and composition — built and type-checked, with <b>(ℤ, +)</b> as a concrete object reusing the
+        proven commutative-ring axioms from <code>std/int.kan</code>.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== 0.4.1 ===================== -->
+  <section id="v0.4.1">
+    <div class="vhead">
+      <h2>v0.4.1</h2>
+      <span class="date">2026-08-09 · 12:53 IDT</span>
+    </div>
+    <p class="subtitle">A math library on the reals.</p>
+    <ul>
+      <li><b>A small, robust math library on the constructive reals.</b> <code>sqrtQ</code> (√ by Newton's
+        method, correct for <em>all</em> inputs — the iteration count is derived from the argument's size),
+        <code>expQ</code> (exp with argument reduction so it converges for any input), and <code>powNatC</code>
+        (natural-number powers by binary exponentiation). All computed and cross-checked by three backends.</li>
+      <li><b>"New version available" badge.</b> Returning visitors to the home page see when Kan has changed
+        since their last visit (via <code>localStorage</code>; nothing is sent anywhere).</li>
+    </ul>
+  </section>
+
+  <!-- ===================== 0.4.0 ===================== -->
+  <section id="v0.4.0">
+    <div class="vhead">
+      <h2>v0.4.0</h2>
+      <span class="date">2026-08-09 · 12:31 IDT</span>
+      <span class="tag">first versioned</span>
+    </div>
+    <p class="subtitle">Versioned; exact reals showcased.</p>
+    <ul>
+      <li><b>Versioning begins.</b> Established the <code>VERSION</code> file as the single source of truth and
+        added the prominent version + date display to the site — bumped on any public-interface change.</li>
+      <li><b>Exact-reals showcase page</b> added to the website.</li>
+      <li><em>The language as it stood at this baseline:</em> a verified integer tower (<b>ℤ</b> proved a
+        commutative ring, axiom-free), type-enforced <b>rationals</b> with divide-by-zero a type error,
+        <b>constructive reals</b> (√2, π, e to any precision), and lawful <b>category theory + Kan extensions</b>.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <a href="/">kan-lang.org</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/VERSION">VERSION</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/commits/main">full commit history</a>
+  </footer>
+
+</div>
+</body>
+</html>

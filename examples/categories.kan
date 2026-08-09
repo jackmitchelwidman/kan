@@ -1,16 +1,16 @@
--- Category theory in Kan, using std/category.kan.
--- A `Category` carries its *laws* as fields, so `One : Category` type-checking
+-- SmallCategory theory in Kan, using std/category.kan.
+-- A `SmallCategory` carries its *laws* as fields, so `One : SmallCategory` type-checking
 -- is a machine-checked proof that the terminal category really is a category.
 -- Run:  kan check examples/categories.kan
 
 import "../std/category.kan"
 
 -- The terminal category and its opposite are both categories (checked).
-def OneOp : Category = op One
+def OneOp : SmallCategory = op One
 
 -- Taking the opposite twice lands on a category again (op is an involution up to
 -- this — here we just witness that op (op One) is well-formed).
-def OneOpOp : Category = op (op One)
+def OneOpOp : SmallCategory = op (op One)
 
 -- The identity functor on any category, specialised to One:
 def IdOne : Functor One One = idFunctor One
@@ -23,4 +23,4 @@ eval idn One unit
 
 -- A generic fact, stated as a type and proved by the library: every category has
 -- an identity functor. (That this checks for an arbitrary C is the theorem.)
-def everyCatHasId : (C : Category) -> Functor C C = idFunctor
+def everyCatHasId : (C : SmallCategory) -> Functor C C = idFunctor

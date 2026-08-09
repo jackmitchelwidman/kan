@@ -91,9 +91,9 @@ separate recursion principle — it is all `match`, all Kan.
 
 ## 5. Category theory, lawfully
 
-`std/category.kan` defines a `Category` as a record whose fields include the
+`std/category.kan` defines a `SmallCategory` as a record whose fields include the
 identity and associativity **laws** (as `Id`-proofs). So a value of type
-`Category` is a structure the checker has verified really is a category.
+`SmallCategory` is a structure the checker has verified really is a category.
 
 ```kan
 import "std/category.kan"
@@ -113,7 +113,7 @@ states the left and right Kan extension as universal properties, and constructs
 the extension along the identity — so the statement is inhabited, not empty.
 
 ```kan
-def LeftKanExt : (A : Category) -> (B : Category) -> (D : Category)
+def LeftKanExt : (A : SmallCategory) -> (B : SmallCategory) -> (D : SmallCategory)
                  -> Functor A B -> Functor A D -> U
   = lambda A B D p F:
       (L : Functor B D)                                    -- the extension

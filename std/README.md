@@ -39,7 +39,7 @@ Each file is included at most once, even if reached through several imports.
 | `string.kan` | `string_append`, `string_eq` (over the built-in `String`) |
 | `integer.kan` | the unbounded `Integer`: `plus`/`minus`/`times`, `factorial`, `sumTo` (compute large values exactly) |
 | `rational.kan` | `Rational` as normalized coprime `Integer` pairs, with **safe** division: `recipQ`/`divQ` return `Option` — there is no way to divide by zero (in progress; being put on the verified `divmod`/gcd tower) |
-| `category.kan` | category theory: `Category` (laws and all), `Functor`, `NatTrans`; the terminal category `One`, the opposite category `op`, `idFunctor`, `idNat`, `compFunctor` — all lawful and checked |
+| `category.kan` | category theory: `SmallCategory` (laws and all — objects in `U`, so it houses the *small* categories: finite, posets, a monoid as one object, etc.), `Functor`, `NatTrans`; the terminal category `One`, the opposite category `op`, `idFunctor`, `idNat`, `compFunctor` — all lawful and checked. (*Large* categories like Grp/Set need a universe-polymorphic, setoid-based variant — see `docs/open-questions.md`.) |
 | `kan.kan` | Kan extensions — `LeftKanExt`/`RightKanExt` stated as universal properties, with `lanAlongId` inhabiting the left extension along the identity |
 
 See `examples/using_std.kan` for a program that imports and uses several of these.
