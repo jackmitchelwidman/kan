@@ -142,6 +142,71 @@ def mulI_comm : (i : Int) -> (j : Int) -> Id Int (mulI i j) (mulI j i)
   = lambda i j: match i { | pos m => mulI_comm_posR j m | negsuc m => mulI_comm_negsucR j m }
 
 -- ============================================================================
+-- Toward the ring axioms: (ℤ, +) is a commutative group. The diff-homomorphism
+-- route (double induction on diff's two Nat args; `diff (suc j) (suc k) ≡ diff j k`
+-- is definitional, so each suc/suc case IS the induction hypothesis — no sign
+-- analysis, no comparison). See DECISIONS.md.
+-- ============================================================================
+
+-- diff n n = 0.  (suc case: diff (suc k) (suc k) ≡ diff k k, so it's the IH.)
+def diff_n_n : (n : Nat) -> Id Int (diff n n) (pos zero)
+  = lambda n: match n { | zero => refl | suc k => diff_n_n k }
+
+-- diff m 0 = pos m.  (non-recursive; dummy application dodges the tail-match guard.)
+def diff_m_0 : (m : Nat) -> Id Int (diff m zero) (pos m)
+  = lambda m: (match m as mm return (Nat -> Id Int (diff mm zero) (pos mm)) {
+      | zero  => lambda d: refl
+      | suc k => lambda d: refl }) zero
+
+-- ADDITIVE INVERSE:  i + (−i) = 0.  (This is the exact lemma the constructive-real
+-- proof tier was blocked on — `subQ q q = 0` traces to it. First brick out.)
+def addI_negI : (i : Int) -> Id Int (addI i (negI i)) zeroI
+  = lambda i: match i {
+      | pos m    => (match m as mm return (Id Int (addI (pos mm) (negI (pos mm))) zeroI) {
+                       | zero  => refl                -- 0 + 0 = 0
+                       | suc k => diff_n_n k })       -- (k+1) + −(k+1) ≡ diff k k = 0
+      | negsuc n => diff_n_n n }                      -- −(n+1) + (n+1) ≡ diff n n = 0
+
+-- (a+b) − (a+c) = b − c.  Induct a; clone of nat's sub_add_cancel_l.
+def diff_cancel_l : (a : Nat) -> (b : Nat) -> (c : Nat) -> Id Int (diff (add a b) (add a c)) (diff b c)
+  = lambda a b c: match a { | zero => refl | suc j => diff_cancel_l j b c }
+
+-- WORKHORSE:  m + (n − o) = (m + n) − o.  Double induction: `n` decreasing (so it
+-- comes first, per the recursion rule); `o` an inner explicit-motive match.
+def add_diff_pos : (n : Nat) -> (o : Nat) -> (m : Nat)
+  -> Id Int (addI (pos m) (diff n o)) (diff (add m n) o)
+  = lambda n o m: match n {
+      | zero => (match o as oo return (Id Int (addI (pos m) (diff zero oo)) (diff (add m zero) oo)) {
+          | zero  => sym Int (diff (add m zero) zero) (pos (add m zero)) (diff_m_0 (add m zero))
+          | suc k => ap Nat Int (lambda z: diff z (suc k)) m (add m zero)
+                       (sym Nat (add m zero) m (add_n_zero m)) })
+      | suc j => (match o as oo return (Id Int (addI (pos m) (diff (suc j) oo)) (diff (add m (suc j)) oo)) {
+          | zero  => sym Int (diff (add m (suc j)) zero) (pos (add m (suc j))) (diff_m_0 (add m (suc j)))
+          | suc k => trans Int (addI (pos m) (diff j k)) (diff (add m j) k) (diff (add m (suc j)) (suc k))
+                       (add_diff_pos j k m)
+                       (sym Int (diff (add m (suc j)) (suc k)) (diff (add m j) k)
+                          (ap Nat Int (lambda z: diff z (suc k)) (add m (suc j)) (suc (add m j)) (add_suc m j))) }) }
+
+-- mirror of the workhorse on the negative side:  −(m+1) + (n − o) = n − ((m+1)+o).
+def add_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
+  -> Id Int (addI (negsuc m) (diff n o)) (diff n (add (suc m) o))
+  = lambda n o m: match n {
+      | zero => (match o as oo return (Id Int (addI (negsuc m) (diff zero oo)) (diff zero (add (suc m) oo))) {
+          | zero  => ap Nat Int (lambda z: diff zero z) (suc m) (add (suc m) zero)
+                       (sym Nat (add (suc m) zero) (suc m) (add_n_zero (suc m)))
+          | suc k => sym Int (diff zero (add (suc m) (suc k))) (negsuc (add (suc m) k))
+                       (ap Nat Int (lambda z: diff zero z) (add (suc m) (suc k)) (suc (add (suc m) k))
+                          (add_suc (suc m) k)) })
+      | suc j => (match o as oo return (Id Int (addI (negsuc m) (diff (suc j) oo)) (diff (suc j) (add (suc m) oo))) {
+          | zero  => ap Nat Int (lambda z: diff (suc j) z) (suc m) (add (suc m) zero)
+                       (sym Nat (add (suc m) zero) (suc m) (add_n_zero (suc m)))
+          | suc k => trans Int (addI (negsuc m) (diff j k)) (diff j (add (suc m) k)) (diff (suc j) (add (suc m) (suc k)))
+                       (add_diff_negsuc j k m)
+                       (sym Int (diff (suc j) (add (suc m) (suc k))) (diff j (add (suc m) k))
+                          (ap Nat Int (lambda z: diff (suc j) z) (add (suc m) (suc k)) (suc (add (suc m) k))
+                             (add_suc (suc m) k))) }) }
+
+-- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
 -- The "nested dependent motive" gap (a `match` inside a constructor case can't
