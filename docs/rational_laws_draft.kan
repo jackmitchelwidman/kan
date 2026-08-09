@@ -1,0 +1,58 @@
+-- DRAFT / NOT GATED — blocked on the ADR-016 conversion-cost fix.
+-- The ℚ field-law development. EqR + EqR_refl + EqR_sym + cross_nat_abs check
+-- instantly, and reduce_crossmul's POS case checks in ~7s; but its NEGSUC case
+-- exceeds 100s to type-check — reducing `numR/denR (reduce (negsuc k) d p)`
+-- forces `reduce`-unfolding whose conversion re-traverses the `gcd_dvd (suc k) d`
+-- neutral repeatedly (the ADR-016 wart). Since every law needs this keystone,
+-- the whole development waits on that evaluator/conversion fix. Kept here,
+-- OUTSIDE std/ so the gate does not check (and hang) it, ready to resume.
+-- Check manually (slow): kan check docs/rational_laws_draft.kan
+
+-- ============================================================================
+-- std/rational_laws — ℚ as a SETOID and its field laws (up to cross-multiplication
+-- equality). Kept SEPARATE from rational_reduced.kan for type-check cost.
+--
+-- EqR x y  ⟺  num x · den y = num y · den x  — proof-irrelevant, so it dodges the
+-- fact that Reduced's proof fields aren't structurally congruent. `reduce_crossmul`
+-- (the keystone) says `reduce` preserves the fraction, so every law strips both
+-- sides to raw fractions and finishes with the ℤ ring axioms (std/int.kan).
+--
+-- Deferred (need Int mul-cancellation, a separate ~16-leaf build): EqR transitivity
+-- and operation-congruence. Reflexivity, symmetry, and all ring-shaped laws below
+-- need only the ℤ ring axioms. `fromNatI d ≡ pos d` definitionally throughout.
+-- ============================================================================
+import "../std/rational_reduced.kan"
+
+def EqR : Reduced -> Reduced -> U
+  = lambda x y: Id Int (mulI (numR x) (fromNatI (denR y))) (mulI (numR y) (fromNatI (denR x)))
+def EqR_refl : (x : Reduced) -> EqR x x = lambda x: refl
+def EqR_sym : (x : Reduced) -> (y : Reduced) -> EqR x y -> EqR y x
+  = lambda x y e: sym Int (mulI (numR x) (fromNatI (denR y))) (mulI (numR y) (fromNatI (denR x))) e
+
+-- na·d = m·da  from na·g = m and da·g = d  (abstract, so no giant gcd_dvd subterms).
+def cross_nat_abs : (na : Nat) -> (da : Nat) -> (g : Nat) -> (m : Nat) -> (d : Nat)
+  -> Id Nat (mul na g) m -> Id Nat (mul da g) d -> Id Nat (mul na d) (mul m da)
+  = lambda na da g m d eqm eqd:
+      trans Nat (mul na d) (mul na (mul da g)) (mul m da)
+        (ap Nat Nat (lambda z: mul na z) d (mul da g) (sym Nat (mul da g) d eqd))
+        (trans Nat (mul na (mul da g)) (mul (mul na g) da) (mul m da)
+           (mul_swap3 na da g)
+           (ap Nat Nat (lambda z: mul z da) (mul na g) m eqm))
+
+-- KEYSTONE: reduce preserves the rational —  (num of reduce)·d = n·(den of reduce).
+def reduce_crossmul : (n : Int) -> (d : Nat) -> (p : Lt zero d)
+  -> Id Int (mulI (numR (reduce n d p)) (fromNatI d)) (mulI n (fromNatI (denR (reduce n d p))))
+  = lambda n d p: match n {
+      | pos m => ap Nat Int (lambda z: pos z)
+                   (mul (fst (fst (gcd_dvd m d))) d) (mul m (fst (snd (gcd_dvd m d))))
+                   (cross_nat_abs (fst (fst (gcd_dvd m d))) (fst (snd (gcd_dvd m d))) (gcdI m d) m d
+                      (snd (fst (gcd_dvd m d))) (snd (snd (gcd_dvd m d))))
+      | negsuc k =>
+          trans Int (mulI (intOfSignMag true (fst (fst (gcd_dvd (suc k) d)))) (pos d))
+                    (intOfSignMag true (mul (fst (fst (gcd_dvd (suc k) d))) d))
+                    (intOfSignMag true (mul (suc k) (fst (snd (gcd_dvd (suc k) d)))))
+            (mulI_intSMtrue_pos (fst (fst (gcd_dvd (suc k) d))) d)
+            (ap Nat Int (lambda z: intOfSignMag true z)
+                (mul (fst (fst (gcd_dvd (suc k) d))) d) (mul (suc k) (fst (snd (gcd_dvd (suc k) d))))
+                (cross_nat_abs (fst (fst (gcd_dvd (suc k) d))) (fst (snd (gcd_dvd (suc k) d))) (gcdI (suc k) d)
+                   (suc k) d (snd (fst (gcd_dvd (suc k) d))) (snd (snd (gcd_dvd (suc k) d))))) }

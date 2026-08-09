@@ -147,6 +147,13 @@ def mul_assoc : (a : Nat) -> (b : Nat) -> (c : Nat) -> Id Nat (mul (mul a b) c) 
                    (ap Nat Nat (lambda z: add (mul b c) z) (mul (mul k b) c) (mul k (mul b c))
                        (mul_assoc k b c)) }
 
+-- a·(b·c) = (a·c)·b  — a handy rearrangement (for cross-multiplication proofs).
+def mul_swap3 : (a : Nat) -> (b : Nat) -> (c : Nat) -> Id Nat (mul a (mul b c)) (mul (mul a c) b)
+  = lambda a b c:
+      trans Nat (mul a (mul b c)) (mul a (mul c b)) (mul (mul a c) b)
+        (ap Nat Nat (lambda z: mul a z) (mul b c) (mul c b) (mul_comm b c))
+        (sym Nat (mul (mul a c) b) (mul a (mul c b)) (mul_assoc a c b))
+
 -- RIGHT distributivity over monus: (a - b)·c = a·c - b·c.  Double case-split on
 -- a then b; the suc/suc step cancels the common `c` via sub_add_cancel_l.
 def mul_sub_distrib_r : (a : Nat) -> (b : Nat) -> (c : Nat)

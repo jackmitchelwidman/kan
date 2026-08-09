@@ -301,6 +301,13 @@ def mulI_one_r : (i : Int) -> Id Int (mulI i oneI) i
       | pos m    => ap Nat Int (lambda z: pos z) (mul m (suc zero)) m (mul_n_one m)
       | negsuc n => ap Nat Int (lambda z: intOfSignMag true z) (mul (suc n) (suc zero)) (suc n) (mul_n_one (suc n)) }
 
+-- bridge: (signed-neg a) · (pos b) = signed-neg (a·b). Casing a keeps the sign literal.
+def mulI_intSMtrue_pos : (a : Nat) -> (b : Nat)
+  -> Id Int (mulI (intOfSignMag true a) (pos b)) (intOfSignMag true (mul a b))
+  = lambda a b: (match a as aa return (Nat -> Id Int (mulI (intOfSignMag true aa) (pos b)) (intOfSignMag true (mul aa b))) {
+      | zero  => lambda d: refl
+      | suc k => lambda d: refl }) zero
+
 -- ---- ASSOCIATIVITY of · : 8 sign-cases via a helper tree, splitting a
 -- pos-magnitude into zero/suc exactly where a mixed-sign product's magnitude is
 -- stuck on it (integer splits make isNeg/xor literal; magnitude splits make
@@ -653,9 +660,15 @@ def mulI_distrib_r : (a : Int) -> (b : Int) -> (c : Int)
 -- (ℤ,·) a commutative monoid with absorbing zero, and · distributes over +.
 --
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • the FIELD LAWS of ℚ (addR/mulR assoc, comm, distrib on Reduced — up to a
---    setoid, since Reduced ops aren't structurally congruent). These now follow
---    from the ring axioms above; assembling them unblocks the proof-carrying
---    constructive-real tier (ADR-017).
---  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
+--  • the FIELD LAWS of ℚ (addR/mulR assoc, comm, distrib on Reduced — up to the
+--    cross-multiplication setoid EqR). The MATH is unblocked (they follow from the
+--    ring axioms above), and the approach is proven correct — but it is now
+--    CHECK-TIME-BLOCKED on ADR-016: the keystone `reduce_crossmul` needs to reduce
+--    `numR/denR (reduce n d p)`, whose conversion re-traverses the `gcd_dvd` neutral
+--    (its negsuc case exceeds 100s to type-check; the pos case is ~7s). The correct
+--    development is parked in docs/rational_laws_draft.kan (EqR/refl/sym/cross_nat_abs
+--    check instantly; reduce_crossmul's pos case checks). Bridge lemma
+--    mulI_intSMtrue_pos (here) and mul_swap3 (nat.kan) landed for it.
+--  • the ADR-016 evaluator/conversion perf fix — now the CRITICAL PATH for BOTH the
+--    ℚ field laws and the proof-carrying constructive-real tier (ADR-017).
 -- ============================================================================

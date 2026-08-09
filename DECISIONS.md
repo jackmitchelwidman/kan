@@ -572,6 +572,37 @@ constructive-real tier (ADR-017). No axioms anywhere.
 
 ---
 
+## ADR-019 — the ℚ field laws are check-time-blocked on ADR-016
+
+**Attempted, and characterized precisely.** With the ℤ ring axioms (ADR-018) done,
+the ℚ field laws on `Reduced` should follow, stated up to the cross-multiplication
+setoid `EqR x y := num x · den y = num y · den x` (proof-irrelevant, so it dodges
+`Reduced`'s non-congruent proof fields). Reflexivity, symmetry, and the abstract
+Nat bridge `cross_nat_abs` all check **instantly**. The keystone is
+`reduce_crossmul` (reduce preserves the fraction: `numR(reduce n d p)·d =
+n·denR(reduce n d p)`), from which every law strips to raw fractions + ℤ ring
+juggling.
+
+**The wall.** `reduce_crossmul`'s **negsuc case exceeds 100s to type-check** (its
+pos case is ~7s; merely projecting `numR (reduce (pos m) d p)` by `refl` is ~3s).
+The cost is the ADR-016 conversion wart: checking it reduces
+`numR/denR (reduce (negsuc k) d p)`, which unfolds `reduce`/`reduceWith` and
+re-traverses the `gcd_dvd (suc k) d` neutral repeatedly. Every field law needs this
+keystone, so the whole development is blocked here — NOT on mathematics (the
+approach is proven correct on the pos case) but on evaluator/conversion cost.
+
+**Consequences.** (1) The correct partial development is parked in
+`docs/rational_laws_draft.kan` — OUTSIDE `std/` so the gate never checks (and hangs
+on) it — ready to resume. (2) Two reusable stones landed in the main tree:
+`mul_swap3` (nat.kan) and `mulI_intSMtrue_pos` (int.kan). (3) **The ADR-016
+evaluator/conversion fix is now the single critical path** for both the ℚ field
+laws AND the proof-carrying constructive reals (ADR-017) — it should be the next
+kernel-level investment. Deferred: `EqR` transitivity + operation-congruence
+(need Int mul-cancellation, a further ~16-leaf build) — moot until the keystone
+checks. Gate green at 50/0 (the blocked file is not in it).
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,
