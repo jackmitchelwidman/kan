@@ -125,6 +125,18 @@ def mul_add_distrib_r : (a : Nat) -> (b : Nat) -> (c : Nat)
                    (sym Nat (add (add c (mul k c)) (mul b c)) (add c (add (mul k c) (mul b c)))
                        (add_assoc c (mul k c) (mul b c))) }
 
+-- LEFT distributivity: a·(b + c) = a·b + a·c.  Via commutativity + right-distrib.
+def mul_add_distrib_l : (a : Nat) -> (b : Nat) -> (c : Nat)
+  -> Id Nat (mul a (add b c)) (add (mul a b) (mul a c))
+  = lambda a b c:
+      trans Nat (mul a (add b c)) (add (mul b a) (mul c a)) (add (mul a b) (mul a c))
+        (trans Nat (mul a (add b c)) (mul (add b c) a) (add (mul b a) (mul c a))
+           (mul_comm a (add b c))
+           (mul_add_distrib_r b c a))
+        (trans Nat (add (mul b a) (mul c a)) (add (mul a b) (mul c a)) (add (mul a b) (mul a c))
+           (ap Nat Nat (lambda z: add z (mul c a)) (mul b a) (mul a b) (mul_comm b a))
+           (ap Nat Nat (lambda z: add (mul a b) z) (mul c a) (mul a c) (mul_comm c a)))
+
 -- associativity: (a·b)·c = a·(b·c).  Induction on a; the step uses right-distrib.
 def mul_assoc : (a : Nat) -> (b : Nat) -> (c : Nat) -> Id Nat (mul (mul a b) c) (mul a (mul b c))
   = lambda a b c: match a {

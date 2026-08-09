@@ -453,6 +453,116 @@ def mul_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
                                 (ap Nat Int (lambda z: diff (add (suc m) (mul (suc m) k)) z) (mul (suc m) (suc j)) (add (suc m) (mul (suc m) j)) (mul_suc (suc m) j)))
                              (diff_cancel_l (suc m) (mul (suc m) k) (mul (suc m) j)))) }) }
 
+-- addI IS diff-additive:  (a−b) + (c−d) = (a+c) − (b+d).  The load-bearing bridge.
+-- Induct a then b; three of four cases are the workhorses near-refl, the fourth a
+-- single diff_m_0 transport; the suc/suc case is exactly the IH.
+def diff_add : (a : Nat) -> (b : Nat) -> (c : Nat) -> (d : Nat)
+  -> Id Int (addI (diff a b) (diff c d)) (diff (add a c) (add b d))
+  = lambda a b c d: match a {
+      | zero => (match b as bb return (Id Int (addI (diff zero bb) (diff c d)) (diff (add zero c) (add bb d))) {
+          | zero  => add_diff_pos c d zero
+          | suc k => add_diff_negsuc c d k })
+      | suc j => (match b as bb return (Id Int (addI (diff (suc j) bb) (diff c d)) (diff (add (suc j) c) (add bb d))) {
+          | zero  => trans Int (addI (diff (suc j) zero) (diff c d)) (addI (pos (suc j)) (diff c d)) (diff (add (suc j) c) (add zero d))
+                       (ap Int Int (lambda z: addI z (diff c d)) (diff (suc j) zero) (pos (suc j)) (diff_m_0 (suc j)))
+                       (add_diff_pos c d (suc j))
+          | suc k => diff_add j k c d }) }
+
+-- ---- DISTRIBUTIVITY of · over + : the last ring axiom ------------------------
+-- Route B: convert both sides to `diff` and glue with diff_add + mul_diff_* +
+-- mul_add_distrib_l. Same-sign (b,c) reduce addI to pos/negsuc (Nat distrib);
+-- mixed-sign reduce addI to a diff (the mul_diff workhorses). 8 leaves.
+
+def dstPP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (pos p) (addI (pos q) c)) (addI (mulI (pos p) (pos q)) (mulI (pos p) c))
+  = lambda p q c: match c {
+      | pos r => ap Nat Int (lambda z: pos z) (mul p (add q r)) (add (mul p q) (mul p r)) (mul_add_distrib_l p q r)
+      | negsuc r =>
+          trans Int (mulI (pos p) (addI (pos q) (negsuc r))) (diff (mul p q) (mul p (suc r))) (addI (mulI (pos p) (pos q)) (mulI (pos p) (negsuc r)))
+            (mul_diff_pos q (suc r) p)
+            (sym Int (addI (mulI (pos p) (pos q)) (mulI (pos p) (negsuc r))) (diff (mul p q) (mul p (suc r)))
+               (trans Int (addI (pos (mul p q)) (intOfSignMag true (mul p (suc r)))) (diff (add (mul p q) zero) (mul p (suc r))) (diff (mul p q) (mul p (suc r)))
+                  (add_diff_pos zero (mul p (suc r)) (mul p q))
+                  (ap Nat Int (lambda z: diff z (mul p (suc r))) (add (mul p q) zero) (mul p q) (add_n_zero (mul p q))))) }
+
+def dstPN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (pos p) (addI (negsuc q) c)) (addI (mulI (pos p) (negsuc q)) (mulI (pos p) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (mulI (pos p) (addI (negsuc q) (pos r))) (diff (mul p r) (mul p (suc q))) (addI (mulI (pos p) (negsuc q)) (mulI (pos p) (pos r)))
+            (mul_diff_pos r (suc q) p)
+            (sym Int (addI (mulI (pos p) (negsuc q)) (mulI (pos p) (pos r))) (diff (mul p r) (mul p (suc q)))
+               (trans Int (addI (intOfSignMag true (mul p (suc q))) (pos (mul p r))) (addI (pos (mul p r)) (intOfSignMag true (mul p (suc q)))) (diff (mul p r) (mul p (suc q)))
+                  (addI_comm (intOfSignMag true (mul p (suc q))) (pos (mul p r)))
+                  (trans Int (addI (pos (mul p r)) (intOfSignMag true (mul p (suc q)))) (diff (add (mul p r) zero) (mul p (suc q))) (diff (mul p r) (mul p (suc q)))
+                     (add_diff_pos zero (mul p (suc q)) (mul p r))
+                     (ap Nat Int (lambda z: diff z (mul p (suc q))) (add (mul p r) zero) (mul p r) (add_n_zero (mul p r))))))
+      | negsuc r =>
+          trans Int (mulI (pos p) (addI (negsuc q) (negsuc r))) (diff zero (add (mul p (suc q)) (mul p (suc r)))) (addI (mulI (pos p) (negsuc q)) (mulI (pos p) (negsuc r)))
+            (ap Nat Int (lambda z: diff zero z) (mul p (suc (add (suc q) r))) (add (mul p (suc q)) (mul p (suc r)))
+               (trans Nat (mul p (suc (add (suc q) r))) (mul p (add (suc q) (suc r))) (add (mul p (suc q)) (mul p (suc r)))
+                  (ap Nat Nat (lambda z: mul p z) (suc (add (suc q) r)) (add (suc q) (suc r)) (sym Nat (add (suc q) (suc r)) (suc (add (suc q) r)) (add_suc (suc q) r)))
+                  (mul_add_distrib_l p (suc q) (suc r))))
+            (sym Int (addI (mulI (pos p) (negsuc q)) (mulI (pos p) (negsuc r))) (diff zero (add (mul p (suc q)) (mul p (suc r))))
+               (diff_add zero (mul p (suc q)) zero (mul p (suc r)))) }
+
+def dstNP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (negsuc p) (addI (pos q) c)) (addI (mulI (negsuc p) (pos q)) (mulI (negsuc p) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (mulI (negsuc p) (addI (pos q) (pos r))) (diff zero (add (mul (suc p) q) (mul (suc p) r))) (addI (mulI (negsuc p) (pos q)) (mulI (negsuc p) (pos r)))
+            (ap Nat Int (lambda z: diff zero z) (mul (suc p) (add q r)) (add (mul (suc p) q) (mul (suc p) r)) (mul_add_distrib_l (suc p) q r))
+            (sym Int (addI (mulI (negsuc p) (pos q)) (mulI (negsuc p) (pos r))) (diff zero (add (mul (suc p) q) (mul (suc p) r)))
+               (diff_add zero (mul (suc p) q) zero (mul (suc p) r)))
+      | negsuc r =>
+          trans Int (mulI (negsuc p) (addI (pos q) (negsuc r))) (diff (mul (suc p) (suc r)) (mul (suc p) q)) (addI (mulI (negsuc p) (pos q)) (mulI (negsuc p) (negsuc r)))
+            (mul_diff_negsuc q (suc r) p)
+            (sym Int (addI (mulI (negsuc p) (pos q)) (mulI (negsuc p) (negsuc r))) (diff (mul (suc p) (suc r)) (mul (suc p) q))
+               (trans Int (addI (intOfSignMag true (mul (suc p) q)) (pos (mul (suc p) (suc r)))) (addI (pos (mul (suc p) (suc r))) (intOfSignMag true (mul (suc p) q))) (diff (mul (suc p) (suc r)) (mul (suc p) q))
+                  (addI_comm (intOfSignMag true (mul (suc p) q)) (pos (mul (suc p) (suc r))))
+                  (trans Int (addI (pos (mul (suc p) (suc r))) (intOfSignMag true (mul (suc p) q))) (diff (add (mul (suc p) (suc r)) zero) (mul (suc p) q)) (diff (mul (suc p) (suc r)) (mul (suc p) q))
+                     (add_diff_pos zero (mul (suc p) q) (mul (suc p) (suc r)))
+                     (ap Nat Int (lambda z: diff z (mul (suc p) q)) (add (mul (suc p) (suc r)) zero) (mul (suc p) (suc r)) (add_n_zero (mul (suc p) (suc r))))))) }
+
+def dstNN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (negsuc p) (addI (negsuc q) c)) (addI (mulI (negsuc p) (negsuc q)) (mulI (negsuc p) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (mulI (negsuc p) (addI (negsuc q) (pos r))) (diff (mul (suc p) (suc q)) (mul (suc p) r)) (addI (mulI (negsuc p) (negsuc q)) (mulI (negsuc p) (pos r)))
+            (mul_diff_negsuc r (suc q) p)
+            (sym Int (addI (mulI (negsuc p) (negsuc q)) (mulI (negsuc p) (pos r))) (diff (mul (suc p) (suc q)) (mul (suc p) r))
+               (trans Int (addI (pos (mul (suc p) (suc q))) (intOfSignMag true (mul (suc p) r))) (diff (add (mul (suc p) (suc q)) zero) (mul (suc p) r)) (diff (mul (suc p) (suc q)) (mul (suc p) r))
+                  (add_diff_pos zero (mul (suc p) r) (mul (suc p) (suc q)))
+                  (ap Nat Int (lambda z: diff z (mul (suc p) r)) (add (mul (suc p) (suc q)) zero) (mul (suc p) (suc q)) (add_n_zero (mul (suc p) (suc q))))))
+      | negsuc r =>
+          ap Nat Int (lambda z: pos z) (mul (suc p) (suc (add (suc q) r))) (add (mul (suc p) (suc q)) (mul (suc p) (suc r)))
+            (trans Nat (mul (suc p) (suc (add (suc q) r))) (mul (suc p) (add (suc q) (suc r))) (add (mul (suc p) (suc q)) (mul (suc p) (suc r)))
+               (ap Nat Nat (lambda z: mul (suc p) z) (suc (add (suc q) r)) (add (suc q) (suc r)) (sym Nat (add (suc q) (suc r)) (suc (add (suc q) r)) (add_suc (suc q) r)))
+               (mul_add_distrib_l (suc p) (suc q) (suc r))) }
+
+def dstP : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI (pos p) (addI b c)) (addI (mulI (pos p) b) (mulI (pos p) c))
+  = lambda p b c: match b { | pos q => dstPP p q c | negsuc q => dstPN p q c }
+def dstN : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI (negsuc p) (addI b c)) (addI (mulI (negsuc p) b) (mulI (negsuc p) c))
+  = lambda p b c: match b { | pos q => dstNP p q c | negsuc q => dstNN p q c }
+
+def mulI_distrib_l : (a : Int) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI a (addI b c)) (addI (mulI a b) (mulI a c))
+  = lambda a b c: match a { | pos p => dstP p b c | negsuc p => dstN p b c }
+
+-- right distributivity is free: commute all three products through mulI_comm.
+def mulI_distrib_r : (a : Int) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI (addI a b) c) (addI (mulI a c) (mulI b c))
+  = lambda a b c:
+      trans Int (mulI (addI a b) c) (mulI c (addI a b)) (addI (mulI a c) (mulI b c))
+        (mulI_comm (addI a b) c)
+        (trans Int (mulI c (addI a b)) (addI (mulI c a) (mulI c b)) (addI (mulI a c) (mulI b c))
+           (mulI_distrib_l c a b)
+           (trans Int (addI (mulI c a) (mulI c b)) (addI (mulI a c) (mulI c b)) (addI (mulI a c) (mulI b c))
+              (ap Int Int (lambda z: addI z (mulI c b)) (mulI c a) (mulI a c) (mulI_comm c a))
+              (ap Int Int (lambda z: addI (mulI a c) z) (mulI c b) (mulI b c) (mulI_comm c b))))
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
@@ -530,15 +640,22 @@ def mul_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
 -- Combined with (ℤ,+) a commutative group, this is EVERYTHING of a commutative
 -- ring EXCEPT distributivity.
 --
--- DONE (distributivity workhorses): mul_diff_pos (m·(n−o) = m·n − m·o) and
--- mul_diff_negsuc (−(m+1)·(n−o) = (m+1)·o − (m+1)·n) — the mul-over-diff family,
--- same double-induction template as add_diff_pos (suc/suc discharged by mul_suc +
--- diff_cancel_l). These are the heavy lifting for distributivity.
+-- DONE (DISTRIBUTIVITY — (ℤ,+,·) IS A COMMUTATIVE RING, proven, no axioms):
+-- mulI_distrib_l (a·(b+c) = a·b + a·c) and mulI_distrib_r (free, via mulI_comm).
+-- Route B: the load-bearing bridge diff_add (addI is diff-additive:
+-- (a−b)+(c−d) = (a+c)−(b+d)) + the mul-over-diff workhorses (mul_diff_pos/negsuc)
+-- + mul_add_distrib_l on Nat. The 8 leaves convert both sides to `diff` and glue;
+-- same-sign (b,c) use Nat distributivity, mixed-sign use the workhorses. The
+-- Bool-elim gap is never faced (integer/magnitude splits keep everything literal),
+-- and diff 0 Y ≡ intOfSignMag true Y definitionally links the negative products.
+--
+-- So the FULL commutative-ring axioms on ℤ hold: (ℤ,+) a commutative group,
+-- (ℤ,·) a commutative monoid with absorbing zero, and · distributes over +.
 --
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • DISTRIBUTIVITY assembly (mulI over addI) — the last ring axiom: an 8-sign-case
---    glue over addI's diff outputs, composed with mul_diff_pos/mul_diff_negsuc.
---    With it, (ℤ,+,·) is a COMMUTATIVE RING; the ℚ field laws and the
---    proof-carrying constructive-real tier (ADR-017) follow.
+--  • the FIELD LAWS of ℚ (addR/mulR assoc, comm, distrib on Reduced — up to a
+--    setoid, since Reduced ops aren't structurally congruent). These now follow
+--    from the ring axioms above; assembling them unblocks the proof-carrying
+--    constructive-real tier (ADR-017).
 --  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
 -- ============================================================================
