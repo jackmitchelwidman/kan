@@ -206,6 +206,81 @@ def add_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
                           (ap Nat Int (lambda z: diff (suc j) z) (add (suc m) (suc k)) (suc (add (suc m) k))
                              (add_suc (suc m) k))) }) }
 
+-- ---- ASSOCIATIVITY of + : the 8 sign-cases, dispatched through a helper tree
+-- (each match refines its scrutinee via the def's own annotation; the mixed cases
+-- flip a stuck `addI (diff …) _` with addI_comm, then use the workhorses).
+
+def assocPP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (addI (addI (pos p) (pos q)) c) (addI (pos p) (addI (pos q) c))
+  = lambda p q c: match c {
+      | pos r    => ap Nat Int (lambda z: pos z) (add (add p q) r) (add p (add q r)) (add_assoc p q r)
+      | negsuc r => sym Int (addI (pos p) (diff q (suc r))) (diff (add p q) (suc r)) (add_diff_pos q (suc r) p) }
+
+def assocPN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (addI (addI (pos p) (negsuc q)) c) (addI (pos p) (addI (negsuc q) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (addI (diff p (suc q)) (pos r)) (addI (pos r) (diff p (suc q))) (addI (pos p) (diff r (suc q)))
+            (addI_comm (diff p (suc q)) (pos r))
+            (trans Int (addI (pos r) (diff p (suc q))) (diff (add r p) (suc q)) (addI (pos p) (diff r (suc q)))
+               (add_diff_pos p (suc q) r)
+               (trans Int (diff (add r p) (suc q)) (diff (add p r) (suc q)) (addI (pos p) (diff r (suc q)))
+                  (ap Nat Int (lambda z: diff z (suc q)) (add r p) (add p r) (add_comm r p))
+                  (sym Int (addI (pos p) (diff r (suc q))) (diff (add p r) (suc q)) (add_diff_pos r (suc q) p))))
+      | negsuc r =>
+          trans Int (addI (diff p (suc q)) (negsuc r)) (addI (negsuc r) (diff p (suc q))) (diff p (suc (add (suc q) r)))
+            (addI_comm (diff p (suc q)) (negsuc r))
+            (trans Int (addI (negsuc r) (diff p (suc q))) (diff p (add (suc r) (suc q))) (diff p (suc (add (suc q) r)))
+               (add_diff_negsuc p (suc q) r)
+               (ap Nat Int (lambda z: diff p z) (add (suc r) (suc q)) (suc (add (suc q) r))
+                  (ap Nat Nat (lambda z: suc z) (add r (suc q)) (suc (add q r))
+                     (trans Nat (add r (suc q)) (suc (add r q)) (suc (add q r))
+                        (add_suc r q)
+                        (ap Nat Nat (lambda z: suc z) (add r q) (add q r) (add_comm r q)))))) }
+
+def assocNP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (addI (addI (negsuc p) (pos q)) c) (addI (negsuc p) (addI (pos q) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (addI (diff q (suc p)) (pos r)) (addI (pos r) (diff q (suc p))) (diff (add q r) (suc p))
+            (addI_comm (diff q (suc p)) (pos r))
+            (trans Int (addI (pos r) (diff q (suc p))) (diff (add r q) (suc p)) (diff (add q r) (suc p))
+               (add_diff_pos q (suc p) r)
+               (ap Nat Int (lambda z: diff z (suc p)) (add r q) (add q r) (add_comm r q)))
+      | negsuc r =>
+          trans Int (addI (diff q (suc p)) (negsuc r)) (addI (negsuc r) (diff q (suc p))) (addI (negsuc p) (diff q (suc r)))
+            (addI_comm (diff q (suc p)) (negsuc r))
+            (trans Int (addI (negsuc r) (diff q (suc p))) (diff q (add (suc r) (suc p))) (addI (negsuc p) (diff q (suc r)))
+               (add_diff_negsuc q (suc p) r)
+               (trans Int (diff q (add (suc r) (suc p))) (diff q (add (suc p) (suc r))) (addI (negsuc p) (diff q (suc r)))
+                  (ap Nat Int (lambda z: diff q z) (add (suc r) (suc p)) (add (suc p) (suc r)) (add_comm (suc r) (suc p)))
+                  (sym Int (addI (negsuc p) (diff q (suc r))) (diff q (add (suc p) (suc r))) (add_diff_negsuc q (suc r) p)))) }
+
+def assocNN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (addI (addI (negsuc p) (negsuc q)) c) (addI (negsuc p) (addI (negsuc q) c))
+  = lambda p q c: match c {
+      | pos r =>
+          trans Int (diff r (suc (add (suc p) q))) (diff r (add (suc p) (suc q))) (addI (negsuc p) (diff r (suc q)))
+            (ap Nat Int (lambda z: diff r z) (suc (add (suc p) q)) (add (suc p) (suc q))
+               (sym Nat (add (suc p) (suc q)) (suc (add (suc p) q)) (add_suc (suc p) q)))
+            (sym Int (addI (negsuc p) (diff r (suc q))) (diff r (add (suc p) (suc q))) (add_diff_negsuc r (suc q) p))
+      | negsuc r =>
+          ap Nat Int (lambda z: negsuc z) (add (suc (add (suc p) q)) r) (add (suc p) (add (suc q) r))
+            (ap Nat Nat (lambda z: suc z) (add (add (suc p) q) r) (add p (add (suc q) r))
+               (trans Nat (add (add (suc p) q) r) (add (suc p) (add q r)) (add p (add (suc q) r))
+                  (add_assoc (suc p) q r)
+                  (sym Nat (add p (add (suc q) r)) (add (suc p) (add q r)) (add_suc p (add q r))))) }
+
+def assocP : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (addI (addI (pos p) b) c) (addI (pos p) (addI b c))
+  = lambda p b c: match b { | pos q => assocPP p q c | negsuc q => assocPN p q c }
+def assocN : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (addI (addI (negsuc p) b) c) (addI (negsuc p) (addI b c))
+  = lambda p b c: match b { | pos q => assocNP p q c | negsuc q => assocNN p q c }
+
+def addI_assoc : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (addI (addI a b) c) (addI a (addI b c))
+  = lambda a b c: match a { | pos p => assocP p b c | negsuc p => assocN p b c }
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
@@ -266,9 +341,19 @@ def add_diff_negsuc : (n : Nat) -> (o : Nat) -> (m : Nat)
 -- rational arithmetic, divide-by-zero impossible by construction, lowest terms
 -- proven."
 --
+-- DONE (ring axioms, additive group): (ℤ, +) is a COMMUTATIVE GROUP, proven, no
+-- axioms — addI_comm + addI_zero (above) + addI_assoc + addI_negI (i + −i = 0).
+-- The additive theory uses the diff-homomorphism toolkit (diff_n_n, diff_m_0,
+-- diff_cancel_l, add_diff_pos, add_diff_negsuc), all by double induction with NO
+-- sign analysis (diff (suc j)(suc k) ≡ diff j k makes each suc/suc case the IH).
+-- addI_negI is exactly the additive-inverse law the constructive-real proof tier
+-- (ADR-017) was blocked on.
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • remaining ring axioms on Int itself: addI/mulI assoc, mul-by-zero/one,
---    distributivity (Reduced arithmetic already works; these would let us prove
---    the FIELD LAWS of ℚ — e.g. addR/mulR assoc & distrib — as theorems).
+--  • the MULTIPLICATIVE ring axioms: mulI assoc, mul-by-zero/one, and
+--    distributivity (mulI over addI — needs a mul-over-diff family). With these,
+--    (ℤ,+,·) is a commutative ring, and the FIELD LAWS of ℚ (addR/mulR assoc &
+--    distrib on Reduced, up to a setoid) follow — which also unblocks the
+--    proof-carrying constructive-real tier (ADR-017).
 --  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
 -- ============================================================================
