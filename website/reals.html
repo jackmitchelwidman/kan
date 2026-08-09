@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exact reals, in Kan</title>
+<meta name="description" content="In Kan a real number is a process that computes rational approximations to any precision you ask for — √2, π, e, exact on demand, with no floats, no rounding, and no way to divide by zero.">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+      --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#fbfbfd; --fg:#1a1a22; --muted:#5b5b6b; --line:#e6e6ee;
+    --accent:#5b4be6; --accent-2:#8b7bff; --card:#ffffff; --code-bg:#f4f4fa;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d0d12; --fg:#ececf4; --muted:#a2a2b6; --line:#23232e;
+    --accent:#9b8cff; --accent-2:#6d5efc; --card:#141420; --code-bg:#12121c;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:0 22px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,pre,.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
+
+  header.hero{padding:40px 0 34px; border-bottom:1px solid var(--line)}
+  .back{font-size:14px; color:var(--muted)}
+  .eyebrow{letter-spacing:.16em; text-transform:uppercase; font-size:12px; color:var(--accent); font-weight:700}
+  h1{font-size:clamp(30px,5vw,46px); line-height:1.06; margin:.24em 0 .18em; letter-spacing:-.02em}
+  .sub{font-size:clamp(17px,2.2vw,20px); color:var(--muted); margin:0}
+  blockquote.thesis{
+    margin:26px 0 6px; padding:18px 22px; border-left:3px solid var(--accent);
+    background:var(--card); border-radius:0 10px 10px 0; font-size:18px; color:var(--fg);
+  }
+  blockquote.thesis .who{display:block; margin-top:8px; font-size:14px; color:var(--muted)}
+  .cta{margin-top:26px; display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 18px; border-radius:9px; font-weight:600; font-size:15px;
+    background:var(--accent); color:#fff; border:1px solid transparent;
+  }
+  .btn:hover{text-decoration:none; filter:brightness(1.06)}
+  .btn.ghost{background:transparent; color:var(--fg); border-color:var(--line)}
+
+  section{padding:40px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin:0 0 16px; font-weight:700}
+  h2 .n{color:var(--accent); margin-right:8px}
+  h3{font-size:19px; margin:0 0 6px; letter-spacing:-.01em}
+  p{margin:0 0 16px}
+  .lead{font-size:18px}
+
+  pre{
+    background:var(--code-bg); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; overflow-x:auto; font-size:13.5px; line-height:1.6; margin:0 0 14px;
+  }
+  pre .c{color:var(--muted)}
+  pre .k{color:var(--accent); font-weight:600}
+  .out{color:var(--muted); font-size:13.5px; margin:-4px 0 14px}
+  .pill{display:inline-block; font-size:12px; font-weight:700; letter-spacing:.04em;
+        color:var(--accent); border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card)}
+
+  footer{padding:40px 0 70px; color:var(--muted); font-size:14px}
+  footer a{color:var(--muted); text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="back"><a href="/">← Kan</a></p>
+    <p class="eyebrow">Numbers, all the way out</p>
+    <h1>Real numbers, computed to any precision.</h1>
+    <p class="sub">A real number in Kan is a <strong>process</strong>, not a bit pattern: ask for more digits and
+    it computes them — exactly. No floats, no rounding, no <code>NaN</code>, and no way to divide by zero.</p>
+    <blockquote class="thesis">√2, π, e are not stored — they are <em>run</em>. Request precision ε and Kan hands
+      back a rational within ε. There is no last digit; there is only the next one.</blockquote>
+    <div class="cta">
+      <a class="btn" href="https://github.com/jackmitchelwidman/kan/blob/main/std/creal.kan">std/creal.kan</a>
+      <a class="btn ghost" href="https://github.com/jackmitchelwidman/kan/blob/main/examples/creal.kan">the worked examples</a>
+    </div>
+  </header>
+
+  <section>
+    <h2>A real is a process</h2>
+    <p class="lead">Kan already has exact <a href="rationals.html">rationals</a>. A constructive real goes one
+    step further: it is a function from a precision level to a rational approximation, guaranteed to converge.</p>
+<pre><span class="c">-- std/creal.kan — `x n` is a rational within 1/2ⁿ of the true value x</span>
+<span class="k">def</span> CReal : U = Nat -> Rational</pre>
+    <p>Every irrational you can name is one of these — √2, π, e, and anything you can write as a convergent
+    process. Arithmetic <em>propagates precision</em>: to get a sum to within 1/2ⁿ, Kan asks each summand for
+    1/2ⁿ⁺¹; multiplication bounds the operands and asks for as much as it needs. Nothing ever rounds — if a
+    result looks off, you just ask for more digits.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">=</span> √2, π, e — to as many places as you ask</h2>
+    <p>Read a real off with <code>scaledFloor x d = ⌊x·10ᵈ⌋</code> — the first <code>d</code> decimal digits.
+    These are real outputs, and <code>kan run</code>, the OCaml backend, and the C backend all agree on them:</p>
+<pre><span class="c">$ kan run examples/creal.kan</span>
+14142135623      <span class="c">-- √2  = 1.4142135623…</span>
+31415926535      <span class="c">-- π   = 3.1415926535…   (Machin's formula)</span>
+27182818284      <span class="c">-- e   = 2.7182818284…   (Σ 1/k!)</span>
+2000000          <span class="c">-- √2 · √2  =  2   (exactly, up to the ε you stop at)</span>
+7071067811       <span class="c">-- 1/√2 = 0.7071067811…</span></pre>
+    <p class="out">Ask for 10 digits and you get 10; ask for 100 and Kan computes 100. The number is the program.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">✕</span> You still cannot divide by zero</h2>
+    <p>Dividing reals is where floating point invents <code>inf</code> and <code>NaN</code>. Kan instead
+    <em>requires evidence</em> that the divisor is bounded away from zero — an <b>apartness</b> witness — before
+    it will divide. No witness, no division; it is a type-level obligation, the same idea that makes the
+    rationals’ denominators nonzero, lifted to reals.</p>
+<pre><span class="k">def</span> recipC : CReal -> Apart0 -> CReal          <span class="c">-- 1/x needs |x| bounded off 0</span>
+<span class="k">def</span> divC   : CReal -> CReal -> Apart0 -> CReal   <span class="c">-- x / y, evidence-gated</span></pre>
+    <p class="out">Honest limits, inherent to constructive reals (not to Kan): equality is undecidable — there is
+    deliberately no <code>x == y</code> on reals; the positive notion is apartness. Order is decidable only up to
+    a chosen tolerance. And only <em>computable</em> reals are representable — which is every real you can name.</p>
+  </section>
+
+  <section>
+    <h2>Check it yourself</h2>
+    <p>Every number above is real code from the repository, computed and cross-checked by three backends.</p>
+<pre><span class="c">$ kan run examples/creal.kan     # √2, π, e, and arithmetic — to ten places</span></pre>
+    <p><span class="pill">exact · computed to any precision · divide-by-zero is a type error</span></p>
+  </section>
+
+  <footer>
+    <a href="/">kan-lang.org</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/std/creal.kan">std/creal.kan</a>
+    &nbsp;·&nbsp; <a href="rationals.html">exact rationals</a>
+    &nbsp;·&nbsp; <a href="https://github.com/jackmitchelwidman/kan/blob/main/DECISIONS.md">design notes (ADR-017)</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -96,6 +96,7 @@
     <img class="brand" src="kan-logo.png" alt="Kan — Categorical Programming Language">
     <h1>A language of<br>universal extension.</h1>
     <p class="byline" style="margin:.35em 0 .2em; font-size:16px; color:var(--muted)">Created by <a href="https://sheaf.one/about.html#leadership"><strong>Jack Widman, PhD</strong></a></p>
+    <p style="margin:.2em 0 .1em"><span class="pill">Kan v0.4.0</span> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 12:29 IDT</span></p>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
@@ -211,10 +212,12 @@
 eval fac 50</pre>
 <pre><span class="c">$ kan run integer.kan</span>
 30414093201713378043612608166064768844377641568960512000000000000</pre>
-    <p style="margin-top:18px"><a class="btn" href="rationals.html">Exact rationals — divide-by-zero is a type error →</a></p>
+    <p style="margin-top:18px"><a class="btn" href="rationals.html">Exact rationals — divide-by-zero is a type error →</a>
+       &nbsp; <a class="btn ghost" href="reals.html">Exact reals →</a></p>
     <p class="out">And a step further: a rational whose <code>den &gt; 0</code> and lowest-terms invariants are
     <em>proof fields</em> the checker verifies — so ÷0 can’t be written, and every value is provably
-    reduced. Built on a verified <code>gcd</code>.</p>
+    reduced. Built on a verified <code>gcd</code>. Beyond the rationals, <a href="reals.html">constructive
+    reals</a> compute √2, π, e to any precision — exact on demand, still no divide-by-zero.</p>
   </section>
 
   <section>
