@@ -77,12 +77,27 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.8.1 ===================== -->
+  <section id="v0.8.1" class="current">
+    <div class="vhead">
+      <h2>v0.8.1</h2>
+      <span class="date">2026-08-09 · 19:47 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle"><code>open M</code>.</p>
+    <ul>
+      <li><b><code>open M</code></b> — after <code>import "x" as M</code>, an <code>open M</code> brings
+        that module's names into scope unqualified, so you can write <code>code</code> instead of
+        <code>Paint::code</code> while <code>M::name</code> keeps working. Opening an alias that
+        wasn't imported is a clear error.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.8.0 ===================== -->
-  <section id="v0.8.0" class="current">
+  <section id="v0.8.0">
     <div class="vhead">
       <h2>v0.8.0</h2>
       <span class="date">2026-08-09 · 19:03 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle">A real module system.</p>
     <ul>

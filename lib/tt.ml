@@ -95,7 +95,7 @@ let tokenize (s : string) : tok array =
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
                       "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
-let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda"; "private" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda"; "private"; "open" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -107,6 +107,7 @@ type decl =
   | Eval of tm
   | Data_decl of string * (string * tm) list * (string * arg_ty list) list  (* name, params, [ctor, arg types] *)
   | Import of string
+  | Open of string   (* `open M`: bring an already-aliased module's names in unqualified *)
 
 (* how an unqualified import filters which of a module's names enter bare scope:
    `import "x"` = FAll, `... exposing (a,b)` = FOnly, `... hiding (a,b)` = FExcept *)
@@ -565,6 +566,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
         Def (qual name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
+    | ID "open" -> adv (); (match peek () with ID m -> adv (); Open m | _ -> fail "expected a module alias after `open`")
     | ID "import" ->
         adv ();
         (match peek () with
@@ -686,7 +688,7 @@ let check_unique (decls : decl list) : unit =
     (function
       | Def (n, _, _) -> claim "def" n
       | Data_decl (n, _, cs) -> claim "data type" n; List.iter (fun (c, _) -> claim "constructor" c) cs
-      | Check _ | Eval _ | Import _ -> ())
+      | Check _ | Eval _ | Import _ | Open _ -> ())
     decls
 
 (* -------- driver: elaborate, check, report -------- *)
@@ -725,7 +727,7 @@ let run_decls (decls : decl list) : unit =
           in
           declare_data name params specs;
           Printf.printf "data %s = %s\n" name (String.concat " | " (List.map fst ctors_info))
-      | Import _ -> ())   (* imports are expanded before we get here *)
+      | Import _ | Open _ -> ())   (* imports/opens are resolved before we get here *)
     decls
 
 let run (src : string) : unit = run_decls (parse (tokenize src))

@@ -351,7 +351,7 @@ let compile (decls : Tt.decl list) : string =
           ignore (infer !ctx tm);
           Buffer.add_string main_body (Printf.sprintf "  print_value(%s); printf(\"\\n\");\n" (cexpr 0 "0" (erase tm)))
       | Tt.Check tm -> ignore (infer !ctx tm)
-      | Tt.Import _ -> ())
+      | Tt.Import _ | Tt.Open _ -> ())
     decls;
   (* registry *)
   let case_int pairs = String.concat "" (List.map (fun (k, v) -> Printf.sprintf "  if (!strcmp(x, %s)) return %d;\n" (quote k) v) pairs) in

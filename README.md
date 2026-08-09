@@ -2,7 +2,7 @@
 
 ## A Language of Universal Extension
 
-### Design Document — Version 0.8.0 (2026-08-09 19:03 IDT)
+### Design Document — Version 0.8.1 (2026-08-09 19:47 IDT)
 
 *Version is bumped on any change to Kan's public interface; the canonical value lives in [`VERSION`](VERSION).*
 

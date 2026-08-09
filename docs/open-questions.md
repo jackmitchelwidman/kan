@@ -116,8 +116,8 @@ feature, so this is a milestone, not a patch.
      `hiding (…)` filters on unqualified imports.
   Earlier v0.7.0 caveats are resolved: a file is loaded once (keyed by canonical
   path), so `import`/`as M` of the same file is one module, not two copies.
-  **Still open** (a further axis, not required for namespacing): `open M` for an
-  already-aliased module; and *first-class / parameterized modules* (ML functors,
-  i.e. modules as dependent-record values you can pass and instantiate).
-  One known limitation: `exposing`/`hiding` apply only to UNqualified imports; on
-  an `import "x" as M` they are accepted but ignored (all of `M::…` stays reachable).
+  `open M` (v0.8.1) brings an already-aliased module's names into unqualified scope.
+  **Still open** (a further axis, not required for namespacing): *first-class /
+  parameterized modules* (ML functors — modules as dependent-record values you can
+  pass and instantiate). One known limitation: `exposing`/`hiding` apply only to
+  UNqualified imports; on an `import "x" as M` they are accepted but ignored.

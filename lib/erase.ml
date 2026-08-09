@@ -194,5 +194,5 @@ let run (decls : Tt.decl list) : unit =
           declare_data name params specs
       | Tt.Def (_, _, body) -> genv := ieval !genv (erase body) :: !genv
       | Tt.Eval body -> Printf.printf "%s\n" (ishow (ieval !genv (erase body)))
-      | Tt.Check _ | Tt.Import _ -> ())
+      | Tt.Check _ | Tt.Import _ | Tt.Open _ -> ())
     decls

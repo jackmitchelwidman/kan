@@ -16,6 +16,7 @@
 import "ns/paint.kan" as Paint
 import "ns/mood.kan"  as Mood
 import "../std/nat.kan" exposing (add)     -- only `add` enters scope, unqualified
+open Paint                                 -- drop the prefix for paint's names
 
 eval Paint::code Paint::blue                           -- 2
 eval Mood::code  Mood::tense                           -- 20
@@ -23,6 +24,7 @@ eval Paint::code (Paint::mix Paint::red Paint::white)  -- 3   (mix red white = w
 eval Paint::mix Paint::red Paint::white                -- white   (constructor value: short name, no tag)
 eval Paint::primary Paint::red                         -- true    (uses paint's PRIVATE isPrimary internally)
 eval add 40 2                                          -- 42      (from `exposing (add)`)
+eval code red                                          -- 1       (bare, from `open Paint`)
 
 -- Not allowed, on purpose (uncomment to see the errors):
 --   eval Paint::isPrimary Paint::red   -- isPrimary is private to module paint

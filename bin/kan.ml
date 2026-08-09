@@ -62,6 +62,17 @@ let scan_imports toks =
   in
   go 0 []
 
+(* the `open M` statements of a file: aliases whose names are brought in unqualified *)
+let scan_opens toks =
+  let n = Array.length toks in
+  let rec go i acc =
+    if i + 1 >= n then List.rev acc
+    else match toks.(i), toks.(i + 1) with
+      | Tt.ID "open", Tt.ID m -> go (i + 2) (m :: acc)
+      | _ -> go (i + 1) acc
+  in
+  go 0 []
+
 (* load a program: recursively splice in imports (relative to each importing file's
    directory, each file included at most once), parsing imports BEFORE their importer
    so the shared parser tables see earlier files' datatypes. *)
@@ -107,12 +118,21 @@ let load_program entry : Tt.decl list =
           imports
       in
       (* an UNQUALIFIED import (no alias) opens its names bare, subject to its filter *)
-      let opened =
+      let opened_imports =
         List.filter_map
           (fun (p, alias, f) -> match alias with None -> Some (tag_of (Filename.concat dir p), f) | Some _ -> None)
           imports
       in
-      let own = Tt.parse ~ns0:ns1 ~self ~opened ~aliases toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
+      (* `open M` also opens an already-aliased module's names, unfiltered *)
+      let opened_opens =
+        List.map
+          (fun m -> match List.assoc_opt m aliases with
+             | Some tag -> (tag, Tt.FAll)
+             | None -> failwith (Printf.sprintf "open: '%s' is not a module aliased in this file (use `import \"…\" as %s` first)" m m))
+          (scan_opens toks)
+      in
+      let opened = opened_imports @ opened_opens in
+      let own = Tt.parse ~ns0:ns1 ~self ~opened ~aliases toks |> List.filter (function Tt.Import _ | Tt.Open _ -> false | _ -> true) in
       let ns2 = List.fold_left (fun a d -> match d with Tt.Def (n, _, _) -> n :: a | _ -> a) ns1 own in
       (idecls @ own, ns2)
     end

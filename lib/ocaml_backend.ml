@@ -166,6 +166,6 @@ let compile (decls : Tt.decl list) : string =
           ignore (infer !ctx tm);
           Buffer.add_string body (Printf.sprintf "let () = print_endline (ishow %s)\n" (cexpr !globals [] (erase tm)))
       | Tt.Check tm -> ignore (infer !ctx tm)
-      | Tt.Import _ -> ())
+      | Tt.Import _ | Tt.Open _ -> ())
     decls;
   bignum_module ^ prelude1 ^ "\n" ^ registry !elims !ctors ^ "\n" ^ prelude2 ^ "\n" ^ Buffer.contents body
