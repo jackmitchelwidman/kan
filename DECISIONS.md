@@ -540,6 +540,38 @@ decidable up to a tolerance, and only computable reals are representable.
 
 ---
 
+## ADR-018 — the integer ring axioms (`std/int.kan`), no axioms
+
+**Result.** The inductive integers `Int` (`pos`/`negsuc`) satisfy the full
+commutative-ring axioms as checked theorems, axiom-free:
+- `(ℤ, +)` a commutative group: `addI_comm`, `addI_zero`, `addI_assoc`, `addI_negI`;
+- `(ℤ, ·)` a commutative monoid with absorbing zero: `mulI_comm`, `mulI_one_l/r`,
+  `mulI_zero_l/r`, `mulI_assoc`;
+- distributivity: `mulI_distrib_l`, `mulI_distrib_r`.
+
+**Technique (the whole session went first-pass).** A *diff-homomorphism* toolkit:
+`diff n o` is `n − o` as an `Int`, and `diff (suc j)(suc k) ≡ diff j k`
+definitionally, so every lemma is a double induction whose successor/successor
+case IS the induction hypothesis — no sign analysis, no comparison, no `sub`. The
+additive spine is `diff_n_n`/`diff_m_0`/`diff_cancel_l`/`add_diff_pos`/
+`add_diff_negsuc`; the bridge is `diff_add` ("addI is diff-additive"); the
+multiplicative side reuses the shape (`mul_diff_pos`/`mul_diff_negsuc`), and
+distributivity is Route B (convert to `diff`, glue with `diff_add` + the
+workhorses + Nat `mul_add_distrib_l`). Two gap-avoidances are load-bearing: the
+**Bool-elim gap** (Bool `match` → non-dependent `If`) is never faced because
+casing the *integers* makes `isNeg`/`xor` literal and casing *magnitudes* makes
+`intOfSignMag true` a constructor; and `diff 0 Y ≡ intOfSignMag true Y`
+definitionally links negative products. `mulI_assoc` needed magnitude splits at
+`pos 0` (products collapse — 16 leaves); associativity/distributivity are
+8-sign-case helper trees (never one mega-match — nested motives fight).
+
+**Unblocks.** The ℚ field laws (`addR`/`mulR` assoc/comm/distrib on `Reduced`, up
+to a setoid since Reduced ops aren't structurally congruent without proof
+irrelevance) now follow from these; and those in turn unblock the proof-carrying
+constructive-real tier (ADR-017). No axioms anywhere.
+
+---
+
 ## Phase plan (tracks README §13)
 
 1. **Pin the core.** Formal spec of cells/faces/`fill`; prove composition,
