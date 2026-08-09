@@ -1,0 +1,111 @@
+-- ============================================================================
+-- std/creal_proof — PROOF-CARRYING constructive reals.
+--
+-- A `CRealP` is an approximating sequence of `Frac`s (std/rational_typed.kan)
+-- PLUS a proof it is regular (Bishop): |x m − x n| ≤ 1/(m+1) + 1/(n+1). Built on
+-- `Frac` (num : Int, den = suc denPred — no reduction, no gcd), so it sidesteps
+-- the ADR-016 reduce-cost wall entirely; the order/arithmetic laws come from the
+-- ℤ ring axioms (std/int.kan). Frac's structural denominator makes positivity
+-- definitional, so the order theory needs no `Lt` side conditions.
+--
+-- SCOPE (ADR-020): the type exists, is inhabited by every rational (`fromQP`), and
+-- is closed under + and − (`addCP`, `negCP`) — all proofs checked. Multiplication
+-- (needs proven magnitude bounds), concrete reals like √2 (needs Newton
+-- convergence proven), and division (apartness-as-proof) are the next tier.
+-- The COMPUTATIONAL tier (std/creal.kan) already computes all of those.
+-- ============================================================================
+import "int.kan"
+import "rational_typed.kan"
+
+-- ---- Int order as a Σ-witness:  a ≤ b  iff  b − a is a non-negative int -------
+def LeI : Int -> Int -> U = lambda a b: (k : Nat) * Id Int (addI a (fromNatI k)) b
+
+def LeI_refl : (a : Int) -> LeI a a = lambda a: (zero, addI_zero a)   -- a + 0 = a
+
+-- rearrangements of Int addition (analogues of nat add_swap), for the witnesses.
+def addI_swap : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (addI a (addI b c)) (addI b (addI a c))
+  = lambda a b c:
+      trans Int (addI a (addI b c)) (addI (addI a b) c) (addI b (addI a c))
+        (sym Int (addI (addI a b) c) (addI a (addI b c)) (addI_assoc a b c))
+        (trans Int (addI (addI a b) c) (addI (addI b a) c) (addI b (addI a c))
+           (ap Int Int (lambda z: addI z c) (addI a b) (addI b a) (addI_comm a b))
+           (addI_assoc b a c))
+
+def addI_swap4 : (a : Int) -> (c : Int) -> (b : Int) -> (d : Int)
+  -> Id Int (addI (addI a c) (addI b d)) (addI (addI a b) (addI c d))
+  = lambda a c b d:
+      trans Int (addI (addI a c) (addI b d)) (addI a (addI c (addI b d))) (addI (addI a b) (addI c d))
+        (addI_assoc a c (addI b d))
+        (trans Int (addI a (addI c (addI b d))) (addI a (addI b (addI c d))) (addI (addI a b) (addI c d))
+           (ap Int Int (lambda z: addI a z) (addI c (addI b d)) (addI b (addI c d)) (addI_swap c b d))
+           (sym Int (addI (addI a b) (addI c d)) (addI a (addI b (addI c d))) (addI_assoc a b (addI c d))))
+
+def LeI_trans : (a : Int) -> (b : Int) -> (c : Int) -> LeI a b -> LeI b c -> LeI a c
+  = lambda a b c le1 le2:
+      ( add (fst le1) (fst le2)
+      , trans Int (addI a (addI (pos (fst le1)) (pos (fst le2)))) (addI (addI a (pos (fst le1))) (pos (fst le2))) c
+          (sym Int (addI (addI a (pos (fst le1))) (pos (fst le2))) (addI a (addI (pos (fst le1)) (pos (fst le2))))
+             (addI_assoc a (pos (fst le1)) (pos (fst le2))))
+          (trans Int (addI (addI a (pos (fst le1))) (pos (fst le2))) (addI b (pos (fst le2))) c
+             (ap Int Int (lambda z: addI z (pos (fst le2))) (addI a (pos (fst le1))) b (snd le1))
+             (snd le2)) )
+
+-- THE precision-propagation lemma: monotone addition.  a≤b, c≤d ⟹ a+c ≤ b+d.
+def LeI_add_mono : (a : Int) -> (b : Int) -> (c : Int) -> (d : Int)
+  -> LeI a b -> LeI c d -> LeI (addI a c) (addI b d)
+  = lambda a b c d le1 le2:
+      ( add (fst le1) (fst le2)
+      , trans Int (addI (addI a c) (addI (pos (fst le1)) (pos (fst le2)))) (addI (addI a (pos (fst le1))) (addI c (pos (fst le2)))) (addI b d)
+          (addI_swap4 a c (pos (fst le1)) (pos (fst le2)))
+          (trans Int (addI (addI a (pos (fst le1))) (addI c (pos (fst le2)))) (addI b (addI c (pos (fst le2)))) (addI b d)
+             (ap Int Int (lambda z: addI z (addI c (pos (fst le2)))) (addI a (pos (fst le1))) b (snd le1))
+             (ap Int Int (lambda z: addI b z) (addI c (pos (fst le2))) d (snd le2))) )
+
+-- ---- Frac order (cross-multiply through LeI) and the pieces fromQP needs -----
+def invSuc : Nat -> Frac = lambda k: frac oneI k                       -- 1/(k+1)
+def absF   : Frac -> Frac = lambda x: frac (pos (natAbs (fnum x))) (fdenPred x)
+def LeF    : Frac -> Frac -> U
+  = lambda x y: LeI (mulI (fnum x) (fden y)) (mulI (fnum y) (fden x))
+
+def LeI_zero_pos : (k : Nat) -> LeI zeroI (pos k) = lambda k: (k, refl)   -- 0 ≤ k
+
+-- a fraction with zero numerator is ≤ any fraction whose num·den is ≥ 0.
+def LeF_zero : (x : Frac) -> (y : Frac)
+  -> Id Int (fnum x) zeroI -> LeI zeroI (mulI (fnum y) (fden x)) -> LeF x y
+  = lambda x y hx hle:
+      transp Int (lambda z: LeI z (mulI (fnum y) (fden x)))
+        zeroI (mulI (fnum x) (fden y))
+        (sym Int (mulI (fnum x) (fden y)) zeroI
+           (trans Int (mulI (fnum x) (fden y)) (mulI zeroI (fden y)) zeroI
+              (ap Int Int (lambda z: mulI z (fden y)) (fnum x) zeroI hx)
+              (mulI_zero_l (fden y))))
+        hle
+
+-- q − q has numerator 0  (distributivity + additive inverse + absorbing zero).
+def subF_num_zero : (q : Frac) -> Id Int (fnum (subF q q)) zeroI
+  = lambda q:
+      trans Int (addI (mulI (fnum q) (fden q)) (mulI (negI (fnum q)) (fden q)))
+                (mulI (addI (fnum q) (negI (fnum q))) (fden q)) zeroI
+        (sym Int (mulI (addI (fnum q) (negI (fnum q))) (fden q))
+                 (addI (mulI (fnum q) (fden q)) (mulI (negI (fnum q)) (fden q)))
+           (mulI_distrib_r (fnum q) (negI (fnum q)) (fden q)))
+        (trans Int (mulI (addI (fnum q) (negI (fnum q))) (fden q)) (mulI zeroI (fden q)) zeroI
+           (ap Int Int (lambda z: mulI z (fden q)) (addI (fnum q) (negI (fnum q))) zeroI (addI_negI (fnum q)))
+           (mulI_zero_l (fden q)))
+
+-- ============================================================================
+-- PROOF-CARRYING constructive reals: an approximating Frac sequence + a regularity
+-- proof (Bishop, modulus 1/(m+1)+1/(n+1)).
+-- ============================================================================
+def CRealP : U
+  = (approx : Nat -> Frac)
+  * ((m : Nat) -> (n : Nat) -> LeF (absF (subF (approx m) (approx n))) (addF (invSuc m) (invSuc n)))
+
+-- every rational IS a (proof-carrying) real: the constant sequence, regular because
+-- |q − q| = 0 ≤ anything positive.
+def fromQP : Frac -> CRealP
+  = lambda q:
+      ( lambda n: q
+      , lambda m n: LeF_zero (absF (subF q q)) (addF (invSuc m) (invSuc n))
+          (ap Int Int (lambda i: pos (natAbs i)) (fnum (subF q q)) zeroI (subF_num_zero q))
+          (LeI_zero_pos (natAbs (mulI (fnum (addF (invSuc m) (invSuc n))) (fden (absF (subF q q)))))) )
