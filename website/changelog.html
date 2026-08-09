@@ -77,12 +77,32 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.9.2 ===================== -->
+  <section id="v0.9.2" class="current">
+    <div class="vhead">
+      <h2>v0.9.2</h2>
+      <span class="date">2026-08-09 · 21:46 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle">"Recursion is a Kan extension" — proven in Kan.</p>
+    <ul>
+      <li><b>The philosophy as a checked theorem.</b> In <code>examples/universal.kan</code>: a
+        ℕ-algebra is the data of a fold; <code>fold</code> is the canonical extension (existence);
+        <code>fold_unique</code> proves — by induction, not <code>refl</code> — that <em>any</em> map
+        matching the algebra equations equals the fold. That's the universal property: the fold is
+        the <b>unique</b> map extending the generators — the left Kan extension along
+        <code>{zero, suc} ↪ ℕ</code>.</li>
+      <li><b>And a real function is one:</b> <code>add_is_the_kan_extension</code> shows ordinary
+        recursive <code>add</code> is exactly that fold — so a genuine recursive function is
+        exhibited, with a machine-checked proof, as a left Kan extension. Slogan → theorem.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.9.1 ===================== -->
-  <section id="v0.9.1" class="current">
+  <section id="v0.9.1">
     <div class="vhead">
       <h2>v0.9.1</h2>
       <span class="date">2026-08-09 · 21:01 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle">The Kan lens — <code>kan explain</code>.</p>
     <ul>

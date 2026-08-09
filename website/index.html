@@ -100,7 +100,7 @@
     <img class="brand" src="kan-logo.png" alt="Kan — Categorical Programming Language">
     <h1>A language of<br>universal extension.</h1>
     <p class="byline" style="margin:.35em 0 .2em; font-size:16px; color:var(--muted)">Created by <a href="https://sheaf.one/about.html#leadership"><strong>Jack Widman, PhD</strong></a></p>
-    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.9.1" href="changelog.html#v0.9.1" title="What's new in this version">Kan v0.9.1</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 21:01 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
+    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.9.2" href="changelog.html#v0.9.2" title="What's new in this version">Kan v0.9.2</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 21:46 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
@@ -137,6 +137,15 @@ Monoid   a signature — a dependent record type (a presented theory); its value
     <code>parity</code>) are fibers of a <em>single</em> left Kan extension — the philosophy,
     rendered on your own code. This is what distinguishes Kan: not that it <em>can</em> express
     universal constructions, but that every program already <em>is</em> one.</p>
+
+    <p style="border-left:3px solid var(--accent); padding-left:18px; margin:22px 0">
+    And it's not just a picture — it's a <strong>theorem, checked in Kan</strong>. In
+    <a href="https://github.com/jackmitchelwidman/kan/blob/main/examples/universal.kan"><code>examples/universal.kan</code></a>
+    the recursor <code>fold</code> is proved (by induction, not by <code>refl</code>) to be the
+    <em>unique</em> map extending a ℕ-algebra — the universal property of the left Kan extension
+    along <code>{zero, suc} ↪ ℕ</code> — and ordinary recursive <code>add</code> is shown to be
+    exactly that fold. A real recursive function, exhibited with a machine-checked proof as a Kan
+    extension.</p>
   </section>
 
   <section>

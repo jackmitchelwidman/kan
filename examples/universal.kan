@@ -1,0 +1,53 @@
+-- ============================================================================
+-- examples/universal.kan — recursion IS a Kan extension, proven in Kan.
+--
+-- A function out of ℕ is the LEFT KAN EXTENSION of a ℕ-algebra along the inclusion
+-- of the generators {zero, suc} ↪ ℕ: the recursor is the UNIQUE map extending the
+-- algebra. We make that precise and prove the universal property — existence AND
+-- uniqueness — then exhibit `add` as exactly such a fold. So "add is a left Kan
+-- extension" stops being a slogan and becomes a checked theorem.
+-- ============================================================================
+import "../std/nat.kan"     -- Nat, add
+import "../std/logic.kan"   -- trans, ap
+
+-- A ℕ-algebra: the "cases" of a fold — a carrier with a point and a step.
+-- This is the diagram we extend along {zero, suc} ↪ ℕ.
+record NatAlg { C : U, z : C, s : C -> C }
+
+-- The canonical extension: the fold (natElim). This is EXISTENCE of the mediating
+-- map — the left Kan extension itself.
+def fold : (a : NatAlg) -> Nat -> C a
+  = lambda a n: natElim (lambda m: C a) (z a) (lambda k ih: s a ih) n
+
+-- The fold satisfies the algebra equations — definitionally (refl):
+def fold_zero : (a : NatAlg) -> Id (C a) (fold a zero) (z a)                         = lambda a:   refl
+def fold_suc  : (a : NatAlg) -> (n : Nat) -> Id (C a) (fold a (suc n)) (s a (fold a n)) = lambda a n: refl
+
+-- UNIQUENESS — the universal property. Any `g` that satisfies the same algebra
+-- equations equals the fold, everywhere. This is what makes the fold THE Kan
+-- extension: the unique map making the triangle commute. Proof by induction on n.
+def fold_unique
+  : (a : NatAlg) -> (g : Nat -> C a)
+    -> Id (C a) (g zero) (z a)
+    -> ((k : Nat) -> Id (C a) (g (suc k)) (s a (g k)))
+    -> (n : Nat) -> Id (C a) (g n) (fold a n)
+  = lambda a g gz gs n: match n {
+      | zero  => gz
+      | suc k =>
+          trans (C a) (g (suc k)) (s a (g k)) (fold a (suc k))
+            (gs k)
+            (ap (C a) (C a) (s a) (g k) (fold a k) (fold_unique a g gz gs k))
+    }
+
+-- ---- a concrete recursive function IS this Kan extension ----------------------
+-- `add m n` recurses on m with the algebra (ℕ, n, suc): add zero n = n and
+-- add (suc m) n = suc (add m n) are exactly the algebra equations. So `add · n` is
+-- the fold of (ℕ, n, suc) — and by fold_unique it is the UNIQUE such map.
+def addFold : (n : Nat) -> Nat -> Nat = lambda n: fold ( Nat , ( n , (lambda x: suc x) ) )
+
+def add_is_the_kan_extension : (n : Nat) -> (m : Nat) -> Id Nat (add m n) (addFold n m)
+  = lambda n m:
+      fold_unique ( Nat , ( n , (lambda x: suc x) ) ) (lambda mm: add mm n)
+        refl                 -- add zero n = n           (definitional)
+        (lambda k: refl)     -- add (suc k) n = suc (add k n)  (definitional)
+        m
