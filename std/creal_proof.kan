@@ -8,14 +8,18 @@
 -- ℤ ring axioms (std/int.kan). Frac's structural denominator makes positivity
 -- definitional, so the order theory needs no `Lt` side conditions.
 --
--- SCOPE (ADR-020): the type exists, is inhabited by every rational (`fromQP`), and
--- is closed under + and − (`addCP`, `negCP`) — all proofs checked. Multiplication
--- (needs proven magnitude bounds), concrete reals like √2 (needs Newton
--- convergence proven), and division (apartness-as-proof) are the next tier.
--- The COMPUTATIONAL tier (std/creal.kan) already computes all of those.
+-- SCOPE (ADR-020). DONE: the type exists and is inhabited by every rational
+-- (`fromQP`), and the triangle-inequality crux is proven (`natAbs_addI_tri`:
+-- |a+b| ≤ |a|+|b| on Int, via `natAbs_diff_le`). IN PROGRESS: closure under +/−
+-- (`addCP`/`negCP`) — needs lifting the triangle to `Frac`, addC modulus
+-- reindexing, and negI-distribution lemmas. NEXT TIER: multiplication (proven
+-- magnitude bounds), √2/π/e with PROVEN convergence, division (apartness-as-proof)
+-- — each a real analysis/proof effort. The COMPUTATIONAL tier (std/creal.kan)
+-- already COMPUTES all of these today; the proof tier is catching up.
 -- ============================================================================
 import "int.kan"
 import "rational_typed.kan"
+import "order.kan"
 
 -- ---- Int order as a Σ-witness:  a ≤ b  iff  b − a is a non-negative int -------
 def LeI : Int -> Int -> U = lambda a b: (k : Nat) * Id Int (addI a (fromNatI k)) b
@@ -109,3 +113,35 @@ def fromQP : Frac -> CRealP
       , lambda m n: LeF_zero (absF (subF q q)) (addF (invSuc m) (invSuc n))
           (ap Int Int (lambda i: pos (natAbs i)) (fnum (subF q q)) zeroI (subF_num_zero q))
           (LeI_zero_pos (natAbs (mulI (fnum (addF (invSuc m) (invSuc n))) (fden (absF (subF q q)))))) )
+
+-- ---- the triangle inequality (crux), toward closure under + ------------------
+def le_of_id : (a : Nat) -> (b : Nat) -> Id Nat a b -> Le a b = lambda a b p: (zero, p)
+
+-- |m − k| ≤ m + k  (magnitude of a difference is at most the sum). Double induction.
+def natAbs_diff_le : (m : Nat) -> (k : Nat) -> Le (natAbs (diff m k)) (add m k)
+  = lambda m k: match m {
+      | zero => (match k as kk return (Le (natAbs (diff zero kk)) (add zero kk)) {
+          | zero  => le_refl zero
+          | suc j => le_refl (suc j) })
+      | suc i => (match k as kk return (Le (natAbs (diff (suc i) kk)) (add (suc i) kk)) {
+          | zero  => le_of_id (natAbs (diff (suc i) zero)) (add (suc i) zero)
+                       (sym Nat (add (suc i) zero) (suc i) (add_n_zero (suc i)))
+          | suc j => le_trans (natAbs (diff i j)) (add i j) (add (suc i) (suc j))
+                       (natAbs_diff_le i j)
+                       ( suc (suc zero)
+                       , ap Nat Nat (lambda z: suc z) (suc (add i j)) (add i (suc j))
+                           (sym Nat (add i (suc j)) (suc (add i j)) (add_suc i j)) ) }) }
+
+-- Int triangle inequality:  |a + b| ≤ |a| + |b|.
+def natAbs_addI_tri : (a : Int) -> (b : Int) -> Le (natAbs (addI a b)) (add (natAbs a) (natAbs b))
+  = lambda a b: match a {
+      | pos m => (match b as bb return (Le (natAbs (addI (pos m) bb)) (add (natAbs (pos m)) (natAbs bb))) {
+          | pos n    => le_refl (add m n)
+          | negsuc n => natAbs_diff_le m (suc n) })
+      | negsuc m => (match b as bb return (Le (natAbs (addI (negsuc m) bb)) (add (natAbs (negsuc m)) (natAbs bb))) {
+          | pos n    => le_trans (natAbs (diff n (suc m))) (add n (suc m)) (add (suc m) n)
+                          (natAbs_diff_le n (suc m))
+                          (le_of_id (add n (suc m)) (add (suc m) n) (add_comm n (suc m)))
+          | negsuc n => le_of_id (natAbs (addI (negsuc m) (negsuc n))) (add (suc m) (suc n))
+                          (ap Nat Nat (lambda z: suc z) (suc (add m n)) (add m (suc n))
+                             (sym Nat (add m (suc n)) (suc (add m n)) (add_suc m n))) }) }
