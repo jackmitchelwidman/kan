@@ -281,6 +281,26 @@ def assocN : (p : Nat) -> (b : Int) -> (c : Int)
 def addI_assoc : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (addI (addI a b) c) (addI a (addI b c))
   = lambda a b c: match a { | pos p => assocP p b c | negsuc p => assocN p b c }
 
+-- ---- multiplicative units and absorbing zero ------------------------------
+-- 0·i = 0  (mul zero X ≡ 0 definitionally, so both cases are refl).
+def mulI_zero_l : (i : Int) -> Id Int (mulI zeroI i) zeroI
+  = lambda i: match i { | pos m => refl | negsuc n => refl }
+-- i·0 = 0  (mul X zero is stuck on variable X, so rewrite with mul_n_zero).
+def mulI_zero_r : (i : Int) -> Id Int (mulI i zeroI) zeroI
+  = lambda i: match i {
+      | pos m    => ap Nat Int (lambda z: pos z) (mul m zero) zero (mul_n_zero m)
+      | negsuc n => ap Nat Int (lambda z: intOfSignMag true z) (mul (suc n) zero) zero (mul_n_zero (suc n)) }
+-- 1·i = i  (mul (suc zero) X ≡ add X zero, so rewrite with add_n_zero).
+def mulI_one_l : (i : Int) -> Id Int (mulI oneI i) i
+  = lambda i: match i {
+      | pos m    => ap Nat Int (lambda z: pos z)    (add m zero) m (add_n_zero m)
+      | negsuc n => ap Nat Int (lambda z: negsuc z) (add n zero) n (add_n_zero n) }
+-- i·1 = i.
+def mulI_one_r : (i : Int) -> Id Int (mulI i oneI) i
+  = lambda i: match i {
+      | pos m    => ap Nat Int (lambda z: pos z) (mul m (suc zero)) m (mul_n_one m)
+      | negsuc n => ap Nat Int (lambda z: intOfSignMag true z) (mul (suc n) (suc zero)) (suc n) (mul_n_one (suc n)) }
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
