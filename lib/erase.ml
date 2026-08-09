@@ -80,6 +80,7 @@ let rec erase (t : tm) : iexpr =
   | IntFromNat n -> IIntFromNat (erase n)
   | Transp (_, _, _, _, _, d) -> erase d                           (* transport is identity on its value *)
   | Ann (t, _) -> erase t
+  | Hole r -> (match !r with Some t -> erase t | None -> failwith "a hole `?` has no type here to fill against — holes are only supported in typed positions (e.g. a `def` with an annotation), not in a bare `eval`")
   | U _ | Pi _ | Sig _ | Id _ | Refl | Bool | Nat | Data _ | StringT | IntT -> IUnit  (* types & proofs erase *)
 
 (* -------- reference runtime -------- *)

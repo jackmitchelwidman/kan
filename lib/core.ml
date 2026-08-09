@@ -61,6 +61,7 @@ type tm =
   | IntLt of tm * tm                  (* Integer strict less-than -> Bool *)
   | IntFromNat of tm                  (* the canonical Nat -> Integer inclusion *)
   | Ann of tm * tm
+  | Hole of tm option ref             (* `?` — solved in check-mode by `fill`; deref'd everywhere else *)
 
 (* closed Nat numerals -> int, for display *)
 let rec nat_int = function
@@ -103,6 +104,7 @@ let rec lift d cutoff t =
   | IntLt (a, b) -> IntLt (l a, l b)
   | IntFromNat a -> IntFromNat (l a)
   | Ann (a, b) -> Ann (l a, l b)
+  | Hole r -> (match !r with Some t -> l t | None -> Hole r)   (* lift the solution if solved *)
 
 (* ---- registry of user-declared (parameterized) datatypes ----
    A constructor argument is symbolic: a parameter, a recursive occurrence of the
@@ -292,6 +294,7 @@ let rec eval (env : value list) (t : tm) : value =
   | IntLt (a, b) -> vintlt (eval env a) (eval env b)
   | IntFromNat n -> vintfromnat (eval env n)
   | Ann (t, _) -> eval env t
+  | Hole r -> (match !r with Some t -> eval env t | None -> failwith "internal: an unfilled hole reached evaluation")
 
 and vapp f a =
   match f with
@@ -517,6 +520,9 @@ let fail msg = raise (Type_error msg)
 
 let rec check (ctx : ctx) (t : tm) (ty : value) : unit =
   match t, ty with
+  | Hole r, ty ->                             (* `?` in check-mode: fill the horn (or report the goal) *)
+      let t = fill ctx ty in check ctx t ty;  (* re-check the filler: the kernel never trusts `fill` *)
+      r := Some t
   | Lam (_, b), VPi (_, a, c) -> check (bind ctx a) b (inst c (VVar ctx.lvl))
   | Pair (t, u), VSig (_, a, c) -> check ctx t a; check ctx u (inst c (eval ctx.env t))
   | Refl, VId (_, x, y) ->
@@ -530,8 +536,51 @@ let rec check (ctx : ctx) (t : tm) (ty : value) : unit =
         fail (Printf.sprintf "type mismatch: have %s, expected %s"
                 (show (quote ctx.lvl inferred)) (show (quote ctx.lvl ty)))
 
+(* `fill ctx T` — the universal completion of a hole `?` at goal type T. Returns the
+   canonical inhabitant when T is *certifiably contractible* (a unique inhabitant),
+   and reports the goal otherwise. "The compiler fills the horn," restricted —
+   soundly — to the cases where the completion is universal:
+     · Σ         a pair of fills (a product of contractibles is contractible)
+     · Π         a lambda whose body is a fill (a contractible codomain)
+     · Id A a a  refl, when the endpoints are definitionally equal
+     · a datatype with exactly ONE constructor whose arguments are all contractible
+       and non-recursive — e.g. Unit → unit; a record-like point → that point
+   Anything else (Nat, Bool, coproducts, …) has several inhabitants: no unique
+   completion, so we refuse and report. Sound but deliberately incomplete. *)
+and fill (ctx : ctx) (ty : value) : tm =
+  let report () =
+    fail (Printf.sprintf
+      "unfilled hole: no unique (universal) completion for the goal\n           \xe2\x8a\xa2 ? : %s\n         (this type is not certifiably contractible \xe2\x80\x94 provide a term)"
+      (show (quote ctx.lvl ty)))
+  in
+  match ty with
+  | VSig (_, a, c) ->
+      let ta = fill ctx a in
+      Pair (ta, fill ctx (inst c (eval ctx.env ta)))
+  | VPi (x, a, c) -> Lam (x, fill (bind ctx a) (inst c (VVar ctx.lvl)))
+  | VId (_, x, y) -> if conv ctx.lvl x y then Refl else report ()
+  | VData (d, params) ->
+      (match Hashtbl.find_opt sigenv d with
+       | Some ds ->
+           (match ds.ds_ctors with
+            | [ cs ] ->
+                let arg_ty_val = function
+                  | AParam i -> List.nth params i
+                  | AClosed t -> eval [] t
+                  | ARec -> raise Exit                    (* recursive => not certifiably contractible *)
+                in
+                (try
+                   let param_tms = List.map (quote ctx.lvl) params in
+                   let arg_tms = List.map (fun (_, aty) -> fill ctx (arg_ty_val aty)) cs.cs_args in
+                   List.fold_left (fun acc a -> App (acc, a)) (Con cs.cs_name) (param_tms @ arg_tms)
+                 with Exit -> report ())
+            | _ -> report ())      (* 0 constructors (uninhabited) or >1 (a choice): no unique fill *)
+       | None -> report ())
+  | _ -> report ()
+
 and infer (ctx : ctx) (t : tm) : value =
   match t with
+  | Hole _ -> fail "a hole `?` needs a known type — use it where the type is fixed (e.g. a def with an annotation, or an argument position), not where the type must be inferred"
   | Var i -> (match List.nth_opt ctx.types i with Some ty -> ty | None -> fail (Printf.sprintf "unbound variable %d" i))
   | U i -> VU (i + 1)
   | Pi (_, a, b) -> let i = infer_univ ctx a in let j = infer_univ (bind ctx (eval ctx.env a)) b in VU (max i j)
@@ -670,5 +719,6 @@ and show ?(ns = []) (t : tm) : string =
   | IntLt (a, b) -> Printf.sprintf "ilt %s %s" (show ~ns a) (show ~ns b)
   | IntFromNat n -> Printf.sprintf "fromNat %s" (show ~ns n)
   | Ann (t, ty) -> Printf.sprintf "(%s : %s)" (show ~ns t) (show ~ns ty)
+  | Hole r -> (match !r with Some t -> show ~ns t | None -> "?")
 
 let type_of (t : tm) : tm = quote 0 (infer empty t)

@@ -143,14 +143,14 @@ let load_program entry : Tt.decl list =
   decls
 
 let die e =
-  Printf.eprintf "kan: %s\n" (match e with Failure m -> m | _ -> Printexc.to_string e);
+  Printf.eprintf "kan: %s\n" (match e with Failure m | Core.Type_error m -> m | _ -> Printexc.to_string e);
   exit 1
 
 let parse file = load_program file
 
 let do_check file = try Tt.run_decls (load_program file) with e -> die e
 
-let do_run file = try Erase.run (load_program file) with e -> die e
+let do_run file = try (let d = load_program file in Tt.check_program d; Erase.run d) with e -> die e
 
 (* `kan explain file` — the Kan lens: render each of the file's own definitions as
    its fiber of the program's initial-model Kan extension (see Tt.describe_decl). *)

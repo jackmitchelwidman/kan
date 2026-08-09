@@ -77,12 +77,36 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.10.0 ===================== -->
+  <section id="v0.10.0" class="current">
+    <div class="vhead">
+      <h2>v0.10.0</h2>
+      <span class="date">2026-08-09 · 22:31 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle"><code>?</code> — the compiler fills the horn.</p>
+    <ul>
+      <li><b>Holes.</b> A <code>?</code> in check-mode is filled with the <b>unique universal
+        completion</b> when its goal type is <em>contractible</em>: <code>Unit → unit</code>,
+        <code>Σ</code> → a pair, <code>Π</code> → a lambda, <code>Id A a a → refl</code>, a
+        single-constructor datatype → its point. The fillers compose —
+        <code>? : (A:U) -> A -> Unit</code> becomes <code>λA a. unit</code>.</li>
+      <li><b>It refuses to guess.</b> When the goal has several inhabitants (<code>Nat</code>,
+        <code>Bool</code>, coproducts) there is no unique completion, so the compiler <em>reports
+        the goal</em> <code>⊢ ? : T</code> instead of picking one. Sound, deliberately incomplete —
+        <em>fill iff the completion is universal.</em></li>
+      <li>The operational north star, Stage 2a. Adds a hole to the core and a <code>fill</code>
+        recognizer to the checker; <code>kan run</code>/<code>build</code> now type-check (which is
+        what fills the holes). See <code>examples/holes.kan</code>. Next: dispatch <code>?</code> to
+        registered <code>Universal</code> instances (needs implicit arguments).</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.9.4 ===================== -->
-  <section id="v0.9.4" class="current">
+  <section id="v0.9.4">
     <div class="vhead">
       <h2>v0.9.4</h2>
       <span class="date">2026-08-09 · 22:05 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle"><code>fill</code> — the universal completion, as one interface.</p>
     <ul>

@@ -82,6 +82,9 @@ reject "duplicate top-level name (constructor vs def)" \
 # qualified names (namespaces): an unknown qualified reference is a clean error
 reject "unbound qualified name" \
   'def x : Nat = Foo::bar'
+# a hole `?` at a non-contractible goal must be REFUSED (reported), never guessed
+reject "unfillable hole (no unique completion)" \
+  'def n : Nat = ?'
 
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"

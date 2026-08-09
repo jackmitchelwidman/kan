@@ -1,0 +1,21 @@
+-- ============================================================================
+-- examples/holes.kan — `?`: the compiler fills the horn.
+--
+-- A hole `?` is a partial diagram. In check-mode (its type is known) the compiler
+-- fills it with the UNIQUE universal completion when the goal is contractible, and
+-- REPORTS the goal otherwise — it never guesses among alternatives. The fillable
+-- shapes compose: Unit → unit, Σ → a pair, Π → a lambda, Id A a a → refl.
+-- ============================================================================
+import "../std/unit.kan"
+
+def u   : Unit = ?                        -- unit (terminal)
+def pr  : Unit * (Id Nat 2 2) = ?         -- (unit, refl)
+def tm  : (A : U) -> A -> Unit = ?        -- the terminal map  \A a. unit
+def rfl : Id Nat 3 3 = ?                  -- refl (endpoints definitionally equal)
+
+eval u                                    -- unit
+eval tm Nat 5                             -- unit
+eval pr                                   -- (unit, _)
+
+-- Deliberately refused (uncomment to see the reported goal `⊢ ? : Nat`):
+--   def n : Nat = ?      -- ℕ has many inhabitants: no unique completion

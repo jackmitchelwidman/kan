@@ -25,7 +25,7 @@
 open Core
 
 (* -------- tokens -------- *)
-type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | FATARROW | BAR | LBRACE | RBRACE | ID of string | NUM of int | INTLIT of string | STR of string | EOF
+type tok = LP | RP | ARR | STAR | COMMA | COLON | DOT | LAM | EQ | FATARROW | BAR | LBRACE | RBRACE | QMARK | ID of string | NUM of int | INTLIT of string | STR of string | EOF
 
 let tokenize (s : string) : tok array =
   let n = String.length s in
@@ -50,6 +50,7 @@ let tokenize (s : string) : tok array =
     else if c = '{' then (push LBRACE; incr i)
     else if c = '}' then (push RBRACE; incr i)
     else if c = '|' then (push BAR; incr i)
+    else if c = '?' then (push QMARK; incr i)
     else if c = '=' && !i + 1 < n && s.[!i + 1] = '>' then (push FATARROW; i := !i + 2)
     else if c = '=' then (push EQ; incr i)
     else if c = '"' then begin
@@ -234,7 +235,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
   let fail m = failwith ("type-theory parse error: " ^ m) in
   let eat t m = if peek () = t then adv () else fail ("expected " ^ m) in
   let ident () = match peek () with ID x -> adv (); x | _ -> fail "expected a name" in
-  let starts_atom = function LP | NUM _ | INTLIT _ | STR _ -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
+  let starts_atom = function LP | NUM _ | INTLIT _ | STR _ | QMARK -> true | ID x -> not (List.mem x decl_kw) | _ -> false in
   (* recursion state for `match`-defined functions: while parsing the body of a
      recursive def, `rec_fname` is its name, `rec_binders` its lambda-binder names
      (in order), `rec_annot` its type annotation, `rec_decarg` the matched
@@ -387,6 +388,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
         adv ();
         let t = term ns in
         (match peek () with COMMA -> adv (); let u = term ns in eat RP ")"; Pair (t, u) | _ -> eat RP ")"; t)
+    | QMARK -> adv (); Hole (ref None)     (* `?` — a hole, filled in check-mode by `fill` *)
     | _ -> fail "expected a term"
   (* Elaborate `match scrut { | C x.. => e | ... }` to the datatype's eliminator.
      The result type R (the motive) comes from `return T` or the threaded
@@ -662,6 +664,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
           | Id (a, b, c) | If (a, b, c) -> no_vars a && no_vars b && no_vars c
           | NatElim (a, b, c, d) -> no_vars a && no_vars b && no_vars c && no_vars d
           | Transp (a, b, c, d, e, f) -> List.for_all no_vars [ a; b; c; d; e; f ]
+          | Hole _ -> false
         in
         eat LBRACE "{";
         let parse_ctor () =
@@ -807,6 +810,30 @@ let run_decls (decls : decl list) : unit =
           declare_data name params specs;
           Printf.printf "data %s = %s\n" name (String.concat " | " (List.map fst ctors_info))
       | Import _ | Open _ -> ())   (* imports/opens are resolved before we get here *)
+    decls
+
+(* Silently type-check a program: verify every def and declare every datatype,
+   WITHOUT printing or evaluating. Its real job for `run`/`build` is the side effect
+   of `check` — filling holes `?` (in each def body's shared cell) before erasure,
+   since those paths don't otherwise type-check. *)
+let check_program (decls : decl list) : unit =
+  let ctx = ref empty in
+  List.iter
+    (fun d ->
+      match d with
+      | Def (name, ty, body) ->
+          let vty =
+            match ty with
+            | Some t -> (match infer !ctx t with VU _ -> () | _ -> failwith ("def " ^ name ^ ": the annotation is not a type")); eval !ctx.env t
+            | None -> infer !ctx body
+          in
+          check !ctx body vty;                       (* fills any `?` holes in `body` *)
+          let v = eval !ctx.env body in
+          ctx := { env = v :: !ctx.env; types = vty :: !ctx.types; lvl = !ctx.lvl + 1 }
+      | Data_decl (name, params, ctors_info) ->
+          let specs = List.map (fun (cname, argtys) -> { cs_name = cname; cs_args = List.mapi (fun i aty -> (Printf.sprintf "x%d" i, aty)) argtys }) ctors_info in
+          declare_data name params specs
+      | Check _ | Eval _ | Import _ | Open _ -> ())
     decls
 
 let run (src : string) : unit = run_decls (parse (tokenize src))

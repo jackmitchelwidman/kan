@@ -100,7 +100,7 @@
     <img class="brand" src="kan-logo.png" alt="Kan — Categorical Programming Language">
     <h1>A language of<br>universal extension.</h1>
     <p class="byline" style="margin:.35em 0 .2em; font-size:16px; color:var(--muted)">Created by <a href="https://sheaf.one/about.html#leadership"><strong>Jack Widman, PhD</strong></a></p>
-    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.9.4" href="changelog.html#v0.9.4" title="What's new in this version">Kan v0.9.4</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 22:05 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
+    <p style="margin:.2em 0 .1em"><a class="pill" id="kanver" data-version="0.10.0" href="changelog.html#v0.10.0" title="What's new in this version">Kan v0.10.0</a> &nbsp;<span style="font-size:13.5px; color:var(--muted)">as of 2026-08-09 22:31 IDT</span><a id="kannew" class="newbadge" href="changelog.html">New version available</a></p>
     <p class="sub">Programs are diagrams. Computation is extension. The compiler fills the horn.</p>
     <blockquote class="thesis">A Kan program is a partial diagram awaiting universal completion.</blockquote>
     <p class="sub" style="font-size:16px">Today, concretely: a <strong>dependently typed</strong> language that type-checks and <strong>compiles to native code</strong>. Files are <code>.kan</code>.</p>
@@ -147,6 +147,14 @@ Monoid   a signature — a dependent record type (a presented theory); its value
     exactly that fold. A real recursive function, exhibited with a machine-checked proof as a Kan
     extension. (Uniqueness is stated <em>pointwise</em> — the honest notion in a type theory
     without function extensionality.)</p>
+
+    <p>And it is becoming <em>operational</em>: a hole <code>?</code> is a partial diagram the
+    compiler completes. In check-mode it fills <code>?</code> with the <strong>unique universal
+    completion</strong> when the goal is contractible — <code>Unit → unit</code>, <code>Σ</code> → a
+    pair, <code>Π</code> → a lambda, <code>Id A a a → refl</code> — so <code>? : (A:U) -> A -> Unit</code>
+    becomes <code>λA a. unit</code>; and when the goal has many inhabitants (<code>Nat</code>,
+    <code>Bool</code>) it <em>refuses and reports the goal</em> <code>⊢ ? : T</code> rather than guess.
+    The compiler fills the horn — soundly, exactly when the completion is universal.</p>
   </section>
 
   <section>
