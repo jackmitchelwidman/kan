@@ -77,12 +77,34 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.9.4 ===================== -->
+  <section id="v0.9.4" class="current">
+    <div class="vhead">
+      <h2>v0.9.4</h2>
+      <span class="date">2026-08-09 · 22:05 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle"><code>fill</code> — the universal completion, as one interface.</p>
+    <ul>
+      <li><b>Computation as filling a horn — made first-class.</b> A <code>record Universal
+        { Horn, Cand, Good, EqC, fill, fillGood, fillUniq }</code> packages a partial diagram with
+        its <b>unique</b> completion: <code>fill</code> (the completion), <code>fillGood</code>
+        (existence), <code>fillUniq</code> (uniqueness). Universality in one type.</li>
+      <li><b>Different constructions, one <code>fill</code>.</b> Recursion is an instance — the fold,
+        reusing the checked <code>universal.kan</code> theorem, so <code>fill FoldUniversal (ℕ,2,suc) 5
+        = 7</code>; and so is the terminal object. Two genuinely different universal constructions
+        under the same interface, checked, all three runtimes agreeing. See
+        <code>examples/fill.kan</code>.</li>
+      <li><em>Next:</em> elaborator holes <code>?</code> the compiler fills by goal type, dispatching
+        to these — "the compiler fills the horn," literally.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.9.3 ===================== -->
-  <section id="v0.9.3" class="current">
+  <section id="v0.9.3">
     <div class="vhead">
       <h2>v0.9.3</h2>
       <span class="date">2026-08-09 · 21:57 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle">The universality checker — diagnostics in Kan-extension terms.</p>
     <ul>

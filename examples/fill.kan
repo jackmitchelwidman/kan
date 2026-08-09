@@ -1,0 +1,65 @@
+-- ============================================================================
+-- examples/fill.kan — `fill`: the universal completion, as one interface.
+--
+-- The philosophy operationally: a program is a partial diagram (a "horn"), and
+-- computation is filling it with the UNIQUE universal completion. Here that is a
+-- first-class record `Universal`: a horn type, the candidate completions, the
+-- property a completion must satisfy, an equivalence on completions, and then the
+-- three pieces of universality — `fill` (the completion), `fillGood` (it satisfies
+-- the property: existence) and `fillUniq` (any good completion equals it: unique).
+--
+-- Recursion is the first instance: the fold IS `fill` of the recursion-horn — our
+-- machine-checked universal.kan theorem, now an instance of the general interface.
+-- ============================================================================
+import "universal.kan"       -- NatAlg, C/z/s, fold, fold_unique  (the recursion horn)
+import "../std/logic.kan"    -- sym, trans, ap
+import "../std/unit.kan"     -- Unit, unit, Unit_elim  (for the terminal instance)
+
+-- A universal construction: existence + uniqueness of the completion of a horn.
+record Universal {
+  Horn     : U1,
+  Cand     : Horn -> U,
+  Good     : (h : Horn) -> Cand h -> U,
+  EqC      : (h : Horn) -> Cand h -> Cand h -> U,
+  fill     : (h : Horn) -> Cand h,
+  fillGood : (h : Horn) -> Good h (fill h),
+  fillUniq : (h : Horn) -> (c : Cand h) -> Good h c -> EqC h (fill h) c
+}
+
+-- ---- the recursion horn's pieces (candidates, property, equivalence) ----------
+def GoodFold : (a : NatAlg) -> (Nat -> C a) -> U
+  = lambda a g: (Id (C a) (g zero) (z a)) * ((k : Nat) -> Id (C a) (g (suc k)) (s a (g k)))
+
+def EqFold : (a : NatAlg) -> (Nat -> C a) -> (Nat -> C a) -> U
+  = lambda a g h: (n : Nat) -> Id (C a) (g n) (h n)
+
+def foldGood : (a : NatAlg) -> GoodFold a (fold a) = lambda a: ( refl , lambda k: refl )
+
+-- uniqueness, reusing the proven fold_unique (pointwise; sym to match EqC's order)
+def foldUniq : (a : NatAlg) -> (c : Nat -> C a) -> GoodFold a c -> EqFold a (fold a) c
+  = lambda a c good n:
+      sym (C a) (c n) (fold a n) (fold_unique a c (fst good) (snd good) n)
+
+-- ---- recursion as `fill`: the fold is the universal completion of its horn -----
+def FoldUniversal : Universal
+  = ( NatAlg , ( lambda a: Nat -> C a , ( GoodFold , ( EqFold
+    , ( fold , ( foldGood , foldUniq ) ) ) ) ) )
+
+-- so `fill FoldUniversal a` computes the fold — universal completion, uniformly.
+def add2 : Nat -> Nat = fill FoldUniversal ( Nat , ( 2 , (lambda x: suc x) ) )
+eval add2 5        -- 7   (fold of (ℕ, 2, suc) at 5 — i.e. 2 + 5, computed as a `fill`)
+
+-- ---- a second, DIFFERENT instance: the terminal object -----------------------
+-- The unique map X → Unit. Unit has one point, so any two maps to it agree —
+-- the terminal map is the unique completion. Same `Universal` interface, same
+-- `fill`, a different universal construction.
+def TerminalUniversal : Universal
+  = ( U                                                    -- Horn: a type X
+    , ( lambda X: X -> Unit                                -- Cand X = X -> Unit
+      , ( lambda X g: Unit                                 -- Good: any map qualifies
+        , ( lambda X g h: (x : X) -> Id Unit (g x) (h x)   -- EqC: pointwise
+          , ( lambda X x: unit                             -- fill: the terminal map
+            , ( lambda X: unit                             -- fillGood
+              , lambda X c good x: Unit_elim (lambda u: Id Unit unit u) refl (c x) ) ) ) ) ) )
+
+eval fill TerminalUniversal Nat 5     -- _   (the unique map ℕ → Unit, at 5)
