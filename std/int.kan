@@ -301,6 +301,110 @@ def mulI_one_r : (i : Int) -> Id Int (mulI i oneI) i
       | pos m    => ap Nat Int (lambda z: pos z) (mul m (suc zero)) m (mul_n_one m)
       | negsuc n => ap Nat Int (lambda z: intOfSignMag true z) (mul (suc n) (suc zero)) (suc n) (mul_n_one (suc n)) }
 
+-- ---- ASSOCIATIVITY of · : 8 sign-cases via a helper tree, splitting a
+-- pos-magnitude into zero/suc exactly where a mixed-sign product's magnitude is
+-- stuck on it (integer splits make isNeg/xor literal; magnitude splits make
+-- intOfSignMag true a constructor — the Bool-elim gap is never faced). See ADR.
+
+-- pos · pos : c=pos is pure mul_assoc; c=negsuc splits q (RHS inner mul q (suc r)).
+def mAssocPP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (mulI (pos p) (pos q)) c) (mulI (pos p) (mulI (pos q) c))
+  = lambda p q c: match c {
+      | pos r    => ap Nat Int (lambda z: pos z) (mul (mul p q) r) (mul p (mul q r)) (mul_assoc p q r)
+      | negsuc r => (match q as qq return
+          (Id Int (mulI (mulI (pos p) (pos qq)) (negsuc r)) (mulI (pos p) (mulI (pos qq) (negsuc r)))) {
+          | zero    => transp Nat (lambda z: Id Int (intOfSignMag true (mul z (suc r))) (pos z))
+                         zero (mul p zero) (sym Nat (mul p zero) zero (mul_n_zero p)) refl
+          | suc q2  => ap Nat Int (lambda z: intOfSignMag true z)
+                         (mul (mul p (suc q2)) (suc r)) (mul p (mul (suc q2) (suc r)))
+                         (mul_assoc p (suc q2) (suc r)) }) }
+
+-- negsuc · negsuc : c=negsuc is pure mul_assoc (through intOfSignMag true);
+-- c=pos splits r (RHS inner mul (suc q) r is stuck on r).
+def mAssocNN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (mulI (negsuc p) (negsuc q)) c) (mulI (negsuc p) (mulI (negsuc q) c))
+  = lambda p q c: match c {
+      | negsuc r => ap Nat Int (lambda z: intOfSignMag true z)
+                      (mul (mul (suc p) (suc q)) (suc r)) (mul (suc p) (mul (suc q) (suc r)))
+                      (mul_assoc (suc p) (suc q) (suc r))
+      | pos r => (match r as rr return
+          (Id Int (mulI (mulI (negsuc p) (negsuc q)) (pos rr)) (mulI (negsuc p) (mulI (negsuc q) (pos rr)))) {
+          | zero =>
+              trans Int (mulI (mulI (negsuc p) (negsuc q)) (pos zero)) (pos zero) (mulI (negsuc p) (mulI (negsuc q) (pos zero)))
+                (ap Nat Int (lambda z: pos z) (mul (mul (suc p) (suc q)) zero) zero (mul_n_zero (mul (suc p) (suc q))))
+                (sym Int (mulI (negsuc p) (mulI (negsuc q) (pos zero))) (pos zero)
+                   (trans Int (mulI (negsuc p) (mulI (negsuc q) (pos zero))) (intOfSignMag true (mul (suc p) zero)) (pos zero)
+                      (ap Nat Int (lambda z: mulI (negsuc p) (intOfSignMag true z)) (mul (suc q) zero) zero (mul_n_zero (suc q)))
+                      (ap Nat Int (lambda z: intOfSignMag true z) (mul (suc p) zero) zero (mul_n_zero (suc p)))))
+          | suc r2 => ap Nat Int (lambda z: pos z)
+                        (mul (mul (suc p) (suc q)) (suc r2)) (mul (suc p) (mul (suc q) (suc r2)))
+                        (mul_assoc (suc p) (suc q) (suc r2)) }) }
+
+-- pos · negsuc : c=pos splits BOTH p and r (both inner products stuck); c=negsuc
+-- splits p (RHS inner negsuc·negsuc reduces).
+def mAssocPN : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (mulI (pos p) (negsuc q)) c) (mulI (pos p) (mulI (negsuc q) c))
+  = lambda p q c: match c {
+      | pos r => (match p as pp return
+          (Id Int (mulI (mulI (pos pp) (negsuc q)) (pos r)) (mulI (pos pp) (mulI (negsuc q) (pos r)))) {
+          | zero => (match r as rr return
+              (Id Int (mulI (mulI (pos zero) (negsuc q)) (pos rr)) (mulI (pos zero) (mulI (negsuc q) (pos rr)))) {
+              | zero => sym Int (mulI (pos zero) (intOfSignMag true (mul (suc q) zero))) (pos zero)
+                          (ap Nat Int (lambda z: mulI (pos zero) (intOfSignMag true z)) (mul (suc q) zero) zero (mul_n_zero (suc q)))
+              | suc r2 => refl })
+          | suc p2 => (match r as rr return
+              (Id Int (mulI (mulI (pos (suc p2)) (negsuc q)) (pos rr)) (mulI (pos (suc p2)) (mulI (negsuc q) (pos rr)))) {
+              | zero =>
+                  trans Int (mulI (mulI (pos (suc p2)) (negsuc q)) (pos zero)) (pos zero) (mulI (pos (suc p2)) (mulI (negsuc q) (pos zero)))
+                    (ap Nat Int (lambda z: intOfSignMag true z) (mul (mul (suc p2) (suc q)) zero) zero (mul_n_zero (mul (suc p2) (suc q))))
+                    (sym Int (mulI (pos (suc p2)) (mulI (negsuc q) (pos zero))) (pos zero)
+                       (trans Int (mulI (pos (suc p2)) (mulI (negsuc q) (pos zero))) (pos (mul (suc p2) zero)) (pos zero)
+                          (ap Nat Int (lambda z: mulI (pos (suc p2)) (intOfSignMag true z)) (mul (suc q) zero) zero (mul_n_zero (suc q)))
+                          (ap Nat Int (lambda z: pos z) (mul (suc p2) zero) zero (mul_n_zero (suc p2)))))
+              | suc r2 => ap Nat Int (lambda z: intOfSignMag true z)
+                            (mul (mul (suc p2) (suc q)) (suc r2)) (mul (suc p2) (mul (suc q) (suc r2)))
+                            (mul_assoc (suc p2) (suc q) (suc r2)) }) })
+      | negsuc r => (match p as pp return
+          (Id Int (mulI (mulI (pos pp) (negsuc q)) (negsuc r)) (mulI (pos pp) (mulI (negsuc q) (negsuc r)))) {
+          | zero => refl
+          | suc p2 => ap Nat Int (lambda z: pos z)
+                        (mul (mul (suc p2) (suc q)) (suc r)) (mul (suc p2) (mul (suc q) (suc r)))
+                        (mul_assoc (suc p2) (suc q) (suc r)) }) }
+
+-- negsuc · pos : both c-cases split q (the inner mul (suc p) q is stuck on q).
+def mAssocNP : (p : Nat) -> (q : Nat) -> (c : Int)
+  -> Id Int (mulI (mulI (negsuc p) (pos q)) c) (mulI (negsuc p) (mulI (pos q) c))
+  = lambda p q c: match c {
+      | pos r => (match q as qq return
+          (Id Int (mulI (mulI (negsuc p) (pos qq)) (pos r)) (mulI (negsuc p) (mulI (pos qq) (pos r)))) {
+          | zero =>
+              trans Int (mulI (mulI (negsuc p) (pos zero)) (pos r)) (pos zero) (mulI (negsuc p) (mulI (pos zero) (pos r)))
+                (ap Nat Int (lambda z: mulI (intOfSignMag true z) (pos r)) (mul (suc p) zero) zero (mul_n_zero (suc p)))
+                (sym Int (mulI (negsuc p) (mulI (pos zero) (pos r))) (pos zero)
+                   (ap Nat Int (lambda z: intOfSignMag true z) (mul (suc p) zero) zero (mul_n_zero (suc p))))
+          | suc q2 => ap Nat Int (lambda z: intOfSignMag true z)
+                        (mul (mul (suc p) (suc q2)) r) (mul (suc p) (mul (suc q2) r)) (mul_assoc (suc p) (suc q2) r) })
+      | negsuc r => (match q as qq return
+          (Id Int (mulI (mulI (negsuc p) (pos qq)) (negsuc r)) (mulI (negsuc p) (mulI (pos qq) (negsuc r)))) {
+          | zero =>
+              trans Int (mulI (mulI (negsuc p) (pos zero)) (negsuc r)) (pos zero) (mulI (negsuc p) (mulI (pos zero) (negsuc r)))
+                (ap Nat Int (lambda z: mulI (intOfSignMag true z) (negsuc r)) (mul (suc p) zero) zero (mul_n_zero (suc p)))
+                (sym Int (mulI (negsuc p) (mulI (pos zero) (negsuc r))) (pos zero)
+                   (ap Nat Int (lambda z: intOfSignMag true z) (mul (suc p) zero) zero (mul_n_zero (suc p))))
+          | suc q2 => ap Nat Int (lambda z: pos z)
+                        (mul (mul (suc p) (suc q2)) (suc r)) (mul (suc p) (mul (suc q2) (suc r)))
+                        (mul_assoc (suc p) (suc q2) (suc r)) }) }
+
+def mAssocP : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI (mulI (pos p) b) c) (mulI (pos p) (mulI b c))
+  = lambda p b c: match b { | pos q => mAssocPP p q c | negsuc q => mAssocPN p q c }
+def mAssocN : (p : Nat) -> (b : Int) -> (c : Int)
+  -> Id Int (mulI (mulI (negsuc p) b) c) (mulI (negsuc p) (mulI b c))
+  = lambda p b c: match b { | pos q => mAssocNP p q c | negsuc q => mAssocNN p q c }
+
+def mulI_assoc : (a : Int) -> (b : Int) -> (c : Int) -> Id Int (mulI (mulI a b) c) (mulI a (mulI b c))
+  = lambda a b c: match a { | pos p => mAssocP p b c | negsuc p => mAssocN p b c }
+
 -- ============================================================================
 -- PROOF STATUS (honest record — see DECISIONS.md ADR-013).
 --
@@ -369,11 +473,21 @@ def mulI_one_r : (i : Int) -> Id Int (mulI i oneI) i
 -- addI_negI is exactly the additive-inverse law the constructive-real proof tier
 -- (ADR-017) was blocked on.
 --
+-- DONE (ring axioms, multiplicative): (ℤ, ·) is a COMMUTATIVE MONOID WITH
+-- ABSORBING ZERO — mulI_comm (above) + mulI_one_l/r + mulI_zero_l/r + mulI_assoc.
+-- mulI_assoc is an 8-sign-case helper tree (mAssocPP/PN/NP/NN), splitting a
+-- pos-magnitude into zero/suc exactly where a mixed-sign product's magnitude is
+-- stuck (16 leaves). Integer splits make isNeg/xor literal and magnitude splits
+-- make intOfSignMag true a constructor, so the Bool-elim gap is never faced.
+-- Combined with (ℤ,+) a commutative group, this is EVERYTHING of a commutative
+-- ring EXCEPT distributivity.
+--
 -- Still to prove (true; in progress; NO axioms will paper over them):
---  • the MULTIPLICATIVE ring axioms: mulI assoc, mul-by-zero/one, and
---    distributivity (mulI over addI — needs a mul-over-diff family). With these,
---    (ℤ,+,·) is a commutative ring, and the FIELD LAWS of ℚ (addR/mulR assoc &
---    distrib on Reduced, up to a setoid) follow — which also unblocks the
---    proof-carrying constructive-real tier (ADR-017).
+--  • DISTRIBUTIVITY (mulI over addI) — the last ring axiom. Needs a mul-over-diff
+--    family (mul_diff_pos : mulI (pos m)(diff n o) = diff (mul m n)(mul m o), and
+--    its negsuc twin), same double-induction template as add_diff_pos, whose
+--    suc/suc case discharges via mul_suc + diff_cancel_l; then an 8-sign-case
+--    assembly. With it, (ℤ,+,·) is a commutative ring; the ℚ field laws and the
+--    proof-carrying constructive-real tier (ADR-017) follow.
 --  • the ADR-016 evaluator-sharing perf fix (reducing gcd/divmod numerals).
 -- ============================================================================
