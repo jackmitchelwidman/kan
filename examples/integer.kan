@@ -15,5 +15,5 @@ eval minus 5z 12z                                   -- -7  (Integer is signed)
 
 -- sums, comparisons:
 eval sumTo 1000                                     -- 500500
-eval eqInt (times 7z 8z) 56z                        -- true
-eval ltInt (minus 0z 5z) 0z                         -- true
+eval eqInteger (times 7z 8z) 56z                    -- true
+eval ltInteger (minus 0z 5z) 0z                     -- true

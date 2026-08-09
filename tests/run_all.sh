@@ -74,6 +74,11 @@ reject "recursion under a non-binder-scrutinee match" \
   'def f : Nat -> Nat = \n. match (suc n) { | zero => zero | suc m => match n { | zero => zero | suc k => f k } }'
 reject "recursion wrapped by a constructor (non-tail match)" \
   'def f : Nat -> Nat = \n. suc (match n { | zero => zero | suc k => f k })'
+# a single flat namespace: no name may be declared twice (def / data / ctor)
+reject "duplicate top-level name (def vs def)" \
+  'def d : Nat = 1 def d : Nat = 2'
+reject "duplicate top-level name (constructor vs def)" \
+  'data Age { age : Nat -> Age } def age : Age -> Nat = \a. match a { | age n => n }'
 
 echo "--------------------------------------------"
 echo "passed: $pass   failed: $fail"

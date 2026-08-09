@@ -529,6 +529,30 @@ let parse ?(ns0 = []) (toks : tok array) : decl list =
   in
   loop ns0 []
 
+(* -------- a single flat namespace: names must be unique -------- *)
+
+(* Every def, data type, and constructor shares one global namespace. Silent
+   shadowing used to hide real bugs — e.g. a constructor and an accessor given
+   the same name, where the constructor silently won and the accessor became
+   dead code. So any redeclaration across the whole loaded program (all imports
+   spliced in) is a hard error. Called on the full decl list before checking. *)
+let check_unique (decls : decl list) : unit =
+  let seen : (string, string) Hashtbl.t = Hashtbl.create 256 in
+  let claim kind n =
+    match Hashtbl.find_opt seen n with
+    | Some prev ->
+        failwith (Printf.sprintf
+          "duplicate top-level name '%s' (declared as a %s, and already declared as a %s). Kan has a single flat namespace — rename one of them."
+          n kind prev)
+    | None -> Hashtbl.add seen n kind
+  in
+  List.iter
+    (function
+      | Def (n, _, _) -> claim "def" n
+      | Data_decl (n, _, cs) -> claim "data type" n; List.iter (fun (c, _) -> claim "constructor" c) cs
+      | Check _ | Eval _ | Import _ -> ())
+    decls
+
 (* -------- driver: elaborate, check, report -------- *)
 
 let run_decls (decls : decl list) : unit =

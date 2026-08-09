@@ -98,3 +98,11 @@ feature, so this is a milestone, not a patch.
   guarantee section.
 - **Indexed families** (`Vec`, `Fin`): still the biggest missing type-theory
   feature; a dedicated, careful milestone (unsound if rushed).
+- **Namespaces / qualified imports.** Kan has one flat global namespace. As of
+  v0.6.0 duplicate top-level names are a hard error (no more silent shadowing —
+  see `Tt.check_unique`), which removes the footgun. The remaining ergonomic step,
+  for when the library grows, is *qualified imports* (`import "std/nat.kan" as Nat`
+  → `Nat.add`) so the same short name can live in two modules; then, later,
+  export/visibility control so an `import` doesn't pull in a file's transitive
+  names. Both are pure name-resolution features — no kernel change. Not needed yet:
+  the stdlib currently has zero cross-file name collisions.

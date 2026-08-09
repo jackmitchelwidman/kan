@@ -18,7 +18,7 @@ def apply : (A : U) -> (B : U) -> (A -> B) -> A -> B = lambda A B f x: f x
 def pred   : Nat -> Nat  = lambda n: match n { | zero => zero | suc k => k }
 def isZero : Nat -> Bool = lambda n: match n { | zero => true | suc k => false }
 def even   : Nat -> Bool = lambda n: match n { | zero => true | suc k => not (even k) }
-def sub    : Nat -> Nat -> Nat = lambda m n: match n { | zero => m | suc k => pred (sub m k) }
+-- (`sub` — truncated subtraction — is already in std/nat.kan, imported above)
 def max    : Nat -> Nat -> Nat = lambda m n: if (leq m n) n m
 def min    : Nat -> Nat -> Nat = lambda m n: if (leq m n) m n
 def pow    : Nat -> Nat -> Nat = lambda b e: match e { | zero => suc zero | suc k => mul b (pow b k) }

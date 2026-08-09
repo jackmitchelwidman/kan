@@ -13,8 +13,8 @@
 def plus  : Integer -> Integer -> Integer = lambda a b: iadd a b
 def minus : Integer -> Integer -> Integer = lambda a b: isub a b
 def times : Integer -> Integer -> Integer = lambda a b: imul a b
-def eqInt : Integer -> Integer -> Bool    = lambda a b: ieq a b
-def ltInt : Integer -> Integer -> Bool    = lambda a b: ilt a b
+def eqInteger : Integer -> Integer -> Bool    = lambda a b: ieq a b
+def ltInteger : Integer -> Integer -> Bool    = lambda a b: ilt a b
 
 def negate : Integer -> Integer = lambda a: isub 0z a
 def double : Integer -> Integer = lambda a: iadd a a

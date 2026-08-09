@@ -64,7 +64,9 @@ let load_program entry : Tt.decl list =
       (idecls @ own, ns2)
     end
   in
-  fst (load [] entry)
+  let decls = fst (load [] entry) in
+  Tt.check_unique decls;          (* one flat namespace: no duplicate top-level names *)
+  decls
 
 let die e =
   Printf.eprintf "kan: %s\n" (match e with Failure m -> m | _ -> Printexc.to_string e);

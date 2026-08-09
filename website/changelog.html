@@ -77,12 +77,33 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.6.0 ===================== -->
+  <section id="v0.6.0" class="current">
+    <div class="vhead">
+      <h2>v0.6.0</h2>
+      <span class="date">2026-08-09 · 14:59 IDT</span>
+      <span class="tag">latest</span>
+      <span class="tag break">breaking</span>
+    </div>
+    <p class="subtitle">One namespace, and it's enforced.</p>
+    <ul>
+      <li><b>Duplicate top-level names are now a hard error.</b> Kan has a single flat namespace —
+        every <code>def</code>, data type, and constructor shares it. Declaring the same name twice
+        anywhere in a program (a file or anything it imports) used to <em>silently</em> shadow, which hid
+        real bugs — e.g. a constructor and an accessor sharing a name, where the constructor quietly won and
+        the accessor became dead code. The checker now rejects it with a clear message naming the clash.</li>
+      <li><b>Renamed <code>eqInt</code>/<code>ltInt</code> → <code>eqInteger</code>/<code>ltInteger</code></b>
+        in <code>std/integer.kan</code> (the primitive-<code>Integer</code> comparisons), so they no longer
+        collide with <code>std/int.kan</code>'s <code>eqInt</code> on the inductive <code>Int</code>. If you
+        compared primitive <code>Integer</code>s, use the new names.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.5.0 ===================== -->
-  <section id="v0.5.0" class="current">
+  <section id="v0.5.0">
     <div class="vhead">
       <h2>v0.5.0</h2>
       <span class="date">2026-08-09 · 13:43 IDT</span>
-      <span class="tag">latest</span>
       <span class="tag break">breaking</span>
     </div>
     <p class="subtitle">Small categories, named honestly.</p>
