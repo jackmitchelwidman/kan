@@ -26,6 +26,8 @@ def fold_suc  : (a : NatAlg) -> (n : Nat) -> Id (C a) (fold a (suc n)) (s a (fol
 -- UNIQUENESS — the universal property. Any `g` that satisfies the same algebra
 -- equations equals the fold, everywhere. This is what makes the fold THE Kan
 -- extension: the unique map making the triangle commute. Proof by induction on n.
+-- (Uniqueness is stated POINTWISE — `(n) -> Id (g n) (fold a n)` — which, absent
+--  function extensionality, is both the only expressible form and the honest one.)
 def fold_unique
   : (a : NatAlg) -> (g : Nat -> C a)
     -> Id (C a) (g zero) (z a)
