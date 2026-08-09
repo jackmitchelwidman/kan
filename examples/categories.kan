@@ -4,6 +4,7 @@
 -- Run:  kan check examples/categories.kan
 
 import "../std/category.kan"
+import "../std/unit.kan"
 
 -- The terminal category and its opposite are both categories (checked).
 def OneOp : SmallCategory = op One

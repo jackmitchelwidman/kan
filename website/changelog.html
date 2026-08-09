@@ -77,12 +77,38 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.8.0 ===================== -->
+  <section id="v0.8.0" class="current">
+    <div class="vhead">
+      <h2>v0.8.0</h2>
+      <span class="date">2026-08-09 · 19:03 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle">A real module system.</p>
+    <ul>
+      <li><b>Every file is a module with its own namespace.</b> Two modules can declare the
+        same name freely — <code>Paint::Color</code> and <code>Mood::Color</code> coexist. A bare
+        name resolves to your own module first, then to the unique imported module that provides
+        it; a genuine clash is a clear error telling you to qualify.</li>
+      <li><b>Imports are explicit — no transitive leaks.</b> You see a module's <em>exports</em>,
+        never its dependencies' names, so a file imports what it actually uses.</li>
+      <li><b>Controls:</b> <code>import "x" as M</code> (qualified <code>M::name</code>),
+        <code>import "x" exposing (a, b)</code> / <code>hiding (a, b)</code> to filter unqualified
+        names, and <code>private def</code> / <code>private data</code> for module-local names that
+        importers can't see (and that different modules may reuse).</li>
+      <li>Built in four stages, entirely in the front end — the kernel is untouched, and all three
+        backends agree on namespaced programs. Constructor values still print their short names
+        (the module tag shows only in type errors, where it disambiguates). Loading a file once by
+        path also retires the v0.7.0 "same file imported twice = two copies" caveat. See
+        <code>examples/namespaces.kan</code>.</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.7.0 ===================== -->
-  <section id="v0.7.0" class="current">
+  <section id="v0.7.0">
     <div class="vhead">
       <h2>v0.7.0</h2>
       <span class="date">2026-08-09 · 16:27 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle">Namespaces: qualified imports.</p>
     <ul>

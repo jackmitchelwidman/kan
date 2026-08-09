@@ -47,6 +47,7 @@ let iintgcd a b = match a, b with VIntV x, VIntV y -> VIntV (Bi.gcd x y) | _ -> 
 let iinteq a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.equal x y) | _ -> failwith "ieq"
 let iintlt a b = match a, b with VIntV x, VIntV y -> VBoolV (Bi.compare x y < 0) | _ -> failwith "ilt"
 let iintfromnat n = match n with VNatV k -> VIntV k | _ -> failwith "fromNat"
+let short c = match String.rindex_opt c ':' with Some i -> String.sub c (i + 1) (String.length c - i - 1) | None -> c
 let rec ishow = function
   | VNatV n -> Bi.to_string n
   | VBoolV b -> if b then "true" else "false"
@@ -54,9 +55,9 @@ let rec ishow = function
   | VIntV b -> Bi.to_string b
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
-  | VConV (c, []) -> c
-  | VConV (c, sp) -> "(" ^ c ^ " " ^ String.concat " " (List.map ishow sp) ^ ")"
-  | VElimV (e, _) -> e ^ "<partial>"
+  | VConV (c, []) -> short c
+  | VConV (c, sp) -> "(" ^ short c ^ " " ^ String.concat " " (List.map ishow sp) ^ ")"
+  | VElimV (e, _) -> short e ^ "<partial>"
   | VClo _ -> "<fun>"
 |ml}
 

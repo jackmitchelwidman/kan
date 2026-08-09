@@ -165,6 +165,10 @@ and ieval env t =
   | IIntFromNat n -> (match ieval env n with VNatV k -> VIntV k | _ -> failwith "fromNat")   (* O(1): nat is already a bignum *)
   | IUnit -> VUnit
 
+(* a value prints with its constructor's SHORT name — the module tag ("mod#k::")
+   is an internal detail, stripped for display. Type errors keep the tag. *)
+let short c = match String.rindex_opt c ':' with Some i -> String.sub c (i + 1) (String.length c - i - 1) | None -> c
+
 let rec ishow = function
   | VNatV n -> Bigint.to_string n
   | VBoolV b -> if b then "true" else "false"
@@ -172,9 +176,9 @@ let rec ishow = function
   | VIntV b -> Bigint.to_string b
   | VUnit -> "_"
   | VPairV (a, b) -> "(" ^ ishow a ^ ", " ^ ishow b ^ ")"
-  | VConV (c, []) -> c
-  | VConV (c, sp) -> "(" ^ c ^ " " ^ String.concat " " (List.map ishow sp) ^ ")"
-  | VElimV (e, _) -> e ^ "<partial>"
+  | VConV (c, []) -> short c
+  | VConV (c, sp) -> "(" ^ short c ^ " " ^ String.concat " " (List.map ishow sp) ^ ")"
+  | VElimV (e, _) -> short e ^ "<partial>"
   | VClo _ -> "<function>"
 
 (* -------- run a parsed program through erasure -------- *)

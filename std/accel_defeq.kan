@@ -16,6 +16,8 @@
 -- refl. Acceleration must not collapse a neutral (variable) term either.
 -- ============================================================================
 import "int.kan"
+import "logic.kan"
+import "nat.kan"
 
 -- Nat: the two computation rules of `add` and `mul` (recursion on the 1st arg)
 def add_zero_l : (n : Nat) -> Id Nat (add zero n) n                         = lambda n: refl

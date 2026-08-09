@@ -6,6 +6,7 @@
 -- these same results cheap at large scale, without changing a single output.
 --   kan run examples/accel_spec.kan
 import "../std/int.kan"
+import "../std/nat.kan"
 
 -- Nat arithmetic (eval prints the numeral)
 eval add 200 300              -- 500

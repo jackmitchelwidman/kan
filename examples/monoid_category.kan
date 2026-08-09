@@ -8,6 +8,7 @@
 -- category. Run:  kan check examples/monoid_category.kan
 import "../std/category.kan"
 import "../std/nat.kan"
+import "../std/unit.kan"
 
 def NatPlus : SmallCategory
   = ( Unit

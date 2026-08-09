@@ -98,22 +98,26 @@ feature, so this is a milestone, not a patch.
   guarantee section.
 - **Indexed families** (`Vec`, `Fin`): still the biggest missing type-theory
   feature; a dedicated, careful milestone (unsound if rushed).
-- **Namespaces / qualified imports.** Kan started with one flat global namespace.
-  v0.6.0 made duplicate top-level names a hard error (no silent shadowing — see
-  `Tt.check_unique`). **v0.7.0 added qualified imports**: `import "std/nat.kan" as Nat`
-  puts that module's names under `Nat::add`, `Nat::Bool`, etc. — datatypes,
-  constructors, and functions all namespaced, including inside `match` — so the same
-  short name can live in many modules (`Paint::Color` and `Mood::Color` coexist). A
-  plain `import` stays unqualified (= "open"). It's a pure front-end feature: a parse
-  -time prefix in `Tt.parse` plus `(path, prefix)` keying in the loader; the kernel is
-  unchanged (the C backend mangles `::` out of generated identifiers via `cident`).
-  **Still open** (the "later" pieces): (1) *export/visibility control* — an `import`
-  still leaks a module's transitive unqualified imports into your scope; a module
-  should choose its public surface. (2) `open M` to bring an already-qualified
-  module's names in unqualified. (3) `exposing`/`hiding` lists. All additive.
-  Two known consequences of the current prefix-based design, acceptable for now:
-  importing the *same* module both bare and `as M` yields two nominally distinct
-  copies (`Option` and `Opt::Option` are incompatible types); and aliases are
-  program-global, not scoped to the importing file (two files each aliasing a
-  different module as `H` would clash via `check_unique` or see each other's `H::`
-  names). Real file-scoped aliases come with the export-control work.
+- **Module system (done, v0.8.0).** Kan started with one flat global namespace;
+  it now has a real module system, built in four stages (all front-end, kernel
+  unchanged — the C backend mangles `::` out of generated identifiers via `cident`):
+  1. *Module-relative names* — every file is loaded under a unique tag
+     (`basename#k`); each declaration is stored as `tag::name`, and a bare
+     reference resolves to your own module first, then the unique other module
+     that provides it. Two modules can freely reuse a name (`Paint::Color` vs
+     `Mood::Color`); an actual clash is a clear "qualify it" error. Tags are
+     stripped for value display and kept in type errors.
+  2. *Explicit imports* — a bare name resolves only through `self` + directly
+     imported modules; no transitive leak. (The stdlib was migrated to import
+     what it uses.)
+  3. *Privacy* — `private def` / `private data` is usable inside its module but
+     invisible to importers (and freely re-nameable across modules).
+  4. *Ergonomics* — `import "x" as M` (qualified `M::name`), `exposing (…)` /
+     `hiding (…)` filters on unqualified imports.
+  Earlier v0.7.0 caveats are resolved: a file is loaded once (keyed by canonical
+  path), so `import`/`as M` of the same file is one module, not two copies.
+  **Still open** (a further axis, not required for namespacing): `open M` for an
+  already-aliased module; and *first-class / parameterized modules* (ML functors,
+  i.e. modules as dependent-record values you can pass and instantiate).
+  One known limitation: `exposing`/`hiding` apply only to UNqualified imports; on
+  an `import "x" as M` they are accepted but ignored (all of `M::…` stays reachable).

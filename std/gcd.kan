@@ -7,6 +7,9 @@
 -- stage-5 correctness result, built on the Euclid step `dvd_mod_fwd`.
 -- ============================================================================
 import "divmod.kan"
+import "logic.kan"
+import "order.kan"
+import "nat.kan"
 
 -- the fuel-decrease, factored out so gcdF and its proof use the IDENTICAL term
 -- (this is what makes the correctness proof line up definitionally with gcdF):

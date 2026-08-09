@@ -16,16 +16,25 @@ eval add 2 (length Nat xs)
 
 Each file is included at most once, even if reached through several imports.
 
-Import **qualified** with `as` to keep a module's names in their own namespace —
-useful when two modules would otherwise clash (both defining `Color`, say):
+**Modules.** Every file is a module with its own namespace, so two modules can
+freely declare the same name. You control what a module exposes and how you bring
+it in:
 
 ```
-import "../std/nat.kan" as Nat
+import "../std/nat.kan"                  -- everything nat exports, unqualified
+import "../std/nat.kan" as Nat           -- qualified: Nat::add, Nat::Color, …
+import "../std/nat.kan" exposing (add)   -- only `add`, unqualified
+import "../std/nat.kan" hiding (sub)     -- everything except `sub`
 
-eval Nat::add 2 3          -- 5   (datatypes, constructors, and defs all namespaced)
+private def helper : … = …               -- module-local: invisible to importers
+
+eval Nat::add 2 3          -- 5   (datatypes, constructors, and defs are all namespaced)
 ```
 
-A plain `import` is unqualified (equivalent to "open"). See `examples/namespaces.kan`.
+Imports are **explicit**: you see a module's exports, never its dependencies'
+names — so a file must import what it actually uses. Names resolve to your own
+module first, then to the unique imported module that provides them (a clash is a
+clear error telling you to qualify). See `examples/namespaces.kan`.
 
 ## Modules
 

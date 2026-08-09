@@ -20,6 +20,8 @@
 import "int.kan"
 import "rational_typed.kan"
 import "order.kan"
+import "logic.kan"
+import "nat.kan"
 
 -- ---- Int order as a Σ-witness:  a ≤ b  iff  b − a is a non-negative int -------
 def LeI : Int -> Int -> U = lambda a b: (k : Nat) * Id Int (addI a (fromNatI k)) b

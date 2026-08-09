@@ -2,6 +2,7 @@
 -- division. Runnable and tri-runtime (kan run / OCaml / C all agree).
 --   kan run examples/rational.kan
 import "../std/rational.kan"
+import "../std/option.kan"
 
 -- display helpers: an Option Rational shown as a plain Integer for `eval`
 -- (a `none` — i.e. a divide-by-zero — shows as the sentinel -999).

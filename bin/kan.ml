@@ -29,19 +29,35 @@ let normalize path =
 
 let canon file = normalize (if Filename.is_relative file then Filename.concat (Sys.getcwd ()) file else file)
 
-(* the import paths of a file, found without full parsing (imports come first,
-   and the parser needs earlier files' datatypes in scope before parsing this one) *)
-(* returns (path, alias) pairs; `import "p" as M` gives (p, Some "M"), a plain
-   `import "p"` gives (p, None). An aliased import is loaded into namespace M. *)
+(* the import clauses of a file, found without full parsing. Each is
+   (path, alias, filter): `import "p"` → (p, None, FAll); `... as M` sets the
+   alias; `... exposing (a,b)` / `... hiding (a,b)` sets the filter on the
+   unqualified names brought in. *)
 let scan_imports toks =
   let n = Array.length toks in
+  let at j = if j < n then toks.(j) else Tt.EOF in
+  (* parse a `(name, name, …)` list starting at LP index j; returns (names, next) *)
+  let name_list j =
+    let rec go j acc = match at j with
+      | Tt.ID x -> (match at (j + 1) with Tt.COMMA -> go (j + 2) (x :: acc) | _ -> (List.rev (x :: acc), j + 1))
+      | Tt.RP -> (List.rev acc, j + 1)
+      | _ -> (List.rev acc, j)
+    in
+    if at j = Tt.LP then go (j + 1) [] else ([], j)
+  in
   let rec go i acc =
     if i + 1 >= n then List.rev acc
     else match toks.(i), toks.(i + 1) with
       | Tt.ID "import", Tt.STR p ->
-          if i + 3 < n && toks.(i + 2) = Tt.ID "as" && (match toks.(i + 3) with Tt.ID _ -> true | _ -> false)
-          then let m = (match toks.(i + 3) with Tt.ID m -> m | _ -> "") in go (i + 4) ((p, Some m) :: acc)
-          else go (i + 2) ((p, None) :: acc)
+          let j = i + 2 in
+          let alias, j = (match at j, at (j + 1) with Tt.ID "as", Tt.ID m -> (Some m, j + 2) | _ -> (None, j)) in
+          let filter, j =
+            match at j with
+            | Tt.ID "exposing" -> let l, j' = name_list (j + 1) in (Tt.FOnly l, j')
+            | Tt.ID "hiding" -> let l, j' = name_list (j + 1) in (Tt.FExcept l, j')
+            | _ -> (Tt.FAll, j)
+          in
+          go j ((p, alias, filter) :: acc)
       | _ -> go (i + 1) acc
   in
   go 0 []
@@ -52,31 +68,57 @@ let scan_imports toks =
 let load_program entry : Tt.decl list =
   Tt.reset_tables ();
   let visited = Hashtbl.create 16 in
-  (* `ns` accumulates global def names (most-recent-first) so far, for scoping.
-     `prefix` is the namespace this file is loaded into ("" = unqualified); a file
-     imported `as M` is parsed with prefix "M". The same file under different
-     prefixes is loaded once per prefix (key = (path, prefix)). *)
-  let rec load prefix ns file =
-    let key = (canon file, prefix) in
-    if Hashtbl.mem visited key then ([], ns)
+  (* Every file is a module loaded under a unique tag "basename#k" (k disambiguates
+     duplicate basenames). Its declarations live under that tag internally; a file
+     is loaded once (keyed by canonical path), and `import "x" as M` is a surface
+     alias M -> x's tag. *)
+  let tags = Hashtbl.create 32 in       (* canonical path -> tag *)
+  let base_ct = Hashtbl.create 32 in    (* basename -> next counter *)
+  let tag_of file =
+    let c = canon file in
+    match Hashtbl.find_opt tags c with
+    | Some t -> t
+    | None ->
+        let b = Filename.remove_extension (Filename.basename c) in
+        let k = try Hashtbl.find base_ct b with Not_found -> 0 in
+        Hashtbl.replace base_ct b (k + 1);
+        let t = Printf.sprintf "%s#%d" b k in
+        Hashtbl.replace tags c t; t
+  in
+  (* `ns` accumulates every loaded def's full (tagged) name in load order, so the
+     parser can turn a resolved name into a de Bruijn index into the global env. *)
+  let rec load ns file =
+    let c = canon file in
+    if Hashtbl.mem visited c then ([], ns)
     else begin
-      Hashtbl.replace visited key ();
+      Hashtbl.replace visited c ();
+      let self = tag_of file in
       let toks = Tt.tokenize (read_file file) in
       let dir = Filename.dirname file in
+      let imports = scan_imports toks in
       let idecls, ns1 =
         List.fold_left
-          (fun (acc, ns) (p, alias) ->
-             let sub = match alias with Some m -> m | None -> "" in
-             let d, ns' = load sub ns (Filename.concat dir p) in (acc @ d, ns'))
-          ([], ns) (scan_imports toks)
+          (fun (acc, ns) (p, _alias, _f) -> let d, ns' = load ns (Filename.concat dir p) in (acc @ d, ns'))
+          ([], ns) imports
       in
-      let own = Tt.parse ~ns0:ns1 ~prefix toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
+      let aliases =
+        List.filter_map
+          (fun (p, alias, _f) -> match alias with Some m -> Some (m, tag_of (Filename.concat dir p)) | None -> None)
+          imports
+      in
+      (* an UNQUALIFIED import (no alias) opens its names bare, subject to its filter *)
+      let opened =
+        List.filter_map
+          (fun (p, alias, f) -> match alias with None -> Some (tag_of (Filename.concat dir p), f) | Some _ -> None)
+          imports
+      in
+      let own = Tt.parse ~ns0:ns1 ~self ~opened ~aliases toks |> List.filter (function Tt.Import _ -> false | _ -> true) in
       let ns2 = List.fold_left (fun a d -> match d with Tt.Def (n, _, _) -> n :: a | _ -> a) ns1 own in
       (idecls @ own, ns2)
     end
   in
-  let decls = fst (load "" [] entry) in
-  Tt.check_unique decls;          (* one flat namespace: no duplicate top-level names *)
+  let decls = fst (load [] entry) in
+  Tt.check_unique decls;          (* per-module uniqueness: no name declared twice in one file *)
   decls
 
 let die e =

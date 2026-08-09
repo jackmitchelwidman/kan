@@ -95,7 +95,7 @@ let tokenize (s : string) : tok array =
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
                       "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
-let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda"; "private" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -108,6 +108,10 @@ type decl =
   | Data_decl of string * (string * tm) list * (string * arg_ty list) list  (* name, params, [ctor, arg types] *)
   | Import of string
 
+(* how an unqualified import filters which of a module's names enter bare scope:
+   `import "x"` = FAll, `... exposing (a,b)` = FOnly, `... hiding (a,b)` = FExcept *)
+type imp_filter = FAll | FOnly of string list | FExcept of string list
+
 (* datatypes/constructors/eliminators known to the parser. These are MODULE-level
    and shared across `parse` calls so that, when a program is assembled from several
    files (via `import`), a file can use datatypes declared in files parsed before it.
@@ -119,23 +123,95 @@ let elims : (string, string * int) Hashtbl.t = Hashtbl.create 16  (* elim -> (da
    Populated at parse time (before run_decls), which is the only source available then. *)
 let data_info : (string, int * (string * arg_ty list) list) Hashtbl.t = Hashtbl.create 16
 let ctor_owner : (string, string) Hashtbl.t = Hashtbl.create 32   (* ctor -> its datatype *)
+(* MODULES. Every file is loaded under a unique tag ("basename#k"); each declared
+   name is stored internally as "<tag>::<name>". `short_index` maps a bare name to
+   the full (tagged) names that declare it, so a bare reference resolves to its
+   module's definition — preferring the current module, then the unique other one,
+   erroring if two modules would both answer. `#` cannot appear in surface syntax,
+   so a written `A::x` is always an alias reference, never a raw tag. *)
+let short_index : (string, string list) Hashtbl.t = Hashtbl.create 256
+(* names marked `private`: declared and usable inside their own module, but not
+   visible to importers (Stage 3 export control). Keyed by full (tagged) name. *)
+let private_names : (string, unit) Hashtbl.t = Hashtbl.create 64
 let reset_tables () =
   Hashtbl.reset datatypes; Hashtbl.reset ctors; Hashtbl.reset elims;
-  Hashtbl.reset data_info; Hashtbl.reset ctor_owner
+  Hashtbl.reset data_info; Hashtbl.reset ctor_owner; Hashtbl.reset short_index;
+  Hashtbl.reset private_names
+(* record that full name `full` (= tag::short) is declared, for bare resolution *)
+let index_add full =
+  match String.rindex_opt full ':' with
+  | Some i ->
+      let short = String.sub full (i + 1) (String.length full - i - 1) in
+      let prev = try Hashtbl.find short_index short with Not_found -> [] in
+      if not (List.mem full prev) then Hashtbl.replace short_index short (full :: prev)
+  | None -> ()
 
 (* `ns0` seeds the name scope with globals from files parsed earlier (imports),
    so a file can reference definitions imported before it. *)
-let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
-  (* NAMESPACES. When a file is imported `as M`, it is parsed with prefix "M":
-     its declared names are registered as "M::name", and a bare reference inside
-     the file resolves to "M::name" first, falling back to the unqualified name
-     (so it can still see primitives and its own unqualified imports). A name that
-     already contains "::" is an explicit qualified reference and is used as-is. *)
-  let is_qual s = String.contains s ':' in
-  let qual s = if prefix = "" then s else prefix ^ "::" ^ s in      (* for DECLARATIONS *)
-  let cands s = if prefix <> "" && not (is_qual s) then [ prefix ^ "::" ^ s; s ] else [ s ] in
-  let find_key tbl s = List.find_opt (fun k -> Hashtbl.mem tbl k) (cands s) in
-  let var_key ns s = List.find_map (fun k -> index_of k ns) (cands s) in
+let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list)) ?(aliases = []) (toks : tok array) : decl list =
+  (* MODULE RESOLUTION. This file is parsed under tag `self`; its declarations are
+     stored as "self::name" (via `qual`). `opened` is the tags of the modules it
+     imports UNQUALIFIED (their names are visible bare); `aliases` maps a surface
+     alias (from `import "x" as M`) to that module's tag (visible only as M::x).
+       • qual s    — the full internal name for a declaration in this file.
+       • resolve s — a surface reference → its full internal name (or None):
+           - "M::x": M is an alias → "<tag>::x".
+           - bare "x": this module's own "self::x", else the unique imported module
+             that declares x. A name that exists only in a NON-imported module is
+             an error naming the module to import (this is what makes imports
+             explicit — no transitive leak). Builtins are dispatched before resolve. *)
+  let qual s = if self = "" then s else self ^ "::" ^ s in
+  let base f = try String.sub f 0 (String.index f '#') with Not_found -> (try String.sub f 0 (String.index f ':') with Not_found -> f) in
+  let tagof f = try String.sub f 0 (String.index f ':') with Not_found -> f in
+  let shortof f = match String.rindex_opt f ':' with Some i -> String.sub f (i + 1) (String.length f - i - 1) | None -> f in
+  let passes filt s = match filt with FAll -> true | FOnly l -> List.mem s l | FExcept l -> not (List.mem s l) in
+  (* is full name f reachable bare in this file: from self, or an opened module whose filter admits it *)
+  let f_visible f =
+    let t = tagof f in
+    t = self || List.exists (fun (tg, filt) -> tg = t && passes filt (shortof f)) opened
+  in
+  (* a name in another module is off-limits if marked private there *)
+  let is_priv full = Hashtbl.mem private_names full && tagof full <> self in
+  let resolve s =
+    match String.index_opt s ':' with
+    | Some i ->
+        let m = String.sub s 0 i and x = String.sub s (i + 2) (String.length s - i - 2) in
+        (match List.assoc_opt m aliases with
+         | Some tag ->
+             let full = tag ^ "::" ^ x in
+             if is_priv full then failwith (Printf.sprintf "name '%s' is private to module %s" x (base full)) else Some full
+         | None -> None)
+    | None ->
+        let mine = self ^ "::" ^ s in
+        let all = try Hashtbl.find short_index s with Not_found -> [] in
+        if self <> "" && List.mem mine all then Some mine     (* own names win, even private ones *)
+        else
+          let in_scope = List.filter f_visible all in
+          let vis = List.filter (fun f -> not (is_priv f)) in_scope in
+          (match vis with
+           | [ f ] -> Some f
+           | f :: _ :: _ ->
+               ignore f;
+               failwith (Printf.sprintf "ambiguous name '%s' — imported from %s; qualify it (M::%s)"
+                           s (String.concat ", " (List.map base vis)) s)
+           | [] ->
+               if in_scope <> [] then    (* imported, but private there *)
+                 failwith (Printf.sprintf "name '%s' is private to module %s" s (String.concat " / " (List.sort_uniq compare (List.map base in_scope))))
+               else (match all with
+                | [] -> None                                   (* truly unbound *)
+                | owners ->                                     (* exists, but not imported here *)
+                    let mods = List.sort_uniq compare (List.map base owners) in
+                    failwith (Printf.sprintf "name '%s' is declared in module %s but not imported here — add an `import` for %s"
+                                s (String.concat " / " mods) (String.concat " or " (List.map (fun m -> "\"" ^ m ^ ".kan\"") mods)))))
+  in
+  let find_key tbl s = match resolve s with Some f when Hashtbl.mem tbl f -> Some f | _ -> None in
+  (* a bare local binder (lambda/match) is in `ns` unqualified; a global is tagged.
+     So try the raw name first (locals shadow), then the module-resolved name. *)
+  let var_key ns s =
+    match index_of s ns with
+    | Some i -> Some i
+    | None -> (match resolve s with Some f -> index_of f ns | None -> None)
+  in
   let pos = ref 0 in
   let peek () = toks.(!pos) in
   let peek2 () = if !pos + 1 < Array.length toks then toks.(!pos + 1) else EOF in
@@ -347,9 +423,9 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
     while peek () = BAR do
       adv ();
       let cname_raw = ident () in
-      (* resolve a user constructor through the namespace prefix; a bare arm name
-         inside an `as M` scrutinee finds "M::ctor". Nat/Bool builtins are never
-         prefixed. Constructors are stored resolved so they match `data_info`. *)
+      (* resolve a user constructor through the module resolver; a bare arm name
+         finds its module's "tag::ctor". Nat/Bool builtins are never tagged.
+         Constructors are stored resolved so they match `data_info`. *)
       let cname = (match cname_raw with
         | "zero" | "suc" | "true" | "false" -> cname_raw
         | _ -> (match find_key ctor_owner cname_raw with Some ck -> ck | None -> cname_raw)) in
@@ -450,8 +526,20 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
       apply_moved (App (head, scrut))
     end
   in
-  let decl ns =
+  let rec decl ns =
     match peek () with
+    | ID "private" ->
+        (* `private def`/`private data`: parse the declaration, then mark its
+           name(s) module-private so importers can't see them. *)
+        adv ();
+        let d = decl ns in
+        (match d with
+         | Def (full, _, _) -> Hashtbl.replace private_names full ()
+         | Data_decl (full, _, cs) ->
+             Hashtbl.replace private_names full ();
+             List.iter (fun (c, _) -> Hashtbl.replace private_names c ()) cs
+         | _ -> fail "`private` must be followed by a `def` or `data`");
+        d
     | ID "def" ->
         adv (); let name = ident () in
         let ty = (match peek () with COLON -> adv (); Some (term ns) | _ -> None) in
@@ -473,6 +561,7 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
         let inner = term ~expected:(peel (List.length lead) ty) ns' in
         rec_fname := None; rec_binders := []; rec_annot := None; rec_decarg := ""; rec_ihmap := []; rec_at_top := false;
         let body = List.fold_right (fun x b -> Lam (x, b)) lead inner in
+        index_add (qual name);
         Def (qual name, ty, body)
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
@@ -481,9 +570,18 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
         (match peek () with
          | STR p ->
              adv ();
-             (* optional `as M` — the alias is consumed here and acted on by the
-                loader (scan_imports); the parsed Import node itself is discarded. *)
+             (* optional `as M` and `exposing (…)` / `hiding (…)` — consumed here so
+                the file parses; the loader (scan_imports) reads the same clauses to
+                build the resolution context. The Import node itself is discarded. *)
              (if peek () = ID "as" then (adv (); match peek () with ID _ -> adv () | _ -> fail "expected a namespace name after `as`"));
+             (match peek () with
+              | ID ("exposing" | "hiding") ->
+                  adv (); eat LP "(";
+                  let rec names () = match peek () with
+                    | ID _ -> adv (); (match peek () with COMMA -> adv (); names () | _ -> ())
+                    | RP -> () | _ -> fail "expected names in exposing/hiding list" in
+                  names (); eat RP ")"
+              | _ -> ());
              Import p
          | _ -> fail "expected a \"path\" after import")
     | ID "data" ->
@@ -498,6 +596,7 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
         let ps = parse_params [] in
         let k = List.length ps in
         Hashtbl.replace datatypes (qual name) ();      (* register early so constructor types can be recursive *)
+        index_add (qual name);
         let ns_ctor = List.fold_left (fun a (pn, _) -> pn :: a) ns ps in
         (* the datatype applied to all its parameters, as it appears under `depth` binders *)
         let applied_data_tm depth =
@@ -537,6 +636,7 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
           in
           let argtys = List.map classify dargs in
           Hashtbl.replace ctors (qual cname) (k + n);
+          index_add (qual cname);
           (qual cname, argtys)
         in
         let rec many acc =
@@ -548,6 +648,7 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
         let cs = (match peek () with RBRACE -> [] | _ -> many []) in
         eat RBRACE "}";
         Hashtbl.replace elims ((qual name) ^ "_elim") (qual name, k + 1 + List.length cs + 1);
+        index_add ((qual name) ^ "_elim");   (* so an explicit `T_elim` reference resolves *)
         Hashtbl.replace data_info (qual name) (k, cs);
         List.iter (fun (cn, _) -> Hashtbl.replace ctor_owner cn (qual name)) cs;
         Data_decl (qual name, ps, cs)
@@ -565,19 +666,20 @@ let parse ?(ns0 = []) ?(prefix = "") (toks : tok array) : decl list =
 
 (* -------- a single flat namespace: names must be unique -------- *)
 
-(* Every def, data type, and constructor shares one global namespace. Silent
-   shadowing used to hide real bugs — e.g. a constructor and an accessor given
-   the same name, where the constructor silently won and the accessor became
-   dead code. So any redeclaration across the whole loaded program (all imports
-   spliced in) is a hard error. Called on the full decl list before checking. *)
+(* Within a module every def, data type, and constructor share one namespace, so a
+   name may not be declared twice in the same file (this catches, e.g., a
+   constructor and an accessor given the same name). Names are internally tagged
+   per module, so this is naturally per-module: two files may reuse a name freely. *)
 let check_unique (decls : decl list) : unit =
   let seen : (string, string) Hashtbl.t = Hashtbl.create 256 in
+  let shortof n = match String.rindex_opt n ':' with Some i -> String.sub n (i + 1) (String.length n - i - 1) | None -> n in
+  let modof n = try String.sub n 0 (String.index n '#') with Not_found -> (try String.sub n 0 (String.index n ':') with Not_found -> "this file") in
   let claim kind n =
     match Hashtbl.find_opt seen n with
     | Some prev ->
         failwith (Printf.sprintf
-          "duplicate top-level name '%s' (declared as a %s, and already declared as a %s). Kan has a single flat namespace — rename one of them."
-          n kind prev)
+          "'%s' is declared twice in module %s (as a %s and a %s) — rename one of them."
+          (shortof n) (modof n) prev kind)
     | None -> Hashtbl.add seen n kind
   in
   List.iter

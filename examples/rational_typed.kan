@@ -3,6 +3,8 @@
 -- Runnable and tri-runtime (kan run / OCaml / C agree).
 --   kan run examples/rational_typed.kan
 import "../std/rational_typed.kan"
+import "../std/int.kan"
+import "../std/option.kan"
 
 -- display via the Integer bridge (Frac numerators/denominators are inductive Int)
 def showNum : Frac -> Integer = lambda x: toInteger (fnum x)

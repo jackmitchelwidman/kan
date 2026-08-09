@@ -24,6 +24,7 @@
 -- ============================================================================
 import "int.kan"
 import "option.kan"
+import "nat.kan"
 
 def ltNat : Nat -> Nat -> Bool = lambda a b: leq (suc a) b
 

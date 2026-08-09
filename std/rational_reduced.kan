@@ -25,6 +25,10 @@
 import "gcd.kan"
 import "int.kan"
 import "option.kan"
+import "nat.kan"
+import "order.kan"
+import "logic.kan"
+import "bool.kan"
 
 -- the type: a rational in lowest terms, invariants as proof fields.
 def Reduced : U

@@ -7,6 +7,8 @@
 -- also checks that `kan run`, the OCaml backend, and the C backend all agree.
 -- ============================================================================
 import "../std/creal.kan"
+import "../std/rational.kan"
+import "../std/option.kan"
 
 -- √2, π, e to ten decimal places:
 eval scaledFloor sqrt2 10                       -- 14142135623   (√2 = 1.4142135623…)

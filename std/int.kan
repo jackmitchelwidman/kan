@@ -15,6 +15,7 @@
 -- ============================================================================
 import "nat.kan"
 import "bool.kan"
+import "logic.kan"
 
 data Int { pos : Nat -> Int, negsuc : Nat -> Int }
 

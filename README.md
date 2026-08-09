@@ -2,7 +2,7 @@
 
 ## A Language of Universal Extension
 
-### Design Document — Version 0.7.0 (2026-08-09 16:27 IDT)
+### Design Document — Version 0.8.0 (2026-08-09 19:03 IDT)
 
 *Version is bumped on any change to Kan's public interface; the canonical value lives in [`VERSION`](VERSION).*
 
@@ -477,8 +477,9 @@ Deliberately after the philosophy, never before it.
 9. **Explicit dependent motives** — `match e as x return T` for dependent elimination on a nested/non-leading scrutinee (ADR-015), the elaborator unlock behind the tower above.
 10. **Constructive reals** ([`std/creal.kan`](std/creal.kan)) — a complete constructive-reals module: a real is a *process* producing rational approximations to any precision (`CReal = Nat -> Rational`, `x n` within `1/2^n`); with precision-propagating `+`/`−`/`×`, apartness-gated division (÷0 needs evidence), and `√2`, `π`, `e` computed to agreeing digits across all three runtimes (ADR-017). A proof-*carrying* companion ([`std/creal_proof.kan`](std/creal_proof.kan)) additionally proves `CRealP` regularity and that every rational is one (ADR-020).
 11. **ℤ is a commutative ring, proven** ([`std/int.kan`](std/int.kan)) — the inductive integers satisfy the full commutative-ring axioms as checked theorems, axiom-free: `(ℤ,+)` a commutative group (`addI_assoc`/`addI_comm`/`addI_negI`), `(ℤ,·)` a commutative monoid with absorbing zero (`mulI_assoc`/`mulI_comm`/`mulI_one`/`mulI_zero`), and distributivity (`mulI_distrib_l`/`_r`) — all via a diff-homomorphism toolkit that routes around the Bool-elimination gap at the integer level.
+12. **A module system** ([`examples/namespaces.kan`](examples/namespaces.kan)) — every file is a module with its own namespace, so modules may reuse names freely (`Paint::Color` vs `Mood::Color`). Names resolve to your own module first, then to the unique imported module that provides them; imports are **explicit** (you get a module's exports, never its dependencies' names). Controls: `import "x" as M` (qualified `M::name`), `exposing (…)`/`hiding (…)` filters, and `private def`/`data` for module-local names. Pure front-end (parse-time module tags; the kernel is untouched), all three runtimes agreeing on namespaced programs.
 
-**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); the field *laws* of ℚ as theorems (now following from the ℤ ring axioms above, up to a setoid on `Reduced`) — which also unblocks the *proof-carrying* real tier (regularity as a proof field); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
+**Next.** Indexed inductive families (`Vec`, `Fin`); record syntax and implicit arguments (ergonomics); first-class/parameterized modules (ML-style functors); the field *laws* of ℚ as theorems (now following from the ℤ ring axioms above, up to a setoid on `Reduced`) — which also unblocks the *proof-carrying* real tier (regularity as a proof field); an evaluator-sharing fix so proof-carrying `gcd`/division reduce cheaply (ADR-016); `fill`/`extend` as a first-class typed operation; the agent-orchestration front end, built as fills.
 
 ---
 

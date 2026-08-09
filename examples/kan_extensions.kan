@@ -14,6 +14,8 @@
 -- Run it:   kan check examples/kan_extensions.kan
 -- ============================================================================
 import "../std/kan.kan"
+import "../std/unit.kan"
+import "../std/category.kan"
 
 -- ---------------------------------------------------------------------------
 -- 1. THE FUNDAMENTAL EXAMPLE — extend along the identity, get F back.

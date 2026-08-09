@@ -247,6 +247,9 @@ static Value *inatelim(Value *z, Value *s, Value *n) {
   return acc;
 }
 
+/* a value prints with its constructor's SHORT name; the module tag ("mod#k::")
+   is internal, stripped for display (matches the OCaml/erase printers). */
+static const char *short_name(const char *s) { const char *p = strrchr(s, ':'); return p ? p + 1 : s; }
 static void print_value(Value *v) {
   switch (v->tag) {
     case VNAT: { char *s = big_to_str(v->big); printf("%s", s); free(s); break; }
@@ -256,10 +259,10 @@ static void print_value(Value *v) {
     case VUNIT: printf("_"); break;
     case VPAIR: printf("("); print_value(v->a); printf(", "); print_value(v->b); printf(")"); break;
     case VCON:
-      if (v->nargs == 0) printf("%s", v->name);
-      else { printf("(%s", v->name); for (int k = 0; k < v->nargs; k++) { printf(" "); print_value(v->args[k]); } printf(")"); }
+      if (v->nargs == 0) printf("%s", short_name(v->name));
+      else { printf("(%s", short_name(v->name)); for (int k = 0; k < v->nargs; k++) { printf(" "); print_value(v->args[k]); } printf(")"); }
       break;
-    case VELIM: printf("%s<partial>", v->name); break;
+    case VELIM: printf("%s<partial>", short_name(v->name)); break;
     default: printf("<fun>");
   }
 }

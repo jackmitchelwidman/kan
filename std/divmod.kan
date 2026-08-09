@@ -5,6 +5,9 @@
 -- as the hypothesis `Le a fuel` and discharged at the wrapper by `le_refl`.
 -- ============================================================================
 import "order.kan"
+import "logic.kan"
+import "nat.kan"
+import "either.kan"
 
 -- the specification, as a Σ carrying the quotient, remainder, and both proofs
 def DivMod : (a : Nat) -> (b : Nat) -> U

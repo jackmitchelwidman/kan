@@ -13,6 +13,7 @@ import "nat.kan"
 import "either.kan"
 import "void.kan"
 import "unit.kan"
+import "logic.kan"
 
 -- m ≤ n : there is a k with k + m = n
 def Le : Nat -> Nat -> U = lambda m n: (k : Nat) * Id Nat (add k m) n

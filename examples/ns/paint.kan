@@ -2,3 +2,7 @@
 data Color { red : Color, blue : Color, white : Color }
 def code : Color -> Nat = lambda c: match c { | red => 1 | blue => 2 | white => 3 }
 def mix  : Color -> Color -> Color = lambda a b: match a { | red => b | blue => b | white => a }
+
+-- a PRIVATE helper: usable inside this module, invisible to importers.
+private def isPrimary : Color -> Bool = lambda c: match c { | red => true | blue => true | white => false }
+def primary : Color -> Bool = lambda c: isPrimary c    -- public, and it may use the private helper
