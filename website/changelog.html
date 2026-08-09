@@ -77,12 +77,35 @@
     This page says what each bump changed, newest first.</p>
   </header>
 
+  <!-- ===================== 0.9.0 ===================== -->
+  <section id="v0.9.0" class="current">
+    <div class="vhead">
+      <h2>v0.9.0</h2>
+      <span class="date">2026-08-09 · 20:17 IDT</span>
+      <span class="tag">latest</span>
+    </div>
+    <p class="subtitle">Parametrized modules — signatures, structures, functors.</p>
+    <ul>
+      <li><b><code>record</code> declarations.</b> A <code>record</code> is a signature — a dependent
+        record type. <code>record Monoid { M : U, e : M, op : M -> M -> M, … laws … }</code>. A value
+        of it is a structure; a function between structures is a functor. Fields project with
+        <code>op m</code>, and the checker recovers each field's (possibly dependent) type.</li>
+      <li><b>Functors are just functions.</b> Because a structure is a value, a functor
+        <code>Monoid -> Monoid</code> is an ordinary function — shown with the <b>opposite monoid</b>
+        (flip the op; unit laws swap, associativity reverses via <code>sym</code>) and <b>monoid
+        homomorphisms</b> with an identity hom, all lawful and checked.</li>
+      <li>Pure desugaring to a Σ type plus a field registry — <b>no kernel change</b> — and it rides
+        the module system, so each signature lives in its own namespace. All three backends agree.
+        See <code>examples/functors.kan</code>. (Values still use positional tuples; record-literal
+        syntax is next.)</li>
+    </ul>
+  </section>
+
   <!-- ===================== 0.8.1 ===================== -->
-  <section id="v0.8.1" class="current">
+  <section id="v0.8.1">
     <div class="vhead">
       <h2>v0.8.1</h2>
       <span class="date">2026-08-09 · 19:47 IDT</span>
-      <span class="tag">latest</span>
     </div>
     <p class="subtitle"><code>open M</code>.</p>
     <ul>

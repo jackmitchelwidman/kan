@@ -95,7 +95,7 @@ let tokenize (s : string) : tok array =
 
 let reserved_head = [ "Id"; "transp"; "fst"; "snd"; "if"; "suc"; "natElim"; "strcat"; "streq";
                       "iadd"; "isub"; "imul"; "ieq"; "ilt"; "fromNat" ]
-let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda"; "private"; "open" ]
+let decl_kw = [ "def"; "check"; "eval"; "data"; "import"; "match"; "return"; "lambda"; "private"; "open"; "record" ]
 
 let index_of (x : string) (ns : string list) : int option =
   let rec go i = function [] -> None | y :: _ when y = x -> Some i | _ :: t -> go (i + 1) t in
@@ -134,10 +134,15 @@ let short_index : (string, string list) Hashtbl.t = Hashtbl.create 256
 (* names marked `private`: declared and usable inside their own module, but not
    visible to importers (Stage 3 export control). Keyed by full (tagged) name. *)
 let private_names : (string, unit) Hashtbl.t = Hashtbl.create 64
+(* record fields: full field name -> (position, field count). A `record` desugars
+   to a Σ type; `field r` elaborates to fst/snd projections, so the checker's
+   Fst/Snd rules recover the (dependent) field type. Fields resolve through the
+   module resolver like any other name. *)
+let field_info : (string, int * int) Hashtbl.t = Hashtbl.create 64
 let reset_tables () =
   Hashtbl.reset datatypes; Hashtbl.reset ctors; Hashtbl.reset elims;
   Hashtbl.reset data_info; Hashtbl.reset ctor_owner; Hashtbl.reset short_index;
-  Hashtbl.reset private_names
+  Hashtbl.reset private_names; Hashtbl.reset field_info
 (* record that full name `full` (= tag::short) is declared, for bare resolution *)
 let index_add full =
   match String.rindex_opt full ':' with
@@ -212,6 +217,14 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
     match index_of s ns with
     | Some i -> Some i
     | None -> (match resolve s with Some f -> index_of f ns | None -> None)
+  in
+  (* a record field, if `s` resolves to one: returns (position, field count) *)
+  let field_key s = match resolve s with Some f -> (match Hashtbl.find_opt field_info f with Some kn -> Some kn | None -> None) | None -> None in
+  (* project field k of an n-field record value `m` (right-nested Σ, last field
+     is the bare tail): fst (snd^k m), or snd^(n-1) m for the last field. *)
+  let proj_field k n m =
+    let rec sndc j t = if j <= 0 then t else sndc (j - 1) (Snd t) in
+    if k = n - 1 then sndc (n - 1) m else Fst (sndc k m)
   in
   let pos = ref 0 in
   let peek () = toks.(!pos) in
@@ -330,6 +343,11 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
       | ID x when find_key elims x <> None ->
           adv (); let e = Option.get (find_key elims x) in let _, k = Hashtbl.find elims e in
           List.fold_left (fun acc a -> App (acc, a)) (Elim e) (take_atoms k)
+      | ID x when field_key x <> None ->
+          (* a record field: `f r` projects; bare `f` is the accessor `\r. f r` *)
+          adv (); let (k, n) = Option.get (field_key x) in
+          if starts_atom (peek ()) then proj_field k n (atom ns)
+          else Lam ("r", proj_field k n (Var 0))
       | _ -> atom ns
     in
     let rec spine b = if starts_atom (peek ()) then spine (App (b, atom ns)) else b in
@@ -358,6 +376,7 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
     | ID x when (match find_key ctors x with Some k -> Hashtbl.find ctors k = 0 | None -> false) -> adv (); Con (Option.get (find_key ctors x))
     | ID x when find_key ctors x <> None -> fail (x ^ " needs arguments")
     | ID x when find_key elims x <> None -> fail (x ^ " needs arguments (parameters, a motive, methods, and a target)")
+    | ID x when field_key x <> None -> adv (); let (k, n) = Option.get (field_key x) in Lam ("r", proj_field k n (Var 0))
     | ID x -> adv (); (match var_key ns x with Some i -> Var i | None -> fail ("unbound name '" ^ x ^ "'"))
     | LP ->
         adv ();
@@ -567,6 +586,30 @@ let parse ?(ns0 = []) ?(self = "") ?(opened = ([] : (string * imp_filter) list))
     | ID "check" -> adv (); Check (term ns)
     | ID "eval" -> adv (); Eval (term ns)
     | ID "open" -> adv (); (match peek () with ID m -> adv (); Open m | _ -> fail "expected a module alias after `open`")
+    | ID "record" ->
+        (* `record Name { f0 : T0, …, fn : Tn }` desugars to the Σ type
+           (f0 : T0) * … * Tn (right-nested; last field is the bare tail), plus a
+           field registry so `fk r` projects. Each field type is parsed with the
+           earlier fields in scope, so it may depend on them. *)
+        adv (); let name = ident () in eat LBRACE "{";
+        let rec parse_fields ns_fields acc =
+          let fn = ident () in eat COLON ":";
+          let fty = term (ns_fields @ ns) in
+          let acc = (fn, fty) :: acc in
+          (match peek () with
+           | COMMA -> adv (); (match peek () with RBRACE -> List.rev acc | _ -> parse_fields (fn :: ns_fields) acc)
+           | RBRACE -> List.rev acc
+           | _ -> fail "record: expected ',' or '}' after a field")
+        in
+        let flds = (match peek () with RBRACE -> [] | _ -> parse_fields [] []) in
+        eat RBRACE "}";
+        let n = List.length flds in
+        if n = 0 then fail "record needs at least one field";
+        let rec build = function [ (_, t) ] -> t | (fn, t) :: rest -> Sig (fn, t, build rest) | [] -> fail "record needs at least one field" in
+        let sigty = build flds in
+        index_add (qual name);
+        List.iteri (fun k (fn, _) -> index_add (qual fn); Hashtbl.replace field_info (qual fn) (k, n)) flds;
+        Def (qual name, None, sigty)
     | ID "import" ->
         adv ();
         (match peek () with

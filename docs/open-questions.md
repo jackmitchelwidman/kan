@@ -117,7 +117,13 @@ feature, so this is a milestone, not a patch.
   Earlier v0.7.0 caveats are resolved: a file is loaded once (keyed by canonical
   path), so `import`/`as M` of the same file is one module, not two copies.
   `open M` (v0.8.1) brings an already-aliased module's names into unqualified scope.
-  **Still open** (a further axis, not required for namespacing): *first-class /
-  parameterized modules* (ML functors — modules as dependent-record values you can
-  pass and instantiate). One known limitation: `exposing`/`hiding` apply only to
-  UNqualified imports; on an `import "x" as M` they are accepted but ignored.
+  **Parametrized modules (v0.9.0):** a `record` declaration is a signature (a
+  dependent record type), a value of it a structure, a function between them a
+  functor. `record Monoid { M : U, e : M, op : … }` desugars to a Σ type plus a
+  field registry; `op m` elaborates to `fst (snd^k m)` so the checker's `Fst`/`Snd`
+  rules recover the dependent field type (no kernel change). Fields ride the module
+  resolver, so signatures live in their own namespaces. See `examples/functors.kan`.
+  Still open here: record-literal syntax `{ field = value }` (values still use
+  positional tuples); a field name may occur in only one record per module (fields
+  are ordinary names — put each signature in its own module to reuse field names);
+  and `exposing`/`hiding` apply only to UNqualified imports (ignored on `as M`).

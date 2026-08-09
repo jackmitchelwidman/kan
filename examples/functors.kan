@@ -1,0 +1,55 @@
+-- ============================================================================
+-- examples/functors.kan — parametrized modules: signatures, structures, functors.
+--
+-- A `record` is a signature (a dependent record type). A value of it is a
+-- structure. A function between them is a functor. Fields are projected with
+-- `field r` (e.g. `op m`), and the checker recovers each field's dependent type.
+-- ============================================================================
+import "../std/nat.kan"     -- add, add_n_zero, add_assoc
+import "../std/logic.kan"   -- sym (imports are explicit: no transitive leak)
+
+-- ---- a signature: monoids (carrier + unit + op, with the three laws) ---------
+record Monoid {
+  M      : U,
+  e      : M,
+  op     : M -> M -> M,
+  lunit  : (x : M) -> Id M (op e x) x,
+  runit  : (x : M) -> Id M (op x e) x,
+  assoc  : (x : M) -> (y : M) -> (z : M) -> Id M (op (op x y) z) (op x (op y z))
+}
+
+-- ---- a structure: (ℕ, +, 0), with real proofs for its laws --------------------
+def NatAdd : Monoid
+  = ( Nat , ( zero , ( add
+    , ( lambda x: refl        -- 0 + x = x   (holds definitionally)
+      , ( add_n_zero          -- x + 0 = x
+        , add_assoc ) ) ) ) )
+
+eval op NatAdd 20 22          -- 42   (project op, apply)
+eval e NatAdd                 -- 0
+
+-- ---- a functor Monoid → Monoid: the opposite monoid (flip the operation) ------
+-- the unit laws swap; associativity is the original, reversed with `sym`.
+def Opposite : Monoid -> Monoid = lambda m:
+  ( M m , ( e m , ( lambda x y: op m y x
+    , ( runit m
+      , ( lunit m
+        , lambda x y z:
+            sym (M m) (op m (op m z y) x) (op m z (op m y x)) (assoc m z y x) ) ) ) ) )
+
+eval op (Opposite NatAdd) 20 22    -- 42
+
+-- ---- monoid homomorphisms, and the identity homomorphism ----------------------
+record Hom {
+  dom    : Monoid,
+  cod    : Monoid,
+  map    : M dom -> M cod,
+  presE  : Id (M cod) (map (e dom)) (e cod),
+  presOp : (x : M dom) -> (y : M dom) -> Id (M cod) (map (op dom x y)) (op cod (map x) (map y))
+}
+
+def idHom : (a : Monoid) -> Hom
+  = lambda a: ( a , ( a , ( lambda x: x , ( refl , lambda x y: refl ) ) ) )
+
+-- it computes: the identity hom's map, applied through the projections
+eval map (idHom NatAdd) 7          -- 7
