@@ -10,15 +10,15 @@
 -- obligation). Arithmetic propagates precision — e.g. to get a sum within 1/2^n
 -- we ask each summand for 1/2^(n+1).
 --
--- TIER. This is the COMPUTATIONAL tier: the 1/2^n regularity condition is
--- maintained by construction, not carried as a proof field. It is the exact
--- analogue of std/rational.kan (fast, invariants maintained) versus
--- std/rational_reduced.kan (invariants PROVEN). A proof-carrying `CReal` — where
--- the regularity bound is a Σ proof field and division takes a real apartness
--- proof — is future work, gated on a chain of prerequisites: the Int ring axioms
--- (addI/mulI assoc & distrib), the field laws of `Reduced` (+ a setoid, since
--- Reduced ops aren't structurally congruent), an ordered-field theory on that
--- proved rational, and the ADR-016 reduction-cost fix. See DECISIONS.md ADR-017.
+-- THIS IS THE constructive-reals feature — complete and running. It computes
+-- √2, π, e (and any +, −, ×, and safe division) to any requested precision, and
+-- all three runtimes (`kan run`, OCaml, C) agree on the digits (examples/creal.kan).
+-- The 1/2^n regularity is maintained by construction (the analogue of
+-- std/rational.kan: fast, invariants maintained — vs the proof-carrying
+-- std/rational_reduced.kan). A separate, proof-CARRYING companion exists —
+-- std/creal_proof.kan defines `CRealP` (regularity as a Σ proof field) and proves
+-- every rational is one; it is a research track catching up to what this module
+-- already computes (see DECISIONS.md ADR-017/020).
 --
 -- Honest limits (inherent to constructive reals, not to this implementation):
 --   • equality is UNDECIDABLE — there is deliberately no `eqC`; the positive

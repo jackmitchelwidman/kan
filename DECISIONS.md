@@ -504,6 +504,12 @@ positivity hypothesis is dischargeable on literals — the exact constructor sha
 
 ## ADR-017 — constructive reals (`std/creal.kan`), computational tier
 
+**STATUS: this is the COMPLETE, shipped CReal feature** (decision, 2026-08-09). It
+computes √2/π/e and any +/−/×/safe-division to arbitrary precision, tri-runtime
+verified. "Complete" for CReal means this computational feature; the proof-carrying
+`CRealP` (ADR-020) is a separate research track (it exists — inhabited by every
+rational — and is catching up), not a prerequisite for CReal being done.
+
 **Decision.** Add constructive (computable) real numbers as `CReal = Nat -> Rational`
 with the convention that `x n` is within `1/2^n` of the value. A real is a *process*
 producing rational approximations; arithmetic propagates precision (a sum to `1/2^n`
